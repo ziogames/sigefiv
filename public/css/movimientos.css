@@ -1,0 +1,1322 @@
+/* ============================================================
+   SIGEFIV - MOVIMIENTOS
+   Diseño de la página de movimientos
+   ============================================================ */
+
+
+/* ============================================================
+   CONTENEDOR PRINCIPAL
+   ============================================================ */
+
+.mov-page {
+    padding: 4px;
+}
+
+
+/* ============================================================
+   ENCABEZADO
+   ============================================================ */
+
+.mov-header {
+    background: linear-gradient(
+        135deg,
+        #1f2937,
+        #18202d
+    );
+
+    border: 1px solid #30394a;
+
+    border-radius: 10px;
+
+    padding: 20px 22px;
+
+    margin-bottom: 18px;
+}
+
+
+.mov-header h3 {
+    color: #f8fafc;
+
+    font-weight: 600;
+
+    margin: 0;
+}
+
+
+.mov-header p {
+    color: #94a3b8;
+
+    margin: 4px 0 0;
+
+    font-size: 14px;
+}
+
+
+.mov-header-icon {
+    width: 42px;
+
+    height: 42px;
+
+    border-radius: 10px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: rgba(59, 130, 246, .15);
+
+    color: #60a5fa;
+
+    margin-right: 10px;
+
+    font-size: 20px;
+}
+
+
+/* ============================================================
+   BOTÓN NUEVO MOVIMIENTO
+   ============================================================ */
+
+.mov-btn-new {
+    background: #d97706;
+
+    border: none;
+
+    color: white;
+
+    font-weight: 600;
+
+    padding: 10px 17px;
+
+    border-radius: 7px;
+}
+
+
+.mov-btn-new:hover {
+    background: #b45309;
+
+    color: white;
+}
+
+
+/* ============================================================
+   FILTROS
+   ============================================================ */
+
+.mov-filter-card {
+    background: #202733;
+
+    border: 1px solid #30394a;
+
+    border-radius: 10px;
+
+    padding: 18px;
+
+    margin-bottom: 18px;
+}
+
+
+.mov-filter-title {
+    color: #f1f5f9;
+
+    font-size: 15px;
+
+    font-weight: 600;
+
+    margin-bottom: 14px;
+}
+
+
+.mov-filter-label {
+    display: block;
+
+    color: #cbd5e1;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    margin-bottom: 6px;
+}
+
+
+.mov-filter-card .form-control,
+.mov-filter-card .form-select {
+    background-color: #1c2330;
+
+    border: 1px solid #354052;
+
+    color: #e5e7eb;
+
+    min-height: 40px;
+}
+
+
+.mov-filter-card .form-control::placeholder {
+    color: #718096;
+}
+
+
+.mov-filter-card .form-control:focus,
+.mov-filter-card .form-select:focus {
+    background-color: #1c2330;
+
+    color: #fff;
+
+    border-color: #3b82f6;
+
+    box-shadow:
+        0 0 0 .15rem
+        rgba(59, 130, 246, .12);
+}
+
+
+.mov-btn-search {
+    background: #d97706;
+
+    border: none;
+
+    color: white;
+
+    font-weight: 600;
+
+    min-height: 40px;
+}
+
+
+.mov-btn-search:hover {
+    background: #b45309;
+
+    color: white;
+}
+
+
+.mov-btn-clear {
+    background: #374151;
+
+    border: 1px solid #4b5563;
+
+    color: #e5e7eb;
+
+    min-height: 40px;
+}
+
+
+.mov-btn-clear:hover {
+    background: #4b5563;
+
+    color: white;
+}
+
+
+/* ============================================================
+   TARJETAS DE ESTADÍSTICAS
+   ============================================================ */
+
+.mov-stat {
+    background: #202733;
+
+    border: 1px solid #30394a;
+
+    border-radius: 10px;
+
+    padding: 17px;
+
+    height: 100%;
+
+    position: relative;
+
+    overflow: hidden;
+}
+
+
+.mov-stat-icon {
+    width: 42px;
+
+    height: 42px;
+
+    border-radius: 9px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 19px;
+
+    margin-bottom: 12px;
+}
+
+
+.mov-stat-title {
+    color: #94a3b8;
+
+    font-size: 12px;
+
+    font-weight: 600;
+}
+
+
+.mov-stat-value {
+    color: #f8fafc;
+
+    font-size: 22px;
+
+    font-weight: 700;
+
+    margin-top: 3px;
+}
+
+
+.mov-stat-subtitle {
+    color: #64748b;
+
+    font-size: 11px;
+
+    margin-top: 3px;
+}
+
+
+.stat-blue .mov-stat-icon {
+    background: rgba(59, 130, 246, .14);
+
+    color: #60a5fa;
+}
+
+
+.stat-green .mov-stat-icon {
+    background: rgba(34, 197, 94, .14);
+
+    color: #4ade80;
+}
+
+
+.stat-red .mov-stat-icon {
+    background: rgba(239, 68, 68, .14);
+
+    color: #f87171;
+}
+
+
+.stat-orange .mov-stat-icon {
+    background: rgba(245, 158, 11, .14);
+
+    color: #fbbf24;
+}
+
+
+/* ============================================================
+   SECCIONES
+   ============================================================ */
+
+.mov-section {
+    background: #202733;
+
+    border: 1px solid #30394a;
+
+    border-radius: 10px;
+
+    margin-bottom: 18px;
+
+    overflow: hidden;
+}
+
+
+.mov-section-header {
+    padding: 13px 16px;
+
+    border-bottom: 1px solid #30394a;
+
+    color: #f1f5f9;
+
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   GRÁFICOS
+   ============================================================ */
+
+.mov-chart-area {
+    padding: 18px;
+}
+
+
+.mov-chart-card {
+    background: #1c2330;
+
+    border: 1px solid #30394a;
+
+    border-radius: 9px;
+
+    padding: 15px;
+
+    height: 100%;
+}
+
+
+.mov-chart-title {
+    color: #e5e7eb;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    margin-bottom: 12px;
+}
+
+
+.mov-chart-box {
+    height: 230px;
+
+    position: relative;
+}
+
+
+/* ============================================================
+   TABLA
+   ============================================================ */
+
+.mov-table-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 14px 17px;
+
+    border-bottom: 1px solid #30394a;
+}
+
+
+.mov-table-title {
+    color: #f1f5f9;
+
+    font-weight: 600;
+
+    margin: 0;
+}
+
+
+.mov-count {
+    background: #d97706;
+
+    color: white;
+
+    padding: 4px 9px;
+
+    border-radius: 5px;
+
+    font-size: 11px;
+
+    font-weight: 600;
+}
+
+
+.mov-table {
+    margin-bottom: 0;
+
+    color: #e5e7eb;
+
+    border-color: #30394a;
+}
+
+
+.mov-table thead th {
+    background: #1b222d;
+
+    color: #cbd5e1;
+
+    border-color: #30394a;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    white-space: nowrap;
+
+    padding: 11px 9px;
+}
+
+
+.mov-table tbody td {
+    background: #202733;
+
+    border-color: #30394a;
+
+    vertical-align: middle;
+
+    font-size: 12px;
+
+    padding: 9px;
+}
+
+
+.mov-table tbody tr:hover td {
+    background: #273142;
+}
+
+
+.mov-number {
+    color: #cbd5e1;
+
+    font-weight: 600;
+
+    white-space: nowrap;
+}
+
+
+.mov-date {
+    color: #94a3b8;
+
+    white-space: nowrap;
+}
+
+
+.mov-concept {
+    color: #f1f5f9;
+
+    max-width: 400px;
+}
+
+
+.mov-person {
+    color: #94a3b8;
+}
+
+
+/* ============================================================
+   MONTOS
+   ============================================================ */
+
+.mov-amount-income {
+    color: #22c55e;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+
+.mov-amount-expense {
+    color: #ef4444;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+
+/* ============================================================
+   ETIQUETAS
+   ============================================================ */
+
+.mov-badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    padding: 5px 8px;
+
+    border-radius: 5px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+
+.mov-badge-income {
+    background: rgba(34, 197, 94, .15);
+
+    color: #4ade80;
+}
+
+
+.mov-badge-expense {
+    background: rgba(239, 68, 68, .15);
+
+    color: #f87171;
+}
+
+
+.mov-badge-registered {
+    background: rgba(217, 119, 6, .15);
+
+    color: #fbbf24;
+}
+
+
+.mov-badge-cancelled {
+    background: rgba(100, 116, 139, .15);
+
+    color: #94a3b8;
+}
+
+
+/* ============================================================
+   BOTONES DE ACCIONES
+   ============================================================ */
+
+.mov-action {
+    width: 32px;
+
+    height: 32px;
+
+    padding: 0;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 6px;
+
+    border: 1px solid transparent;
+}
+
+
+.mov-action-edit {
+    background: rgba(245, 158, 11, .15);
+
+    color: #fbbf24;
+
+    border-color: rgba(245, 158, 11, .2);
+}
+
+
+.mov-action-edit:hover {
+    background: #d97706;
+
+    color: white;
+}
+
+
+.mov-action-delete {
+    background: rgba(239, 68, 68, .15);
+
+    color: #f87171;
+
+    border-color: rgba(239, 68, 68, .2);
+}
+
+
+.mov-action-delete:hover {
+    background: #dc2626;
+
+    color: white;
+}
+
+
+/* ============================================================
+   PIE DE TABLA
+   ============================================================ */
+
+.mov-footer {
+    padding: 13px 17px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    color: #64748b;
+
+    font-size: 12px;
+}
+
+
+/* ============================================================
+   PAGINACIÓN
+   ============================================================ */
+
+.mov-footer .pagination {
+    margin: 0;
+}
+
+
+.mov-footer .page-link {
+    background: #1c2330;
+
+    border-color: #30394a;
+
+    color: #cbd5e1;
+}
+
+
+.mov-footer .page-link:hover {
+    background: #374151;
+
+    color: white;
+}
+
+
+.mov-footer .page-item.active .page-link {
+    background: #d97706;
+
+    border-color: #d97706;
+
+    color: white;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+    .mov-header {
+        padding: 15px;
+    }
+
+
+    .mov-header .btn {
+        margin-top: 12px;
+
+        width: 100%;
+    }
+
+
+    .mov-concept {
+        max-width: 250px;
+    }
+
+
+    .mov-footer {
+        flex-direction: column;
+
+        gap: 10px;
+    }
+
+}
+/* =========================================================
+   SIGEFIV - MOVIMIENTOS
+   Diseño inspirado en la plantilla solicitada
+   ========================================================= */
+
+.mov-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 18px;
+    color: #ffffff;
+}
+
+.mov-title-area h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffffff;
+}
+
+.mov-title-area p {
+    margin: 4px 0 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   PERÍODO ACTIVO
+   ========================================================= */
+
+.mov-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.mov-period-active {
+    min-width: 245px;
+    min-height: 64px;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 10px 14px;
+
+    background: #151b25;
+    border: 1px solid #293241;
+    border-radius: 9px;
+
+    box-shadow: 0 4px 15px rgba(0, 0, 0, .18);
+}
+
+.mov-period-icon {
+    width: 38px;
+    height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 8px;
+
+    color: #d1d5db;
+    font-size: 18px;
+}
+
+.mov-period-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.mov-period-info span {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.mov-period-info strong {
+    margin-top: 2px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.mov-status-open,
+.mov-status-closed {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 4px 9px;
+
+    border-radius: 7px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mov-status-open {
+    color: #62d98b;
+    background: rgba(25, 135, 84, .18);
+}
+
+.mov-status-closed {
+    color: #ff6b6b;
+    background: rgba(220, 53, 69, .18);
+}
+
+
+/* =========================================================
+   BOTÓN NUEVO MOVIMIENTO
+   ========================================================= */
+
+.mov-new-button {
+    min-height: 46px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+
+    padding: 0 18px;
+
+    border-radius: 8px;
+
+    background: linear-gradient(
+        135deg,
+        #4264eb,
+        #3155d9
+    );
+
+    border: 1px solid #4a6cf0;
+
+    color: #ffffff !important;
+
+    text-decoration: none;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    transition:
+        transform .15s ease,
+        box-shadow .15s ease,
+        background .15s ease;
+}
+
+.mov-new-button:hover {
+    color: #ffffff !important;
+
+    background: linear-gradient(
+        135deg,
+        #4d6ff3,
+        #385de4
+    );
+
+    box-shadow: 0 5px 18px rgba(49, 85, 217, .35);
+
+    transform: translateY(-1px);
+}
+
+.mov-new-button > i:first-child {
+    font-size: 16px;
+}
+
+.mov-new-arrow {
+    margin-left: 5px;
+    font-size: 11px;
+    opacity: .9;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+    .mov-topbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .mov-top-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .mov-period-active {
+        flex: 1;
+        min-width: 220px;
+    }
+
+}
+
+
+@media (max-width: 576px) {
+
+    .mov-title-area h1 {
+        font-size: 24px;
+    }
+
+    .mov-top-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mov-period-active {
+        width: 100%;
+    }
+
+    .mov-new-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+}
+/* =========================================================
+   FILTROS
+   ========================================================= */
+
+.mov-filters {
+    background: #151b25;
+    border: 1px solid #293241;
+    border-radius: 9px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+}
+
+.mov-filter-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    color: #f1f5f9;
+    font-size: 14px;
+    font-weight: 600;
+
+    margin-bottom: 14px;
+}
+
+.mov-filter-title i {
+    color: #94a3b8;
+    font-size: 15px;
+}
+
+.mov-filter-form {
+    display: grid;
+
+    grid-template-columns:
+        2fr
+        1fr
+        1fr
+        1.3fr
+        1fr
+        1fr;
+
+    gap: 10px 12px;
+
+    align-items: end;
+}
+
+.mov-filter-form label {
+    display: block;
+
+    margin-bottom: 6px;
+
+    color: #cbd5e1;
+
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.mov-filter-search,
+.mov-filter-field {
+    min-width: 0;
+}
+
+.mov-search-box,
+.mov-date-box {
+    position: relative;
+}
+
+.mov-search-box input,
+.mov-date-box input,
+.mov-filter-field select {
+    width: 100%;
+    height: 40px;
+
+    padding: 0 12px;
+
+    background: #101620;
+
+    border: 1px solid #344052;
+    border-radius: 6px;
+
+    color: #f8fafc;
+
+    font-size: 13px;
+
+    outline: none;
+
+    transition:
+        border-color .15s ease,
+        box-shadow .15s ease;
+}
+
+.mov-search-box input {
+    padding-right: 38px;
+}
+
+.mov-date-box input {
+    padding-right: 38px;
+}
+
+.mov-search-box i,
+.mov-date-box i {
+    position: absolute;
+
+    right: 12px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: #64748b;
+
+    pointer-events: none;
+}
+
+.mov-search-box input:focus,
+.mov-date-box input:focus,
+.mov-filter-field select:focus {
+    border-color: #4264eb;
+
+    box-shadow:
+        0 0 0 2px rgba(66, 100, 235, .15);
+}
+
+.mov-filter-field select {
+    cursor: pointer;
+}
+
+.mov-filter-buttons {
+    display: flex;
+    gap: 10px;
+
+    height: 40px;
+}
+
+.mov-btn-search,
+.mov-btn-clear {
+    height: 40px;
+
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    padding: 0 18px;
+
+    border-radius: 6px;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    text-decoration: none;
+
+    cursor: pointer;
+}
+
+.mov-btn-search {
+    flex: 1;
+
+    border: 1px solid #4264eb;
+
+    background: #3559dc;
+
+    color: #ffffff;
+}
+
+.mov-btn-search:hover {
+    background: #4264eb;
+    color: #ffffff;
+}
+
+.mov-btn-clear {
+    min-width: 110px;
+
+    border: 1px solid #374151;
+
+    background: #202938;
+
+    color: #cbd5e1;
+}
+
+.mov-btn-clear:hover {
+    background: #293445;
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1200px) {
+
+    .mov-filter-form {
+        grid-template-columns:
+            2fr
+            1fr
+            1fr;
+
+    }
+
+    .mov-filter-search {
+        grid-column: span 3;
+    }
+
+    .mov-filter-buttons {
+        grid-column: span 3;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .mov-filter-form {
+        grid-template-columns: 1fr;
+    }
+
+    .mov-filter-search,
+    .mov-filter-buttons {
+        grid-column: span 1;
+    }
+
+    .mov-filter-buttons {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .mov-btn-search,
+    .mov-btn-clear {
+        width: 100%;
+    }
+
+}
+/* =========================================================
+   RESUMEN DE MOVIMIENTOS
+   ========================================================= */
+
+.mov-summary {
+    display: grid;
+
+    grid-template-columns:
+        repeat(5, 1fr);
+
+    gap: 12px;
+
+    margin-bottom: 18px;
+}
+
+.mov-summary-card {
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    min-height: 92px;
+
+    padding: 15px;
+
+    background: #151b25;
+
+    border: 1px solid #293241;
+
+    border-radius: 9px;
+
+    transition:
+        transform .15s ease,
+        border-color .15s ease;
+}
+
+.mov-summary-card:hover {
+    transform: translateY(-2px);
+}
+
+.mov-summary-icon {
+    width: 42px;
+    height: 42px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 8px;
+
+    font-size: 18px;
+}
+
+.mov-summary-content {
+    min-width: 0;
+}
+
+.mov-summary-content span {
+    display: block;
+
+    margin-bottom: 3px;
+
+    color: #94a3b8;
+
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.mov-summary-content strong {
+    display: block;
+
+    color: #f8fafc;
+
+    font-size: 20px;
+
+    line-height: 1.2;
+}
+
+.mov-summary-content small {
+    display: block;
+
+    margin-top: 3px;
+
+    color: #64748b;
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   COLORES
+   ========================================================= */
+
+.mov-summary-card.saldo {
+    border-left: 3px solid #3b82f6;
+}
+
+.mov-summary-card.saldo .mov-summary-icon {
+    background: rgba(59, 130, 246, .12);
+    color: #60a5fa;
+}
+
+
+.mov-summary-card.ingreso {
+    border-left: 3px solid #22c55e;
+}
+
+.mov-summary-card.ingreso .mov-summary-icon {
+    background: rgba(34, 197, 94, .12);
+    color: #4ade80;
+}
+
+
+.mov-summary-card.disponible {
+    border-left: 3px solid #f59e0b;
+}
+
+.mov-summary-card.disponible .mov-summary-icon {
+    background: rgba(245, 158, 11, .12);
+    color: #fbbf24;
+}
+
+
+.mov-summary-card.egreso {
+    border-left: 3px solid #ef4444;
+}
+
+.mov-summary-card.egreso .mov-summary-icon {
+    background: rgba(239, 68, 68, .12);
+    color: #f87171;
+}
+
+
+.mov-summary-card.caja {
+    border-left: 3px solid #06b6d4;
+}
+
+.mov-summary-card.caja .mov-summary-icon {
+    background: rgba(6, 182, 212, .12);
+    color: #22d3ee;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1200px) {
+
+    .mov-summary {
+        grid-template-columns:
+            repeat(3, 1fr);
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .mov-summary {
+        grid-template-columns:
+            1fr;
+    }
+
+}

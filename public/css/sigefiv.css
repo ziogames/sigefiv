@@ -1,0 +1,1810 @@
+/*=========================================================
+=           SIGEFIV SIDEBAR PREMIUM v1.0                  =
+=========================================================*/
+
+:root{
+
+    --sidebar-width:270px;
+
+    --sidebar-bg:#1b2333;
+
+    --sidebar-bg-2:#232d42;
+
+    --sidebar-primary:#4f7cff;
+
+    --sidebar-primary-2:#6ea8ff;
+
+    --sidebar-text:#d7deed;
+
+    --sidebar-muted:#95a4c3;
+
+    --sidebar-hover:rgba(255,255,255,.07);
+
+    --sidebar-active:#4f7cff;
+
+    --sidebar-shadow:0 18px 45px rgba(0,0,0,.35);
+
+    --sidebar-radius:16px;
+
+}
+
+/*=========================================================*/
+
+.sidebar{
+
+    background:
+        linear-gradient(
+            180deg,
+            #1c2331 0%,
+            #222c40 45%,
+            #29344a 100%
+        );
+
+    border-right:1px solid rgba(255,255,255,.04);
+
+    box-shadow:
+
+        12px 0 35px rgba(0,0,0,.35),
+
+        inset -1px 0 rgba(255,255,255,.04);
+
+    transition:all .35s ease;
+
+    /* overflow:hidden;
+
+    position:relative; */
+
+}
+
+/*=========================================================*/
+
+.sidebar::before{
+
+    content:"";
+
+    position:absolute;
+
+    top:-180px;
+
+    right:-180px;
+
+    width:320px;
+
+    height:320px;
+
+    border-radius:50%;
+
+    background:radial-gradient(
+
+        rgba(79,124,255,.18),
+
+        transparent 70%
+
+    );
+
+    pointer-events:none;
+
+}
+
+/*=========================================================*/
+
+.sidebar-header{
+
+    position:relative;
+
+    padding:28px 18px;
+
+    border-bottom:1px solid rgba(255,255,255,.06);
+
+    background:
+
+        linear-gradient(
+
+            180deg,
+
+            rgba(255,255,255,.04),
+
+            rgba(255,255,255,.01)
+
+        );
+
+}
+/*=========================================================*/
+
+.sidebar-brand{
+
+    position:relative;
+
+    text-align:center;
+
+}
+
+/*=========================================================*/
+
+.sidebar-brand img{
+
+    width:82px;
+
+    height:82px;
+
+    object-fit:cover;
+
+    border-radius:24px;
+
+    background:white;
+
+    padding:4px;
+
+    border:none;
+
+    box-shadow:
+
+        0 15px 35px rgba(0,0,0,.35);
+
+    transition:.35s;
+
+}
+
+/*=========================================================*/
+
+.sidebar-brand:hover img{
+
+    transform:
+
+        translateY(-3px)
+
+        scale(1.06)
+
+        rotate(-3deg);
+
+}
+
+/*=========================================================*/
+
+.sidebar-brand span{
+
+    display:block;
+
+    margin-top:14px;
+
+    color:#fff;
+
+    font-size:1.05rem;
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+
+}
+
+/*=========================================================*/
+
+.sidebar-brand small{
+
+    display:block;
+
+    margin-top:4px;
+
+    color:var(--sidebar-muted);
+
+    font-size:.78rem;
+
+    letter-spacing:.4px;
+
+}
+
+/*=========================================================*/
+
+.sidebar-header::after{
+
+    content:"";
+
+    display:block;
+
+    width:80px;
+
+    height:4px;
+
+    margin:18px auto 0;
+
+    border-radius:30px;
+
+    background:linear-gradient(
+
+        90deg,
+
+        transparent,
+
+        var(--sidebar-primary),
+
+        transparent
+
+    );
+
+}
+/*=========================================================
+=                 MENÚ PREMIUM                            =
+=========================================================*/
+
+.sidebar-nav{
+
+    padding:18px 10px 24px;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-title{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    margin:24px 12px 12px;
+
+    padding:0;
+
+    font-size:.70rem;
+
+    font-weight:700;
+
+    text-transform:uppercase;
+
+    letter-spacing:2px;
+
+    color:rgba(255,255,255,.45);
+
+}
+
+.sidebar .nav-title::after{
+
+    content:"";
+
+    flex:1;
+
+    height:1px;
+
+    background:rgba(255,255,255,.08);
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-item{
+
+    margin-bottom:4px;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link{
+
+    position:relative;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+    min-height:52px;
+
+    margin:4px 8px;
+
+    padding:14px 18px;
+
+    border-radius:14px;
+
+    color:var(--sidebar-text);
+
+    font-weight:500;
+
+    font-size:.93rem;
+
+    overflow:hidden;
+
+    transition:
+
+        background .25s,
+
+        color .25s,
+
+        transform .25s,
+
+        box-shadow .25s;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link .nav-icon{
+
+    width:22px;
+
+    min-width:22px;
+
+    font-size:1.1rem;
+
+    text-align:center;
+
+    transition:
+
+        transform .25s,
+
+        color .25s;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link span{
+
+    flex:1;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-divider{
+
+    margin:20px 14px;
+
+    border-color:rgba(255,255,255,.08);
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link::before{
+
+    content:"";
+
+    position:absolute;
+
+    left:0;
+
+    top:10%;
+
+    width:4px;
+
+    height:80%;
+
+    border-radius:0 8px 8px 0;
+
+    background:linear-gradient(
+
+        180deg,
+
+        var(--sidebar-primary),
+
+        var(--sidebar-primary-2)
+
+    );
+
+    transform:scaleY(0);
+
+    transition:.25s;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link::after{
+
+    content:"";
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+
+        linear-gradient(
+
+            90deg,
+
+            rgba(79,124,255,.15),
+
+            transparent
+
+        );
+
+    opacity:0;
+
+    transition:.25s;
+
+    pointer-events:none;
+
+}
+/*=========================================================
+=          HOVER + ACTIVE + MICROANIMACIONES             =
+=========================================================*/
+
+.sidebar .nav-link:hover{
+
+    color:#ffffff;
+
+    background:rgba(255,255,255,.08);
+
+    transform:translateX(8px);
+
+    box-shadow:
+
+        0 10px 25px rgba(0,0,0,.18);
+
+}
+
+.sidebar .nav-link:hover::before{
+
+    transform:scaleY(1);
+
+}
+
+.sidebar .nav-link:hover::after{
+
+    opacity:1;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link:hover .nav-icon{
+
+    transform:
+
+        translateX(4px)
+
+        scale(1.18)
+
+        rotate(-8deg);
+
+    color:#8bb4ff;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link.active{
+
+    color:#ffffff !important;
+
+    background:linear-gradient(
+
+        90deg,
+
+        #3d63ff,
+
+        #5a88ff
+
+    );
+
+    box-shadow:
+
+        0 10px 28px rgba(61,99,255,.35);
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link.active::before{
+
+    transform:scaleY(1);
+
+}
+
+.sidebar .nav-link.active::after{
+
+    opacity:1;
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link.active .nav-icon{
+
+    color:#ffffff;
+
+    transform:scale(1.15);
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link:active{
+
+    transform:scale(.98);
+
+}
+
+/*=========================================================*/
+
+.sidebar .nav-link{
+
+    isolation:isolate;
+
+}
+
+.sidebar .nav-link::after{
+
+    z-index:-1;
+
+}
+
+/*=========================================================
+=               EFECTO DE BRILLO                          =
+=========================================================*/
+
+.sidebar .nav-link .shine{
+
+    display:none;
+
+}
+
+.sidebar .nav-link:hover{
+
+    overflow:hidden;
+
+}
+
+.sidebar .nav-link:hover::after{
+
+    animation:sigefivShine .7s ease;
+
+}
+
+@keyframes sigefivShine{
+
+    from{
+
+        transform:translateX(-100%);
+
+        opacity:0;
+
+    }
+
+    40%{
+
+        opacity:1;
+
+    }
+
+    to{
+
+        transform:translateX(100%);
+
+        opacity:0;
+
+    }
+
+}
+
+/*=========================================================
+=               TRANSICIÓN GENERAL                        =
+=========================================================*/
+
+.sidebar *{
+
+    transition:
+
+        color .25s,
+
+        background .25s,
+
+        transform .25s,
+
+        opacity .25s,
+
+        box-shadow .25s;
+
+}
+
+/*=========================================================
+=              EFECTO EN LOGO                             =
+=========================================================*/
+
+.sidebar-brand{
+
+    cursor:pointer;
+
+}
+
+.sidebar-brand:hover{
+
+    transform:translateY(-2px);
+
+}
+
+.sidebar-brand:hover span{
+
+    color:#ffffff;
+
+}
+
+.sidebar-brand:hover small{
+
+    color:#bfd5ff;
+
+}
+/*=========================================================
+=                 FOOTER PREMIUM                          =
+=========================================================*/
+
+.sidebar-footer{
+
+    padding:14px;
+
+    background:rgba(255,255,255,.02);
+
+    border-top:1px solid rgba(255,255,255,.08);
+
+    backdrop-filter:blur(12px);
+
+}
+
+.sidebar-footer .sidebar-toggler{
+
+    width:42px;
+
+    height:42px;
+
+    border-radius:12px;
+
+    border:none;
+
+    background:rgba(255,255,255,.05);
+
+    color:#fff;
+
+    transition:.30s;
+
+}
+
+.sidebar-footer .sidebar-toggler:hover{
+
+    background:linear-gradient(
+
+        135deg,
+
+        #3d63ff,
+
+        #6ea8ff
+
+    );
+
+    transform:rotate(180deg) scale(1.08);
+
+    box-shadow:
+
+        0 8px 20px rgba(61,99,255,.35);
+
+}
+
+/*=========================================================
+=                 SCROLLBAR                               =
+=========================================================*/
+
+.sidebar-nav::-webkit-scrollbar{
+
+    width:7px;
+
+}
+
+.sidebar-nav::-webkit-scrollbar-track{
+
+    background:transparent;
+
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb{
+
+    background:rgba(255,255,255,.12);
+
+    border-radius:20px;
+
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover{
+
+    background:#4f7cff;
+
+}
+
+/* Firefox */
+
+.sidebar-nav{
+
+    scrollbar-width:thin;
+
+    scrollbar-color:#4f7cff transparent;
+
+}
+
+/*=========================================================
+=              EFECTO GLASS                               =
+=========================================================*/
+
+.sidebar{
+
+    backdrop-filter:blur(18px);
+
+    -webkit-backdrop-filter:blur(18px);
+
+}
+
+.sidebar::after{
+
+    content:"";
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+
+        linear-gradient(
+
+            180deg,
+
+            rgba(255,255,255,.03),
+
+            transparent 30%
+
+        );
+
+    pointer-events:none;
+
+}
+
+/*=========================================================
+=                LOGO ILUMINADO                           =
+=========================================================*/
+
+.sidebar-brand img{
+
+    position:relative;
+
+}
+
+.sidebar-brand img:hover{
+
+    box-shadow:
+
+        0 0 0 6px rgba(79,124,255,.15),
+
+        0 20px 40px rgba(0,0,0,.35);
+
+}
+
+/*=========================================================
+=              RESPONSIVE                                 =
+=========================================================*/
+
+@media (max-width:991px){
+
+    .sidebar{
+
+        box-shadow:
+
+            18px 0 40px rgba(0,0,0,.45);
+
+    }
+
+    .sidebar .nav-link{
+
+        margin:6px;
+
+    }
+
+    .sidebar-brand img{
+
+        width:68px;
+
+        height:68px;
+
+    }
+
+}
+/*=========================================================
+=               SIGEFIV PREMIUM FINAL                     =
+=========================================================*/
+
+/* Animación al cargar */
+
+
+
+/*=========================================================*/
+/* Indicador luminoso del menú activo */
+/*=========================================================*/
+
+.sidebar .nav-link.active{
+
+    overflow:hidden;
+
+}
+
+.sidebar .nav-link.active::after{
+
+    content:"";
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+
+        linear-gradient(
+
+            110deg,
+
+            transparent 0%,
+
+            rgba(255,255,255,.20) 50%,
+
+            transparent 100%
+
+        );
+
+    animation:activeGlow 3s linear infinite;
+
+    pointer-events:none;
+
+}
+
+@keyframes activeGlow{
+
+    from{
+
+        transform:translateX(-140%);
+
+    }
+
+    to{
+
+        transform:translateX(140%);
+
+    }
+
+}
+
+/*=========================================================*/
+/* Hover del logo */
+/*=========================================================*/
+
+.sidebar-brand{
+
+    transition:.35s;
+
+}
+
+.sidebar-brand:hover{
+
+    transform:translateY(-3px);
+
+}
+
+.sidebar-brand:hover img{
+
+    filter:brightness(1.08);
+
+}
+
+/*=========================================================*/
+/* Texto del menú */
+/*=========================================================*/
+
+.sidebar .nav-link{
+
+    font-family:inherit;
+
+    letter-spacing:.25px;
+
+}
+
+.sidebar .nav-link span{
+
+    transition:.25s;
+
+}
+
+.sidebar .nav-link:hover span{
+
+    letter-spacing:.45px;
+
+}
+
+/*=========================================================*/
+/* Iconos */
+/*=========================================================*/
+
+.sidebar .nav-icon{
+
+    transition:
+
+        transform .25s,
+
+        color .25s,
+
+        filter .25s;
+
+}
+
+.sidebar .nav-link:hover .nav-icon{
+
+    filter:drop-shadow(
+
+        0 0 10px rgba(79,124,255,.55)
+
+    );
+
+}
+
+/*=========================================================*/
+/* Títulos */
+/*=========================================================*/
+
+.sidebar .nav-title{
+
+    user-select:none;
+
+}
+
+/*=========================================================*/
+/* Botón cerrar sesión */
+/*=========================================================*/
+
+.sidebar form .nav-link{
+
+    color:#ffb4b4;
+
+}
+
+.sidebar form .nav-link:hover{
+
+    background:
+
+        rgba(229,83,83,.12);
+
+}
+
+.sidebar form .nav-link:hover .nav-icon{
+
+    color:#ff6d6d;
+
+}
+
+/*=========================================================*/
+/* Foldable */
+/*=========================================================*/
+
+.sidebar.sidebar-narrow .nav-link{
+
+    justify-content:center;
+
+}
+
+.sidebar.sidebar-narrow .nav-icon{
+
+    margin:0;
+
+}
+
+.sidebar.sidebar-narrow .nav-link:hover{
+
+    transform:scale(1.06);
+
+}
+
+/*=========================================================*/
+/* Sombras */
+/*=========================================================*/
+
+.sidebar{
+
+    box-shadow:
+
+        12px 0 45px rgba(0,0,0,.28),
+
+        inset -1px 0 0 rgba(255,255,255,.05);
+
+}
+
+/*=========================================================*/
+/* Transiciones */
+/*=========================================================*/
+
+.sidebar,
+
+.sidebar *{
+
+    transition:
+
+        background .25s,
+
+        color .25s,
+
+        transform .25s,
+
+        opacity .25s,
+
+        box-shadow .25s;
+
+}
+/*=========================================
+=      NOTIFICACIONES PREMIUM            =
+=========================================*/
+
+.notification-btn{
+     margin-right:10px;
+    width:42px;
+
+    height:42px;
+
+    border-radius:12px !important;
+
+    transition:.25s;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+}
+
+.notification-btn:hover{
+
+    background:#eef4ff !important;
+
+    color:#4f7cff !important;
+
+    transform:translateY(-2px);
+
+    box-shadow:0 8px 18px rgba(79,124,255,.18);
+
+}
+
+.notification-btn .badge{
+
+     top:8px !important;
+
+    right:2px;
+
+    font-size:.62rem;
+
+    min-width:18px;
+
+    height:18px;
+
+    line-height:18px;
+
+    padding:0;
+
+    animation:pulseNotification 2s infinite;
+
+}
+
+@keyframes pulseNotification{
+
+    0%{
+
+        transform:translate(-50%,-50%) scale(1);
+
+    }
+
+    50%{
+
+        transform:translate(-50%,-50%) scale(1.15);
+
+    }
+
+    100%{
+
+        transform:translate(-50%,-50%) scale(1);
+
+    }
+
+}
+
+.notifications-menu{
+
+    border:none !important;
+
+    border-radius:18px;
+
+    overflow:hidden;
+
+    box-shadow:
+
+        0 20px 45px rgba(0,0,0,.18);
+
+}
+
+.notifications-menu .dropdown-header{
+
+    padding:16px 20px;
+
+    background:linear-gradient(
+
+        135deg,
+
+        #4f7cff,
+
+        #7ca6ff
+
+    );
+
+    color:white;
+
+    font-size:1rem;
+
+}
+
+.notifications-menu .dropdown-item{
+
+    padding:14px 20px;
+
+    transition:.20s;
+
+}
+
+.notifications-menu .dropdown-item:hover{
+
+    background:#4f5c79;
+
+    padding-left:28px;
+
+}/*=========================================*
+*=      CENTRO DE NOTIFICACIONES PREMIUM   =*
+*=========================================*/
+
+.notifications-menu{
+
+    width:390px !important;
+
+    padding:0;
+
+    overflow:hidden;
+
+    border:none;
+
+    border-radius:18px;
+
+    background:#273247;
+
+    box-shadow:
+        0 18px 40px rgba(0,0,0,.45);
+
+}
+
+.notifications-menu .dropdown-header{
+
+    padding:18px 22px;
+
+    background:linear-gradient(
+        180deg,
+        #313d55 0%,
+        #273247 100%
+    );
+
+    color:#fff;
+
+    font-size:1rem;
+
+    font-weight:700;
+
+    border-bottom:1px solid rgba(255,255,255,.08);
+
+}
+
+.notifications-menu .dropdown-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+    padding:8px 10px;
+
+    background:transparent;
+
+    color:#dbe6f5;
+
+    border-bottom:1px solid rgba(255,255,255,.05);
+
+    transition:all .25s ease;
+    border:none;
+
+}
+
+.notifications-menu .dropdown-item:last-child{
+
+    border-bottom:none;
+
+}
+
+.notifications-menu .dropdown-item:hover{
+
+    background:rgba(79,124,255,.12);
+
+    padding-left:24px;
+
+}
+
+.notifications-menu .badge{
+
+    width:44px;
+
+    height:44px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    flex-shrink:0;
+
+    font-size:17px;
+
+    box-shadow:
+        0 8px 18px rgba(0,0,0,.30);
+
+}
+
+.notifications-menu .fw-semibold{
+
+    color:#ffffff;
+
+    font-size:.94rem;
+
+    margin-bottom:3px;
+
+}
+
+.notifications-menu .small{
+
+    color:#b9c6d8;
+
+    line-height:1.45;
+
+}
+
+.notifications-menu .text-muted{
+
+    color:#7f8da3 !important;
+
+    font-size:.74rem;
+
+}
+
+.notifications-menu .dropdown-divider{
+
+    margin:0;
+
+    border-color:rgba(255,255,255,.06);
+
+}
+
+/*=========================================*
+*=        TARJETAS DE NOTIFICACIÓN         =*
+*=========================================*/
+
+/*=========================================*
+*=       TARJETAS PREMIUM                  =*
+*=========================================*/
+
+.notification-card{
+
+    display:flex;
+
+    margin:0;
+
+    padding:14px;
+
+    width:100%;
+
+    border-radius:14px;
+
+    box-sizing:border-box;
+
+
+    background:linear-gradient(
+        180deg,
+        rgba(255,255,255,.03),
+        rgba(255,255,255,.015)
+    );
+
+    border:1px solid rgba(255,255,255,.05);
+
+    transition:all .25s ease;
+
+}
+
+.notification-card:hover{
+
+    transform:translateY(-2px);
+
+    background:linear-gradient(
+        180deg,
+        rgba(79,124,255,.12),
+        rgba(79,124,255,.05)
+    );
+
+    border-color:rgba(79,124,255,.30);
+
+    box-shadow:0 10px 24px rgba(0,0,0,.22);
+
+}
+
+.notification-icon{
+
+    width:48px;
+
+    height:48px;
+
+    border-radius:16px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    color:#fff;
+
+    flex-shrink:0;
+
+    font-size:18px;
+
+    box-shadow:
+
+        inset 0 1px rgba(255,255,255,.15),
+
+        0 10px 20px rgba(0,0,0,.30);
+
+}
+
+.notification-info{
+
+    flex:1;
+
+}
+
+.notification-title{
+
+    font-size:.95rem;
+
+    font-weight:700;
+
+    color:#fff;
+
+    margin-bottom:4px;
+
+}
+
+.notification-message{
+
+    color:#bfc9d8;
+
+    font-size:.80rem;
+
+    line-height:1.45;
+
+}
+
+.notification-time{
+
+    margin-top:10px;
+
+    font-size:.72rem;
+
+    color:#7f8da3;
+
+    letter-spacing:.4px;
+
+}
+/*=========================================*
+*=        ESTADO DEL PERÍODO              =*
+*=========================================*/
+
+.periodo-card{
+
+    margin-bottom:24px;
+
+    border-radius:20px;
+
+    overflow:hidden;
+
+    background:linear-gradient(
+        180deg,
+        #273247 0%,
+        #222c40 100%
+    );
+
+    border:1px solid rgba(255,255,255,.05);
+
+    box-shadow:
+        0 15px 35px rgba(0,0,0,.25);
+
+}
+
+.periodo-card-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:24px 28px;
+
+}
+
+.periodo-title{
+
+    color:#ffffff;
+
+    font-size:1.2rem;
+
+    font-weight:700;
+
+}
+
+.periodo-subtitle{
+
+    margin-top:6px;
+
+    color:#aeb9cb;
+
+    font-size:.90rem;
+
+}
+
+.periodo-divider{
+
+    height:1px;
+
+    background:rgba(255,255,255,.06);
+
+}
+
+.periodo-message{
+
+    padding:22px 28px;
+
+    color:#d8deea;
+
+    font-size:.95rem;
+
+    line-height:1.7;
+
+}
+.periodo-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,1fr);
+
+    gap:18px;
+
+    padding:0 28px 28px;
+
+}
+
+.periodo-item{
+
+    background:rgba(255,255,255,.03);
+
+    border:1px solid rgba(255,255,255,.05);
+
+    border-radius:16px;
+
+    padding:18px;
+
+    transition:.25s;
+
+}
+
+.periodo-item:hover{
+
+    transform:translateY(-3px);
+
+    border-color:rgba(79,124,255,.35);
+
+    background:rgba(79,124,255,.08);
+
+}
+
+.periodo-label{
+
+    display:block;
+
+    color:#8fa0b9;
+
+    font-size:.76rem;
+
+    text-transform:uppercase;
+
+    letter-spacing:.8px;
+
+    margin-bottom:10px;
+
+}
+
+.periodo-value{
+
+    font-size:1.15rem;
+
+    font-weight:700;
+
+    color:#ffffff;
+
+}
+
+.periodo-success{
+
+    color:#38d27a;
+
+}
+
+.periodo-danger{
+
+    color:#ff7070;
+
+}
+
+.periodo-total{
+
+    background:linear-gradient(
+        180deg,
+        rgba(79,124,255,.16),
+        rgba(79,124,255,.08)
+    );
+
+    border-color:rgba(79,124,255,.30);
+
+}
+.periodo-actions{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:14px;
+
+    padding:24px 28px;
+
+    border-top:1px solid rgba(255,255,255,.06);
+
+}
+
+.btn-sigefiv{
+
+    border:none;
+
+    border-radius:12px;
+
+    padding:12px 22px;
+
+    font-weight:600;
+
+    transition:.25s;
+
+}
+
+.btn-sigefiv-secondary{
+
+    background:rgba(255,255,255,.06);
+
+    color:#dbe6f5;
+
+}
+
+.btn-sigefiv-secondary:hover{
+
+    background:rgba(255,255,255,.12);
+
+}
+
+.btn-sigefiv-primary{
+
+    background:linear-gradient(
+        180deg,
+        #4f7cff,
+        #3557ff
+    );
+
+    color:white;
+
+}
+
+.btn-sigefiv-primary:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 8px 18px rgba(53,87,255,.35);
+
+}
+/*=========================================*
+*=        ESTADO DEL PERÍODO              =*
+*=========================================*/
+
+.periodo-status{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    background:rgba(249,177,21,.12);
+
+    color:#f9b115;
+
+    padding:10px 16px;
+
+    border-radius:30px;
+
+    font-size:.82rem;
+
+    font-weight:600;
+
+    border:1px solid rgba(249,177,21,.30);
+
+}
+
+/* =========================================
+   ESTADO ABIERTO
+========================================= */
+
+.periodo-status.abierto{
+
+    background:rgba(56,210,122,.12);
+
+    color:#38d27a;
+
+    border-color:rgba(56,210,122,.30);
+
+}
+
+
+/* =========================================
+   ESTADO CERRADO
+========================================= */
+
+.periodo-status.cerrado{
+
+    background:rgba(255,112,112,.12);
+
+    color:#ff7070;
+
+    border-color:rgba(255,112,112,.30);
+
+}
+
+
+/* Punto de estado cerrado */
+
+.status-dot.cerrado{
+
+    background:#ff7070;
+
+    animation:none;
+
+}
+
+
+.status-dot{
+
+    width:10px;
+
+    height:10px;
+
+    border-radius:50%;
+
+    background:#f9b115;
+
+    animation:periodoPulse 2s infinite;
+
+}
+
+@keyframes periodoPulse{
+
+    0%{
+
+        box-shadow:0 0 0 0 rgba(249,177,21,.60);
+
+    }
+
+    70%{
+
+        box-shadow:0 0 0 10px rgba(249,177,21,0);
+
+    }
+
+    100%{
+
+        box-shadow:0 0 0 0 rgba(249,177,21,0);
+
+    }
+
+}
+/*=========================================*
+*=      VERIFICACIONES DEL CIERRE         =*
+*=========================================*/
+
+.periodo-checks{
+
+    margin:0 28px 28px;
+
+    padding:20px;
+
+    border-radius:18px;
+
+    background:rgba(255,255,255,.025);
+
+    border:1px solid rgba(255,255,255,.05);
+
+}
+
+.checks-title{
+
+    color:#ffffff;
+
+    font-size:.95rem;
+
+    font-weight:600;
+
+    margin-bottom:18px;
+
+}
+
+.checks-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:14px;
+
+}
+
+.check-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    padding:12px 14px;
+
+    border-radius:12px;
+
+    transition:.25s;
+
+}
+
+.check-item:hover{
+
+    background:rgba(255,255,255,.04);
+
+}
+
+.check-item i{
+
+    font-size:18px;
+
+}
+
+.check-item.ok{
+
+    color:#38d27a;
+
+}
