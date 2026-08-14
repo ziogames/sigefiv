@@ -403,10 +403,12 @@ class ConsultaEjecutorService
 
             if (!$clima->successful()) {
 
-    \Log::error('ERROR OPEN-METEO CLIMA', [
-        'status' => $clima->status(),
-        'body' => $clima->body(),
-    ]);
+   error_log(
+    'ERROR OPEN-METEO CLIMA | STATUS: ' .
+    $clima->status() .
+    ' | BODY: ' .
+    $clima->body()
+);
 
     return [
 
