@@ -19,10 +19,7 @@ return new class extends Migration
             $table->string('numero',20)->unique();
 
             // Período contable
-            $table->foreignId('periodo_id')
-                ->constrained()
-                ->cascadeOnUpdate()
-                ->restrictOnDelete();
+           $table->unsignedBigInteger('periodo_id');
 
             // Fecha del movimiento
             $table->date('fecha');
@@ -63,9 +60,7 @@ return new class extends Migration
             $table->string('comprobante')
                 ->nullable();
 
-                        // Comprobante
-            $table->string('comprobante')
-                ->nullable();
+           
 
             // Referencia
             $table->string('referencia',100)
@@ -76,9 +71,7 @@ return new class extends Migration
                 ->nullable();
 
 
-            // Observaciones
-            $table->text('observaciones')
-                ->nullable();
+            
 
             // Estado
             $table->enum('estado',[
