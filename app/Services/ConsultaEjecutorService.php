@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Movimiento;
 use App\Models\Periodo;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Role;
 
@@ -241,379 +242,78 @@ class ConsultaEjecutorService
     */
 
     private function obtenerClima(
-        array $interpretacion
-    ): array {
+    array $interpretacion
+): array {
 
-        try {
+    try {
 
-            /*
-            |--------------------------------------------------------------------------
-            | Por ahora usamos Lima como ubicación predeterminada.
-            | Más adelante podremos interpretar una ciudad escrita por el usuario.
-            |--------------------------------------------------------------------------
-            */
+        /*
+        |--------------------------------------------------------------------------
+        | UBICACIÓN PREDETERMINADA
+        |--------------------------------------------------------------------------
+        */
 
-            $ubicacion =
-                env(
-                    'WEATHER_DEFAULT_LOCATION',
-                    'Lima, Peru'
-                );
+        $ubicacion =
+            env(
+                'WEATHER_DEFAULT_LOCATION',
+                'Lima, Peru'
+            );
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Geocodificación
-            |--------------------------------------------------------------------------
-            */
+        /*
+        |--------------------------------------------------------------------------
+        | GEOCODIFICACIÓN CON CACHÉ
+        |--------------------------------------------------------------------------
+        |
+        | La ubicación no cambia constantemente, por lo que la guardamos
+        | durante 24 horas y evitamos consultar Open-Meteo cada vez.
+        |
+        */
 
-            $geo =
-                Http::timeout(5)
-                    ->acceptJson()
-                    ->get(
-                        'https://geocoding-api.open-meteo.com/v1/search',
-                        [
-                            'name' =>
-                                $ubicacion,
+        $lugares =
+            Cache::remember(
+                'sigi_geocoding_' . md5($ubicacion),
+                now()->addHours(24),
+                function () use ($ubicacion) {
 
-                            'count' =>
-                                1,
+                    $geo =
+                        Http::timeout(5)
+                            ->acceptJson()
+                            ->get(
+                                'https://geocoding-api.open-meteo.com/v1/search',
+                                [
+                                    'name' =>
+                                        $ubicacion,
 
-                            'language' =>
-                                'es',
+                                    'count' =>
+                                        1,
 
-                            'format' =>
-                                'json',
-                        ]
-                    );
+                                    'language' =>
+                                        'es',
 
+                                    'format' =>
+                                        'json',
+                                ]
+                            );
 
-            if (!$geo->successful()) {
 
-                return [
+                    if (!$geo->successful()) {
 
-                    'success' => false,
+                        return null;
 
-                    'tipo' => 'clima',
+                    }
 
-                    'resultado' => null,
 
-                    'mensaje' =>
-                        'No pude localizar la ciudad para consultar el clima.',
+                    return $geo->json('results');
 
-                ];
-            }
+                }
+            );
 
 
-            $lugares =
-                $geo->json('results');
-
-
-            if (
-                !is_array($lugares) ||
-                empty($lugares)
-            ) {
-
-                return [
-
-                    'success' => false,
-
-                    'tipo' => 'clima',
-
-                    'resultado' => null,
-
-                    'mensaje' =>
-                        'No encontré la ubicación solicitada.',
-
-                ];
-            }
-
-
-            $lugar =
-                $lugares[0];
-
-
-            $latitud =
-                $lugar['latitude']
-                ?? null;
-
-
-            $longitud =
-                $lugar['longitude']
-                ?? null;
-
-
-            $nombre =
-                $lugar['name']
-                ?? $ubicacion;
-
-
-            $pais =
-                $lugar['country']
-                ?? '';
-
-
-            if (
-                $latitud === null ||
-                $longitud === null
-            ) {
-
-                return [
-
-                    'success' => false,
-
-                    'tipo' => 'clima',
-
-                    'resultado' => null,
-
-                    'mensaje' =>
-                        'No pude obtener las coordenadas de la ubicación.',
-
-                ];
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Consulta meteorológica
-            |--------------------------------------------------------------------------
-            */
-
-            $clima =
-                Http::timeout(5)
-                    ->acceptJson()
-                    ->get(
-                        'https://api.open-meteo.com/v1/forecast',
-                        [
-
-                            'latitude' =>
-                                $latitud,
-
-                            'longitude' =>
-                                $longitud,
-
-                            'current' =>
-                                'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
-
-                            'timezone' =>
-                                'auto',
-
-                        ]
-                    );
-
-
-            if (!$clima->successful()) {
-
-   error_log(
-    'ERROR OPEN-METEO CLIMA | STATUS: ' .
-    $clima->status() .
-    ' | BODY: ' .
-    $clima->body()
-);
-
-    return [
-
-                    'success' => false,
-
-                    'tipo' => 'clima',
-
-                    'resultado' => null,
-
-                    'mensaje' =>
-                        'No pude obtener los datos meteorológicos en este momento.',
-
-                ];
-            }
-
-
-            $datos =
-                $clima->json();
-
-
-            $actual =
-                $datos['current']
-                ?? [];
-
-
-            if (empty($actual)) {
-
-                return [
-
-                    'success' => false,
-
-                    'tipo' => 'clima',
-
-                    'resultado' => null,
-
-                    'mensaje' =>
-                        'La API meteorológica no devolvió datos actuales.',
-
-                ];
-            }
-
-
-            $codigo =
-                (int) (
-                    $actual['weather_code']
-                    ?? -1
-                );
-
-
-            $descripcion =
-                match (true) {
-
-                    $codigo === 0 =>
-                        'Despejado',
-
-                    in_array(
-                        $codigo,
-                        [1, 2, 3],
-                        true
-                    ) =>
-                        'Parcialmente nublado',
-
-                    in_array(
-                        $codigo,
-                        [45, 48],
-                        true
-                    ) =>
-                        'Niebla',
-
-                    in_array(
-                        $codigo,
-                        [51, 53, 55, 56, 57],
-                        true
-                    ) =>
-                        'Llovizna',
-
-                    in_array(
-                        $codigo,
-                        [61, 63, 65, 66, 67],
-                        true
-                    ) =>
-                        'Lluvia',
-
-                    in_array(
-                        $codigo,
-                        [71, 73, 75, 77],
-                        true
-                    ) =>
-                        'Nieve',
-
-                    in_array(
-                        $codigo,
-                        [80, 81, 82],
-                        true
-                    ) =>
-                        'Chubascos',
-
-                    in_array(
-                        $codigo,
-                        [95, 96, 99],
-                        true
-                    ) =>
-                        'Tormenta',
-
-                    default =>
-                        'Condiciones variables',
-
-                };
-
-
-            $resultado = [
-
-                'ubicacion' => [
-
-                    'nombre' =>
-                        $nombre,
-
-                    'pais' =>
-                        $pais,
-
-                    'latitud' =>
-                        $latitud,
-
-                    'longitud' =>
-                        $longitud,
-
-                ],
-
-                'temperatura' =>
-                    $actual['temperature_2m']
-                    ?? null,
-
-                'sensacion' =>
-                    $actual['apparent_temperature']
-                    ?? null,
-
-                'humedad' =>
-                    $actual['relative_humidity_2m']
-                    ?? null,
-
-                'viento' =>
-                    $actual['wind_speed_10m']
-                    ?? null,
-
-                'codigo' =>
-                    $codigo,
-
-                'descripcion' =>
-                    $descripcion,
-
-            ];
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | OpenRouter redacta la respuesta, pero los datos meteorológicos
-            | siguen viniendo de Open-Meteo. Así conservamos la tarjeta de clima
-            | y evitamos que la IA invente la temperatura.
-            |--------------------------------------------------------------------------
-            */
-
-            $mensajeClima =
-                $this->llamarOpenRouter(
-                    'Informa brevemente al usuario sobre este clima actual. '
-                    . 'Ciudad: ' . $nombre . '. '
-                    . 'País: ' . $pais . '. '
-                    . 'Condición: ' . $descripcion . '. '
-                    . 'Temperatura: ' . $resultado['temperatura'] . ' °C. '
-                    . 'Sensación: ' . $resultado['sensacion'] . ' °C. '
-                    . 'Humedad: ' . $resultado['humedad'] . '%. '
-                    . 'Viento: ' . $resultado['viento'] . ' km/h.',
-                    'Eres Sigi. Redacta una respuesta breve, natural y amable '
-                    . 'en español. Usa únicamente los datos meteorológicos '
-                    . 'proporcionados. No inventes valores. No uses Markdown '
-                    . 'complejo porque la interfaz mostrará una tarjeta de clima.'
-                );
-
-
-            if ($mensajeClima === null) {
-
-                $mensajeClima =
-                    'Clima actual en ' .
-                    $nombre .
-                    ': ' .
-                    $descripcion .
-                    ', ' .
-                    $resultado['temperatura'] .
-                    ' °C.';
-
-            }
-
-
-            return [
-
-                'success' => true,
-
-                'tipo' => 'clima',
-
-                'resultado' => $resultado,
-
-                'mensaje' => $mensajeClima,
-
-            ];
-
-        } catch (\Throwable $e) {
+        if (
+            !is_array($lugares) ||
+            empty($lugares)
+        ) {
 
             return [
 
@@ -624,12 +324,363 @@ class ConsultaEjecutorService
                 'resultado' => null,
 
                 'mensaje' =>
-                    'No pude consultar el clima en este momento: ' .
-                    $e->getMessage(),
+                    'No pude localizar la ciudad para consultar el clima.',
 
             ];
+
         }
+
+
+        $lugar =
+            $lugares[0];
+
+
+        $latitud =
+            $lugar['latitude']
+            ?? null;
+
+
+        $longitud =
+            $lugar['longitude']
+            ?? null;
+
+
+        $nombre =
+            $lugar['name']
+            ?? $ubicacion;
+
+
+        $pais =
+            $lugar['country']
+            ?? '';
+
+
+        if (
+            $latitud === null ||
+            $longitud === null
+        ) {
+
+            return [
+
+                'success' => false,
+
+                'tipo' => 'clima',
+
+                'resultado' => null,
+
+                'mensaje' =>
+                    'No pude obtener las coordenadas de la ubicación.',
+
+            ];
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLIMA CON CACHÉ
+        |--------------------------------------------------------------------------
+        |
+        | Guardamos el clima durante 15 minutos.
+        | Así múltiples consultas de Sigi no consumen una llamada a
+        | Open-Meteo cada vez.
+        |
+        */
+
+        $datos =
+            Cache::remember(
+                'sigi_clima_' .
+                md5(
+                    $latitud .
+                    '|' .
+                    $longitud
+                ),
+                now()->addMinutes(15),
+                function () use (
+                    $latitud,
+                    $longitud
+                ) {
+
+                    $clima =
+                        Http::timeout(5)
+                            ->acceptJson()
+                            ->get(
+                                'https://api.open-meteo.com/v1/forecast',
+                                [
+
+                                    'latitude' =>
+                                        $latitud,
+
+                                    'longitude' =>
+                                        $longitud,
+
+                                    'current' =>
+                                        'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
+
+                                    'timezone' =>
+                                        'auto',
+
+                                ]
+                            );
+
+
+                    if (!$clima->successful()) {
+
+                        return null;
+
+                    }
+
+
+                    return $clima->json();
+
+                }
+            );
+
+
+        if (
+            !is_array($datos)
+        ) {
+
+            return [
+
+                'success' => false,
+
+                'tipo' => 'clima',
+
+                'resultado' => null,
+
+                'mensaje' =>
+                    'No pude obtener los datos meteorológicos en este momento.',
+
+            ];
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATOS ACTUALES
+        |--------------------------------------------------------------------------
+        */
+
+        $actual =
+            $datos['current']
+            ?? [];
+
+
+        if (
+            empty($actual)
+        ) {
+
+            return [
+
+                'success' => false,
+
+                'tipo' => 'clima',
+
+                'resultado' => null,
+
+                'mensaje' =>
+                    'La API meteorológica no devolvió datos actuales.',
+
+            ];
+
+        }
+
+
+        $codigo =
+            (int) (
+                $actual['weather_code']
+                ?? -1
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DESCRIPCIÓN DEL CLIMA
+        |--------------------------------------------------------------------------
+        */
+
+        $descripcion =
+            match (true) {
+
+                $codigo === 0 =>
+                    'Despejado',
+
+                in_array(
+                    $codigo,
+                    [1, 2, 3],
+                    true
+                ) =>
+                    'Parcialmente nublado',
+
+                in_array(
+                    $codigo,
+                    [45, 48],
+                    true
+                ) =>
+                    'Niebla',
+
+                in_array(
+                    $codigo,
+                    [51, 53, 55, 56, 57],
+                    true
+                ) =>
+                    'Llovizna',
+
+                in_array(
+                    $codigo,
+                    [61, 63, 65, 66, 67],
+                    true
+                ) =>
+                    'Lluvia',
+
+                in_array(
+                    $codigo,
+                    [71, 73, 75, 77],
+                    true
+                ) =>
+                    'Nieve',
+
+                in_array(
+                    $codigo,
+                    [80, 81, 82],
+                    true
+                ) =>
+                    'Chubascos',
+
+                in_array(
+                    $codigo,
+                    [95, 96, 99],
+                    true
+                ) =>
+                    'Tormenta',
+
+                default =>
+                    'Condiciones variables',
+
+            };
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESULTADO
+        |--------------------------------------------------------------------------
+        */
+
+        $resultado = [
+
+            'ubicacion' => [
+
+                'nombre' =>
+                    $nombre,
+
+                'pais' =>
+                    $pais,
+
+                'latitud' =>
+                    $latitud,
+
+                'longitud' =>
+                    $longitud,
+
+            ],
+
+            'temperatura' =>
+                $actual['temperature_2m']
+                ?? null,
+
+            'sensacion' =>
+                $actual['apparent_temperature']
+                ?? null,
+
+            'humedad' =>
+                $actual['relative_humidity_2m']
+                ?? null,
+
+            'viento' =>
+                $actual['wind_speed_10m']
+                ?? null,
+
+            'codigo' =>
+                $codigo,
+
+            'descripcion' =>
+                $descripcion,
+
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPUESTA DE SIGI
+        |--------------------------------------------------------------------------
+        */
+
+        $mensajeClima =
+            $this->llamarOpenRouter(
+                'Informa brevemente al usuario sobre este clima actual. '
+                . 'Ciudad: ' . $nombre . '. '
+                . 'País: ' . $pais . '. '
+                . 'Condición: ' . $descripcion . '. '
+                . 'Temperatura: ' . $resultado['temperatura'] . ' °C. '
+                . 'Sensación: ' . $resultado['sensacion'] . ' °C. '
+                . 'Humedad: ' . $resultado['humedad'] . '%. '
+                . 'Viento: ' . $resultado['viento'] . ' km/h.',
+                'Eres Sigi. Redacta una respuesta breve, natural y amable '
+                . 'en español. Usa únicamente los datos meteorológicos '
+                . 'proporcionados. No inventes valores. No uses Markdown '
+                . 'complejo porque la interfaz mostrará una tarjeta de clima.'
+            );
+
+
+        if (
+            $mensajeClima === null
+        ) {
+
+            $mensajeClima =
+                'Clima actual en ' .
+                $nombre .
+                ': ' .
+                $descripcion .
+                ', ' .
+                $resultado['temperatura'] .
+                ' °C.';
+
+        }
+
+
+        return [
+
+            'success' => true,
+
+            'tipo' => 'clima',
+
+            'resultado' => $resultado,
+
+            'mensaje' => $mensajeClima,
+
+        ];
+
+    } catch (\Throwable $e) {
+
+        return [
+
+            'success' => false,
+
+            'tipo' => 'clima',
+
+            'resultado' => null,
+
+            'mensaje' =>
+                'No pude consultar el clima en este momento: ' .
+                $e->getMessage(),
+
+        ];
+
     }
+
+}
 
 
     /*
