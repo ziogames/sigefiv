@@ -10,10 +10,17 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
+    libgmp-dev \
     nodejs \
     npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_pgsql pgsql zip gd \
+    && docker-php-ext-install \
+        pdo_pgsql \
+        pgsql \
+        zip \
+        gd \
+        bcmath \
+        gmp \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
