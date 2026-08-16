@@ -4511,7 +4511,7 @@ document.addEventListener(
 </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
 
     const boton = document.getElementById('btnActivarNotificaciones');
 
@@ -4535,6 +4535,61 @@ document.addEventListener('DOMContentLoaded', function () {
         boton.textContent = 'No disponible';
 
         return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Comprobar suscripción existente
+    |--------------------------------------------------------------------------
+    |
+    | Si este navegador ya tiene una suscripción Push, mantenemos
+    | el botón en estado "Activadas" aunque la página se recargue.
+    |--------------------------------------------------------------------------
+    */
+
+    try {
+
+        const registro =
+            await navigator.serviceWorker.register('/sw.js');
+
+        await navigator.serviceWorker.ready;
+
+        const suscripcionExistente =
+            await registro.pushManager.getSubscription();
+
+        if (
+            suscripcionExistente &&
+            Notification.permission === 'granted'
+        ) {
+
+            boton.innerHTML =
+                '<i class="cil-check me-1"></i>' +
+                'Activadas';
+
+            boton.classList.remove(
+                'btn-primary'
+            );
+
+            boton.classList.add(
+                'btn-success'
+            );
+
+            boton.disabled = true;
+
+            console.log(
+                'SIGEFIV: notificaciones ya estaban activadas.'
+            );
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            'SIGEFIV: no se pudo comprobar la suscripción Push.',
+            error
+        );
+
     }
 
 
