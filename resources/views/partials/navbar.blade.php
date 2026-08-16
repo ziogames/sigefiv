@@ -60,9 +60,9 @@
     <div class="container-fluid border-bottom px-4">
 
         <button
-            class="header-toggler"
-            type="button"
-            onclick="coreui.Sidebar.getInstance(document.querySelector('#sidebar')).toggle()">
+    class="header-toggler"
+    type="button"
+    onclick="toggleSidebarMovil()">
 
             <i class="cil-menu icon icon-lg"></i>
 
@@ -2995,42 +2995,62 @@ escribirTexto(
 
 
         modal.addEventListener(
-            'hidden.coreui.modal',
-            function () {
+    'hidden.coreui.modal',
+    function () {
 
-                escribiendo = false;
+        escribiendo = false;
 
-                bienvenida.innerHTML = '';
+        bienvenida.innerHTML = '';
+        preguntaTexto.innerHTML = '';
 
-                preguntaTexto.innerHTML = '';
+        // =====================================================
+        // LIMPIAR TODA LA CONVERSACIÓN AL CERRAR SIGI
+        // =====================================================
 
-                const bienvenidaMensaje =
-                    bienvenida.closest('.consulta-mensaje');
+        const mensajes =
+            document.querySelector('.consulta-mensajes');
 
-                const preguntaMensaje =
-                    pregunta.closest('.consulta-mensaje');
+        if (mensajes) {
 
-                if (bienvenidaMensaje) {
-                    bienvenidaMensaje.style.display = '';
-                }
+            mensajes
+                .querySelectorAll(
+                    '.consulta-mensaje-usuario, .consulta-respuesta-resultado'
+                )
+                .forEach(function (mensaje) {
+                    mensaje.remove();
+                });
+        }
 
-                if (preguntaMensaje) {
-                    preguntaMensaje.style.display = 'none';
-                }
+        // =====================================================
+        // RESTAURAR PRESENTACIÓN INICIAL
+        // =====================================================
 
-                pregunta.style.display =
-                    'none';
+        const bienvenidaMensaje =
+            bienvenida.closest('.consulta-mensaje');
 
-                campo.style.opacity =
-                    '1';
+        const preguntaMensaje =
+            pregunta.closest('.consulta-mensaje');
 
-                campo.style.transform =
-                    'translateY(0)';
+        if (bienvenidaMensaje) {
+            bienvenidaMensaje.style.display = '';
+        }
 
-                textarea.value = '';
+        if (preguntaMensaje) {
+            preguntaMensaje.style.display = 'none';
+        }
 
-            }
-        );
+        pregunta.style.display =
+            'none';
+
+        campo.style.opacity =
+            '1';
+
+        campo.style.transform =
+            'translateY(0)';
+
+        textarea.value = '';
+    }
+);
 
 
 const botonConsulta =

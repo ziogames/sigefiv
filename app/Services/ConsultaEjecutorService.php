@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Role;
+use App\Models\Clima;
 
 class ConsultaEjecutorService
 {
@@ -262,12 +263,8 @@ class ConsultaEjecutorService
 
         /*
         |--------------------------------------------------------------------------
-        | GEOCODIFICACIÓN CON CACHÉ
+        | GEOCODIFICACIÓN
         |--------------------------------------------------------------------------
-        |
-        | La ubicación no cambia constantemente, por lo que la guardamos
-        | durante 24 horas y evitamos consultar Open-Meteo cada vez.
-        |
         */
 
         $lugares =
@@ -316,16 +313,11 @@ class ConsultaEjecutorService
         ) {
 
             return [
-
                 'success' => false,
-
                 'tipo' => 'clima',
-
                 'resultado' => null,
-
                 'mensaje' =>
                     'No pude localizar la ciudad para consultar el clima.',
-
             ];
 
         }
@@ -361,16 +353,11 @@ class ConsultaEjecutorService
         ) {
 
             return [
-
                 'success' => false,
-
                 'tipo' => 'clima',
-
                 'resultado' => null,
-
                 'mensaje' =>
                     'No pude obtener las coordenadas de la ubicación.',
-
             ];
 
         }
@@ -378,80 +365,177 @@ class ConsultaEjecutorService
 
         /*
         |--------------------------------------------------------------------------
-        | CLIMA CON CACHÉ
+        | BUSCAR CLIMA EN POSTGRESQL
         |--------------------------------------------------------------------------
-        |
-        | Guardamos el clima durante 15 minutos.
-        | Así múltiples consultas de Sigi no consumen una llamada a
-        | Open-Meteo cada vez.
-        |
         */
 
-        $datos =
-            Cache::remember(
-                'sigi_clima_' .
-                md5(
-                    $latitud .
-                    '|' .
-                    $longitud
-                ),
-                now()->addMinutes(15),
-                function () use (
-                    $latitud,
-                    $longitud
-                ) {
-
-                    $clima =
-                        Http::timeout(5)
-                            ->acceptJson()
-                            ->get(
-                                'https://api.open-meteo.com/v1/forecast',
-                                [
-
-                                    'latitude' =>
-                                        $latitud,
-
-                                    'longitude' =>
-                                        $longitud,
-
-                                    'current' =>
-                                        'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
-
-                                    'timezone' =>
-                                        'auto',
-
-                                ]
-                            );
+        $climaGuardado =
+            Clima::query()
+                ->where('ubicacion', $nombre)
+                ->where('proveedor', 'open-meteo')
+                ->where('expira_en', '>', now())
+                ->latest('consultado_en')
+                ->first();
 
 
-                    if (!$clima->successful()) {
+        /*
+        |--------------------------------------------------------------------------
+        | SI EXISTE UN CLIMA VIGENTE
+        |--------------------------------------------------------------------------
+        */
 
-                        return null;
+        if ($climaGuardado) {
 
-                    }
+            $resultado = [
+
+                'ubicacion' => [
+
+                    'nombre' =>
+                        $climaGuardado->ubicacion,
+
+                    'pais' =>
+                        $climaGuardado->pais,
+
+                    'latitud' =>
+                        $climaGuardado->latitud,
+
+                    'longitud' =>
+                        $climaGuardado->longitud,
+
+                ],
+
+                'temperatura' =>
+                    $climaGuardado->temperatura,
+
+                'sensacion' =>
+                    $climaGuardado->sensacion,
+
+                'humedad' =>
+                    $climaGuardado->humedad,
+
+                'viento' =>
+                    $climaGuardado->viento,
+
+                'codigo' =>
+                    $climaGuardado->codigo,
+
+                'descripcion' =>
+                    $climaGuardado->descripcion,
+
+            ];
 
 
-                    return $clima->json();
-
-                }
+            return $this->respuestaClima(
+                $resultado
             );
 
+        }
 
-        if (
-            !is_array($datos)
-        ) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONSULTAR OPEN-METEO
+        |--------------------------------------------------------------------------
+        */
+
+        $clima =
+            Http::timeout(5)
+                ->acceptJson()
+                ->get(
+                    'https://api.open-meteo.com/v1/forecast',
+                    [
+
+                        'latitude' =>
+                            $latitud,
+
+                        'longitude' =>
+                            $longitud,
+
+                        'current' =>
+                            'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
+
+                        'timezone' =>
+                            'auto',
+
+                    ]
+                );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SI OPEN-METEO FALLA
+        |--------------------------------------------------------------------------
+        |
+        | Intentamos utilizar el último dato almacenado aunque haya vencido.
+        | Esto evita dejar a Sigi sin clima cuando Open-Meteo esté temporalmente
+        | limitado o responda con HTTP 429.
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$clima->successful()) {
+
+            $climaAnterior =
+                Clima::query()
+                    ->where('ubicacion', $nombre)
+                    ->latest('consultado_en')
+                    ->first();
+
+
+            if ($climaAnterior) {
+
+                $resultado = [
+
+                    'ubicacion' => [
+
+                        'nombre' =>
+                            $climaAnterior->ubicacion,
+
+                        'pais' =>
+                            $climaAnterior->pais,
+
+                        'latitud' =>
+                            $climaAnterior->latitud,
+
+                        'longitud' =>
+                            $climaAnterior->longitud,
+
+                    ],
+
+                    'temperatura' =>
+                        $climaAnterior->temperatura,
+
+                    'sensacion' =>
+                        $climaAnterior->sensacion,
+
+                    'humedad' =>
+                        $climaAnterior->humedad,
+
+                    'viento' =>
+                        $climaAnterior->viento,
+
+                    'codigo' =>
+                        $climaAnterior->codigo,
+
+                    'descripcion' =>
+                        $climaAnterior->descripcion,
+
+                ];
+
+
+                return $this->respuestaClima(
+                    $resultado,
+                    true
+                );
+
+            }
+
 
             return [
-
                 'success' => false,
-
                 'tipo' => 'clima',
-
                 'resultado' => null,
-
                 'mensaje' =>
                     'No pude obtener los datos meteorológicos en este momento.',
-
             ];
 
         }
@@ -463,6 +547,10 @@ class ConsultaEjecutorService
         |--------------------------------------------------------------------------
         */
 
+        $datos =
+            $clima->json();
+
+
         $actual =
             $datos['current']
             ?? [];
@@ -473,20 +561,21 @@ class ConsultaEjecutorService
         ) {
 
             return [
-
                 'success' => false,
-
                 'tipo' => 'clima',
-
                 'resultado' => null,
-
                 'mensaje' =>
                     'La API meteorológica no devolvió datos actuales.',
-
             ];
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | CÓDIGO METEOROLÓGICO
+        |--------------------------------------------------------------------------
+        */
 
         $codigo =
             (int) (
@@ -497,7 +586,7 @@ class ConsultaEjecutorService
 
         /*
         |--------------------------------------------------------------------------
-        | DESCRIPCIÓN DEL CLIMA
+        | DESCRIPCIÓN
         |--------------------------------------------------------------------------
         */
 
@@ -564,6 +653,66 @@ class ConsultaEjecutorService
 
         /*
         |--------------------------------------------------------------------------
+        | GUARDAR EN POSTGRESQL
+        |--------------------------------------------------------------------------
+        */
+
+        $registroClima =
+            Clima::updateOrCreate(
+
+                [
+                    'ubicacion' =>
+                        $nombre,
+
+                    'proveedor' =>
+                        'open-meteo',
+                ],
+
+                [
+
+                    'pais' =>
+                        $pais,
+
+                    'latitud' =>
+                        $latitud,
+
+                    'longitud' =>
+                        $longitud,
+
+                    'temperatura' =>
+                        $actual['temperature_2m']
+                        ?? null,
+
+                    'sensacion' =>
+                        $actual['apparent_temperature']
+                        ?? null,
+
+                    'humedad' =>
+                        $actual['relative_humidity_2m']
+                        ?? null,
+
+                    'viento' =>
+                        $actual['wind_speed_10m']
+                        ?? null,
+
+                    'codigo' =>
+                        $codigo,
+
+                    'descripcion' =>
+                        $descripcion,
+
+                    'consultado_en' =>
+                        now(),
+
+                    'expira_en' =>
+                        now()->addMinutes(15),
+
+                ]
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
         | RESULTADO
         |--------------------------------------------------------------------------
         */
@@ -573,94 +722,44 @@ class ConsultaEjecutorService
             'ubicacion' => [
 
                 'nombre' =>
-                    $nombre,
+                    $registroClima->ubicacion,
 
                 'pais' =>
-                    $pais,
+                    $registroClima->pais,
 
                 'latitud' =>
-                    $latitud,
+                    $registroClima->latitud,
 
                 'longitud' =>
-                    $longitud,
+                    $registroClima->longitud,
 
             ],
 
             'temperatura' =>
-                $actual['temperature_2m']
-                ?? null,
+                $registroClima->temperatura,
 
             'sensacion' =>
-                $actual['apparent_temperature']
-                ?? null,
+                $registroClima->sensacion,
 
             'humedad' =>
-                $actual['relative_humidity_2m']
-                ?? null,
+                $registroClima->humedad,
 
             'viento' =>
-                $actual['wind_speed_10m']
-                ?? null,
+                $registroClima->viento,
 
             'codigo' =>
-                $codigo,
+                $registroClima->codigo,
 
             'descripcion' =>
-                $descripcion,
+                $registroClima->descripcion,
 
         ];
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESPUESTA DE SIGI
-        |--------------------------------------------------------------------------
-        */
+        return $this->respuestaClima(
+            $resultado
+        );
 
-        $mensajeClima =
-            $this->llamarOpenRouter(
-                'Informa brevemente al usuario sobre este clima actual. '
-                . 'Ciudad: ' . $nombre . '. '
-                . 'País: ' . $pais . '. '
-                . 'Condición: ' . $descripcion . '. '
-                . 'Temperatura: ' . $resultado['temperatura'] . ' °C. '
-                . 'Sensación: ' . $resultado['sensacion'] . ' °C. '
-                . 'Humedad: ' . $resultado['humedad'] . '%. '
-                . 'Viento: ' . $resultado['viento'] . ' km/h.',
-                'Eres Sigi. Redacta una respuesta breve, natural y amable '
-                . 'en español. Usa únicamente los datos meteorológicos '
-                . 'proporcionados. No inventes valores. No uses Markdown '
-                . 'complejo porque la interfaz mostrará una tarjeta de clima.'
-            );
-
-
-        if (
-            $mensajeClima === null
-        ) {
-
-            $mensajeClima =
-                'Clima actual en ' .
-                $nombre .
-                ': ' .
-                $descripcion .
-                ', ' .
-                $resultado['temperatura'] .
-                ' °C.';
-
-        }
-
-
-        return [
-
-            'success' => true,
-
-            'tipo' => 'clima',
-
-            'resultado' => $resultado,
-
-            'mensaje' => $mensajeClima,
-
-        ];
 
     } catch (\Throwable $e) {
 
@@ -679,9 +778,97 @@ class ConsultaEjecutorService
         ];
 
     }
-
 }
 
+
+private function respuestaClima(
+    array $resultado,
+    bool $datoAnterior = false
+): array {
+
+    $ubicacion =
+        $resultado['ubicacion']['nombre']
+        ?? 'Lima';
+
+    $pais =
+        $resultado['ubicacion']['pais']
+        ?? '';
+
+    $temperatura =
+        $resultado['temperatura']
+        ?? null;
+
+    $sensacion =
+        $resultado['sensacion']
+        ?? null;
+
+    $humedad =
+        $resultado['humedad']
+        ?? null;
+
+    $viento =
+        $resultado['viento']
+        ?? null;
+
+    $descripcion =
+        $resultado['descripcion']
+        ?? 'Condiciones variables';
+
+
+    $mensajeClima =
+        $this->llamarOpenRouter(
+
+            'Informa brevemente al usuario sobre este clima actual. '
+            . 'Ciudad: ' . $ubicacion . '. '
+            . 'País: ' . $pais . '. '
+            . 'Condición: ' . $descripcion . '. '
+            . 'Temperatura: ' . $temperatura . ' °C. '
+            . 'Sensación: ' . $sensacion . ' °C. '
+            . 'Humedad: ' . $humedad . '%. '
+            . 'Viento: ' . $viento . ' km/h.',
+
+            'Eres Sigi. Redacta una respuesta breve, natural y amable '
+            . 'en español. Usa únicamente los datos meteorológicos '
+            . 'proporcionados. No inventes valores. No uses Markdown '
+            . 'complejo porque la interfaz mostrará una tarjeta de clima.'
+        );
+
+
+    if ($mensajeClima === null) {
+
+        $mensajeClima =
+            'Clima actual en ' .
+            $ubicacion .
+            ': ' .
+            $descripcion .
+            ', ' .
+            $temperatura .
+            ' °C.';
+
+    }
+
+
+    if ($datoAnterior) {
+
+        $mensajeClima .=
+            ' Estos son los últimos datos disponibles porque '
+            . 'el proveedor meteorológico no respondió en este momento.';
+
+    }
+
+
+    return [
+
+        'success' => true,
+
+        'tipo' => 'clima',
+
+        'resultado' => $resultado,
+
+        'mensaje' => $mensajeClima,
+
+    ];
+}
 
     /*
     |--------------------------------------------------------------------------

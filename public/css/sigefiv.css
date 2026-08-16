@@ -1016,20 +1016,15 @@
 /*=========================================================*/
 
 .sidebar,
-
-.sidebar *{
+.sidebar * {
 
     transition:
-
         background .25s,
-
         color .25s,
-
         transform .25s,
-
         opacity .25s,
-
-        box-shadow .25s;
+        box-shadow .25s,
+        margin-inline-start .65s cubic-bezier(0.22, 1, 0.36, 1);
 
 }
 /*=========================================

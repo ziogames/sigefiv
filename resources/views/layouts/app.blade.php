@@ -10,6 +10,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+<meta name="theme-color" content="#321fdb">
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -190,6 +192,26 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log(
+                        '[SIGEFIV] Service Worker registrado:',
+                        registration.scope
+                    );
+                })
+                .catch(error => {
+                    console.error(
+                        '[SIGEFIV] Error registrando Service Worker:',
+                        error
+                    );
+                });
+        });
+    }
+</script>
 </body>
 
 </html>

@@ -1,37 +1,38 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-.card{
-    border:0;
-    border-radius:14px;
-    box-shadow:0 3px 15px rgba(0,0,0,.08);
+
+.card {
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 3px 15px rgba(0,0,0,.08);
 }
 
-.table>tbody>tr:hover{
-    background:#f5f9ff;
+.table > tbody > tr:hover {
+    background: #f5f9ff;
 }
 
-.btn{
-    border-radius:10px;
+.btn {
+    border-radius: 10px;
 }
 
-.form-control{
-    border-radius:10px;
+.form-control {
+    border-radius: 10px;
 }
 
-.form-select{
-    border-radius:10px;
+.form-select {
+    border-radius: 10px;
 }
 
-.page-link{
-    border-radius:8px!important;
+.page-link {
+    border-radius: 8px !important;
 }
 
-.sidebar-brand{
-    font-size:22px;
-    font-weight:bold;
+.sidebar-brand {
+    font-size: 22px;
+    font-weight: bold;
 }
 
-.card-header{
-    font-weight:600;
+.card-header {
+    font-weight: 600;
 }

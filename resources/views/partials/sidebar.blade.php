@@ -29,10 +29,10 @@
 </div>
 
         <button
-            class="btn-close d-lg-none"
-            type="button"
-            onclick="coreui.Sidebar.getInstance(document.querySelector('#sidebar')).toggle()">
-        </button>
+    class="btn-close d-lg-none"
+    type="button"
+    onclick="toggleSidebarMovil()">
+</button>
 
     </div>
 
@@ -217,3 +217,18 @@
     </div>
 
 </div>
+<script>
+function toggleSidebarMovil() {
+    const sidebar = document.getElementById('sidebar');
+
+    if (!sidebar) {
+        return;
+    }
+
+    const instancia = coreui.Sidebar.getInstance(sidebar);
+
+    if (instancia) {
+        instancia.toggle();
+    }
+}
+</script>
