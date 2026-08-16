@@ -14,6 +14,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PeriodoController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ConsultaInteligenteController;
+use App\Http\Controllers\PushSubscriptionController;
 
 
 Route::get('/', function () {
@@ -144,6 +145,20 @@ Route::middleware(['auth'])->group(function () {
     )
         ->name('consulta.inteligente')
         ->middleware('auth');
+
+        
+          Route::post('/push-subscriptions', [
+        PushSubscriptionController::class,
+        'store'
+    ])->name('push-subscriptions.store');
+
+    Route::delete('/push-subscriptions', [
+        PushSubscriptionController::class,
+        'destroy'
+    ])->name('push-subscriptions.destroy');
+
+
+        
 
 });
 

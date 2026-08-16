@@ -129,12 +129,22 @@
 
                     <div class="dropdown-header fw-bold d-flex align-items-center justify-content-between">
 
-                        <span>
-                            <i class="cil-bell me-2 text-primary"></i>
-                            Notificaciones
-                        </span>
+    <span>
+        <i class="cil-bell me-2 text-primary"></i>
+        Notificaciones
+    </span>
 
-                    </div>
+    <button
+        type="button"
+        id="btnActivarNotificaciones"
+        class="btn btn-sm btn-primary"
+        style="border-radius:8px;"
+    >
+        <i class="cil-bell me-1"></i>
+        Activar
+    </button>
+
+</div>
 
 
                     <div class="dropdown-divider"></div>
@@ -4498,4 +4508,276 @@ document.addEventListener(
 
 })();
 
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const boton = document.getElementById('btnActivarNotificaciones');
+
+    if (!boton) {
+        return;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Comprobar compatibilidad
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !('serviceWorker' in navigator) ||
+        !('PushManager' in window) ||
+        !('Notification' in window)
+    ) {
+
+        boton.disabled = true;
+        boton.textContent = 'No disponible';
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Convertir clave VAPID
+    |--------------------------------------------------------------------------
+    */
+
+    function urlBase64ToUint8Array(base64String) {
+
+        const padding =
+            '='.repeat(
+                (4 - base64String.length % 4) % 4
+            );
+
+        const base64 =
+            (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+        const rawData =
+            window.atob(base64);
+
+        const outputArray =
+            new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+
+            outputArray[i] =
+                rawData.charCodeAt(i);
+
+        }
+
+        return outputArray;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Activar notificaciones
+    |--------------------------------------------------------------------------
+    */
+
+    boton.addEventListener('click', async function () {
+
+        boton.disabled = true;
+
+        const textoOriginal =
+            boton.innerHTML;
+
+        boton.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-1"></span>' +
+            'Activando...';
+
+
+        try {
+
+            /*
+            | Pedimos permiso al navegador.
+            */
+
+            const permiso =
+                await Notification.requestPermission();
+
+            if (permiso !== 'granted') {
+
+                throw new Error(
+                    'No se concedió permiso para las notificaciones.'
+                );
+
+            }
+
+
+            /*
+            | Registramos el Service Worker.
+            */
+
+            const registro =
+                await navigator.serviceWorker.register(
+                    '/sw.js'
+                );
+
+            await navigator.serviceWorker.ready;
+
+
+            /*
+            | Obtenemos la clave pública VAPID.
+            */
+
+            const publicKey =
+                @json(config('services.vapid.public_key'));
+
+
+            if (!publicKey) {
+
+                throw new Error(
+                    'La clave pública VAPID no está configurada.'
+                );
+
+            }
+
+
+            /*
+            | Creamos la suscripción Push.
+            */
+
+            let suscripcion =
+                await registro.pushManager.getSubscription();
+
+
+            if (!suscripcion) {
+
+                suscripcion =
+                    await registro.pushManager.subscribe({
+
+                        userVisibleOnly: true,
+
+                        applicationServerKey:
+                            urlBase64ToUint8Array(
+                                publicKey
+                            )
+
+                    });
+
+            }
+
+
+            /*
+            | Convertimos la suscripción a JSON.
+            */
+
+            const datos =
+                suscripcion.toJSON();
+
+
+            /*
+            | Enviamos la suscripción a Laravel.
+            */
+
+            const respuesta =
+                await fetch(
+                    '{{ route("push-subscriptions.store") }}',
+                    {
+
+                        method: 'POST',
+
+                        headers: {
+
+                            'Content-Type':
+                                'application/json',
+
+                            'Accept':
+                                'application/json',
+
+                            'X-CSRF-TOKEN':
+                                '{{ csrf_token() }}'
+
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                endpoint:
+                                    datos.endpoint,
+
+                                keys: {
+
+                                    p256dh:
+                                        datos.keys.p256dh,
+
+                                    auth:
+                                        datos.keys.auth
+
+                                },
+
+                                contentEncoding:
+                                    datos.contentEncoding ||
+                                    'aes128gcm'
+
+                            })
+
+                    }
+                );
+
+
+            const resultado =
+                await respuesta.json();
+
+
+            if (!respuesta.ok) {
+
+                throw new Error(
+                    resultado.message ||
+                    'No se pudo guardar la suscripción.'
+                );
+
+            }
+
+
+            /*
+            | Éxito
+            */
+
+            boton.innerHTML =
+                '<i class="cil-check me-1"></i>' +
+                'Activadas';
+
+            boton.classList.remove(
+                'btn-primary'
+            );
+
+            boton.classList.add(
+                'btn-success'
+            );
+
+
+            console.log(
+                'SIGEFIV: notificaciones activadas.',
+                resultado
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                'SIGEFIV Push:',
+                error
+            );
+
+            boton.disabled = false;
+
+            boton.innerHTML =
+                textoOriginal;
+
+            alert(
+                error.message ||
+                'No se pudieron activar las notificaciones.'
+            );
+
+        }
+
+    });
+
+});
 </script>
