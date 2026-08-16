@@ -158,7 +158,31 @@ Route::middleware(['auth'])->group(function () {
     ])->name('push-subscriptions.destroy');
 
 
-        
+        Route::get('/push-test', function () {
+    $suscripcion = \App\Models\PushSubscription::latest()->first();
+
+    if (!$suscripcion) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No existe ninguna suscripción Push.',
+        ], 404);
+    }
+
+    $resultado = app(\App\Services\PushNotificationService::class)->enviar(
+        $suscripcion,
+        'SIGEFIV',
+        'Esta es una notificación de prueba.',
+        '/dashboard'
+    );
+
+    return response()->json([
+        'success' => $resultado,
+        'message' => $resultado
+            ? 'Notificación enviada correctamente.'
+            : 'No se pudo enviar la notificación.',
+        'subscription_id' => $suscripcion->id,
+    ]);
+})->name('push.test');
 
 });
 
