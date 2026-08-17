@@ -115,6 +115,7 @@ class PermissionSeeder extends Seeder
             'asambleas.edit',
             'asambleas.destroy',
             'asambleas.enviar',
+            'asambleas.imprimir',
 
         ];
 
