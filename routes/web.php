@@ -222,6 +222,15 @@ Route::post(
 
 
 });
+/*
+|--------------------------------------------------------------------------
+| CITACIÓN PÚBLICA
+|--------------------------------------------------------------------------
+*/
 
+Route::get(
+    '/citacion/{asamblea}',
+    [AsambleaController::class, 'citacion']
+)->name('asambleas.citacion');
 
 require __DIR__.'/auth.php';

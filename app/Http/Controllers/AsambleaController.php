@@ -1,11 +1,11 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Asamblea;
 use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
 
 class AsambleaController extends Controller
 {
@@ -99,8 +99,12 @@ class AsambleaController extends Controller
                 'date_format:H:i',
             ],
 
+            /*
+             * La segunda citación es opcional.
+             * Si se informa, debe ser posterior a la primera.
+             */
             'segunda_citacion' => [
-                'required',
+                'nullable',
                 'date_format:H:i',
                 'after:primera_citacion',
             ],
@@ -132,6 +136,12 @@ class AsambleaController extends Controller
                 'max:1000',
             ],
 
+            'plantilla_citacion' => [
+                'required',
+                'integer',
+                'between:1,7',
+            ],
+
         ]);
 
 
@@ -140,9 +150,17 @@ class AsambleaController extends Controller
         unset($datos['agenda']);
 
 
+        /*
+         * Toda asamblea nueva comienza como borrador
+         * y todavía no tiene ninguna alerta enviada.
+         */
         $datos['estado'] = 'borrador';
 
         $datos['created_by'] = auth()->id();
+
+        $datos['alerta_enviada'] = false;
+
+        $datos['alerta_enviada_at'] = null;
 
 
         DB::transaction(function () use (
@@ -156,18 +174,22 @@ class AsambleaController extends Controller
 
             $numero = 1;
 
+
             foreach ($agenda as $punto) {
 
                 $punto = trim($punto);
+
 
                 if ($punto === '') {
                     continue;
                 }
 
+
                 $asamblea->agendas()->create([
                     'numero' => $numero,
                     'descripcion' => $punto,
                 ]);
+
 
                 $numero++;
             }
@@ -183,22 +205,23 @@ class AsambleaController extends Controller
     }
 
 
-
     /**
- * Mostrar citaciones en formato para impresión A4.
- */
-public function imprimir(Asamblea $asamblea)
-{
-    $asamblea->load([
-        'creador',
-        'agendas',
-    ]);
+     * Mostrar citaciones en formato para impresión A4.
+     */
+    public function imprimir(Asamblea $asamblea)
+    {
+        $asamblea->load([
+            'creador',
+            'agendas',
+        ]);
 
-    return view(
-        'asambleas.imprimir',
-        compact('asamblea')
-    );
-}
+        return view(
+            'asambleas.imprimir',
+            compact('asamblea')
+        );
+    }
+
+
     /**
      * Mostrar una asamblea.
      */
@@ -297,8 +320,11 @@ public function imprimir(Asamblea $asamblea)
                 'date_format:H:i',
             ],
 
+            /*
+             * Segunda citación opcional.
+             */
             'segunda_citacion' => [
-                'required',
+                'nullable',
                 'date_format:H:i',
                 'after:primera_citacion',
             ],
@@ -335,12 +361,34 @@ public function imprimir(Asamblea $asamblea)
                 'max:1000',
             ],
 
+            'plantilla_citacion' => [
+                'required',
+                'integer',
+                'between:1,7',
+            ],
+
         ]);
 
 
         $agenda = $datos['agenda'] ?? [];
 
         unset($datos['agenda']);
+
+
+        /*
+         * Si la asamblea ya fue enviada, NO permitimos
+         * alterar el estado de envío desde el formulario.
+         */
+        if ($asamblea->alerta_enviada) {
+
+            $datos['alerta_enviada'] = true;
+
+            $datos['alerta_enviada_at'] =
+                $asamblea->alerta_enviada_at;
+
+            $datos['estado'] = 'publicada';
+
+        }
 
 
         DB::transaction(function () use (
@@ -353,28 +401,29 @@ public function imprimir(Asamblea $asamblea)
 
 
             /*
-            |--------------------------------------------------------------------------
-            | Reemplazar agenda
-            |--------------------------------------------------------------------------
-            */
-
+             * Reemplazar agenda.
+             */
             $asamblea->agendas()->delete();
 
 
             $numero = 1;
 
+
             foreach ($agenda as $punto) {
 
                 $punto = trim($punto);
+
 
                 if ($punto === '') {
                     continue;
                 }
 
+
                 $asamblea->agendas()->create([
                     'numero' => $numero,
                     'descripcion' => $punto,
                 ]);
+
 
                 $numero++;
             }
@@ -389,63 +438,138 @@ public function imprimir(Asamblea $asamblea)
             );
     }
 
+
     /**
- * Enviar la convocatoria de la asamblea mediante Push.
- */
-public function enviar(
-    Asamblea $asamblea,
-    PushNotificationService $pushService
-) {
-    $asamblea->load('agendas');
+     * Enviar la convocatoria de la asamblea mediante Push.
+     */
+    public function enviar(
+        Asamblea $asamblea,
+        PushNotificationService $pushService
+    ) {
 
-    $titulo = '📢 CITACIÓN VECINAL';
+        /*
+         * ==============================================================
+         * PROTECCIÓN CONTRA DOBLE ENVÍO
+         * ==============================================================
+         */
 
-    $mensaje = $asamblea->titulo;
+        if ($asamblea->alerta_enviada) {
 
-    if ($asamblea->fecha) {
-        $mensaje .= ' — ' . $asamblea->fecha->format('d/m/Y');
-    }
-
-    if ($asamblea->primera_citacion) {
-        $mensaje .= ' — 1ra citación ' .
-            $asamblea->primera_citacion->format('H:i');
-    }
-
-    $url = route(
-        'asambleas.show',
-        $asamblea
-    );
-
-    $enviadas = 0;
-
-    $suscripciones = \App\Models\PushSubscription::query()
-        ->get();
-
-    foreach ($suscripciones as $suscripcion) {
-
-        if (
-            $pushService->enviar(
-                $suscripcion,
-                $titulo,
-                $mensaje,
-                $url
-            )
-        ) {
-            $enviadas++;
+            return redirect()
+                ->route('asambleas.show', $asamblea)
+                ->with(
+                    'error',
+                    'La alerta de esta asamblea ya fue enviada anteriormente.'
+                );
         }
+
+
+        /*
+         * Cargar agenda antes de construir la notificación.
+         */
+        $asamblea->load('agendas');
+
+
+        $titulo = '📢 CITACIÓN VECINAL';
+
+
+        $mensaje = $asamblea->titulo;
+
+
+        if ($asamblea->fecha) {
+
+            $mensaje .= ' — ' .
+                $asamblea->fecha->format('d/m/Y');
+
+        }
+
+
+        if ($asamblea->primera_citacion) {
+
+            $mensaje .= ' — 1ra citación ' .
+                $asamblea->primera_citacion->format('H:i');
+
+        }
+
+
+        $url = route(
+            'asambleas.citacion',
+            $asamblea
+        );
+
+
+        $enviadas = 0;
+
+
+        $suscripciones =
+            \App\Models\PushSubscription::query()
+                ->get();
+
+
+        foreach ($suscripciones as $suscripcion) {
+
+            if (
+                $pushService->enviar(
+                    $suscripcion,
+                    $titulo,
+                    $mensaje,
+                    $url
+                )
+            ) {
+
+                $enviadas++;
+
+            }
+
+        }
+
+
+        /*
+         * ==============================================================
+         * MARCAR COMO ENVIADA
+         * ==============================================================
+         *
+         * Solo se marca como enviada después de terminar
+         * el proceso de envío.
+         */
+
+        $asamblea->update([
+
+            'estado' => 'publicada',
+
+            'alerta_enviada' => true,
+
+            'alerta_enviada_at' => now(),
+
+        ]);
+
+
+        return redirect()
+            ->route('asambleas.show', $asamblea)
+            ->with(
+                'success',
+                "Convocatoria enviada correctamente a {$enviadas} dispositivo(s)."
+            );
     }
 
-    $asamblea->update([
-        'estado' => 'publicada',
-    ]);
 
-    return redirect()
-        ->route('asambleas.show', $asamblea)
-        ->with(
-            'success',
-            "Convocatoria enviada correctamente a {$enviadas} dispositivo(s)."
+    /**
+     * Mostrar la citación pública para los vecinos.
+     */
+    public function citacion(Asamblea $asamblea)
+    {
+        $asamblea->load([
+            'creador',
+            'agendas',
+        ]);
+
+        return view(
+            'asambleas.citacion',
+            compact('asamblea')
         );
-}
+    }
+
+
     /**
      * Eliminar una asamblea.
      */

@@ -17,14 +17,21 @@
         </a>
 
         <div>
+
             <h1 class="h3 mb-1">
+
                 <i class="cil-calendar me-2"></i>
+
                 Nueva Asamblea
+
             </h1>
 
             <p class="text-body-secondary mb-0">
+
                 Registra los datos de la convocatoria.
+
             </p>
+
         </div>
 
     </div>
@@ -36,7 +43,9 @@
         <div class="alert alert-danger">
 
             <strong>
+
                 Revisa los siguientes datos:
+
             </strong>
 
             <ul class="mb-0 mt-2">
@@ -59,8 +68,11 @@
         <div class="card-header">
 
             <strong>
+
                 <i class="cil-pencil me-2"></i>
+
                 Datos de la convocatoria
+
             </strong>
 
         </div>
@@ -76,7 +88,10 @@
                 @csrf
 
 
-                {{-- Tipo y carácter --}}
+                {{-- ==========================================================
+                     Tipo y carácter
+                     ========================================================== --}}
+
                 <div class="row">
 
                     <div class="col-md-6 mb-3">
@@ -85,9 +100,13 @@
                             for="tipo"
                             class="form-label"
                         >
+
                             Tipo de asamblea
+
                             <span class="text-danger">*</span>
+
                         </label>
+
 
                         <select
                             id="tipo"
@@ -97,21 +116,29 @@
                         >
 
                             <option value="">
+
                                 Selecciona el tipo
+
                             </option>
+
 
                             <option
                                 value="ordinaria"
                                 {{ old('tipo') === 'ordinaria' ? 'selected' : '' }}
                             >
+
                                 Asamblea ordinaria
+
                             </option>
+
 
                             <option
                                 value="extraordinaria"
                                 {{ old('tipo') === 'extraordinaria' ? 'selected' : '' }}
                             >
+
                                 Asamblea extraordinaria
+
                             </option>
 
                         </select>
@@ -125,9 +152,13 @@
                             for="importancia"
                             class="form-label"
                         >
+
                             Carácter de la convocatoria
+
                             <span class="text-danger">*</span>
+
                         </label>
+
 
                         <select
                             id="importancia"
@@ -140,21 +171,29 @@
                                 value="normal"
                                 {{ old('importancia', 'normal') === 'normal' ? 'selected' : '' }}
                             >
+
                                 Normal
+
                             </option>
+
 
                             <option
                                 value="importante"
                                 {{ old('importancia') === 'importante' ? 'selected' : '' }}
                             >
+
                                 Importante
+
                             </option>
+
 
                             <option
                                 value="urgente"
                                 {{ old('importancia') === 'urgente' ? 'selected' : '' }}
                             >
+
                                 Urgente
+
                             </option>
 
                         </select>
@@ -164,16 +203,108 @@
                 </div>
 
 
-                {{-- Título --}}
+                {{-- ==========================================================
+                     PLANTILLA DE CITACIÓN
+                     ========================================================== --}}
+
+                <div class="mb-4">
+
+                    <label class="form-label fw-bold">
+
+                        <i class="cil-paint-bucket me-2"></i>
+
+                        Diseño de la citación
+
+                        <span class="text-danger">*</span>
+
+                    </label>
+
+
+                    <p class="text-body-secondary small mb-3">
+
+                        Selecciona el fondo que se utilizará para mostrar
+                        la citación a los vecinos.
+
+                    </p>
+
+
+                    <div class="row g-3">
+
+                        @for($i = 1; $i <= 7; $i++)
+
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+
+                                <label
+                                    class="plantilla-card"
+                                    for="plantilla_{{ $i }}"
+                                >
+
+
+                                    <input
+                                        type="radio"
+                                        id="plantilla_{{ $i }}"
+                                        name="plantilla_citacion"
+                                        value="{{ $i }}"
+                                        class="plantilla-radio"
+
+                                        {{ old(
+                                            'plantilla_citacion',
+                                            1
+                                        ) == $i ? 'checked' : '' }}
+                                    >
+
+
+                                    <div
+                                        class="plantilla-preview fondo-{{ $i }}"
+                                    >
+
+                                        <div class="plantilla-overlay">
+
+                                            <span class="plantilla-check">
+
+                                                ✓
+
+                                            </span>
+
+
+                                            <strong>
+
+                                                Fondo {{ $i }}
+
+                                            </strong>
+
+                                        </div>
+
+                                    </div>
+
+                                </label>
+
+                            </div>
+
+                        @endfor
+
+                    </div>
+
+                </div>
+
+
+                {{-- ==========================================================
+                     Título
+                     ========================================================== --}}
+
                 <div class="mb-3">
 
                     <label
                         for="titulo"
                         class="form-label"
                     >
+
                         Título de la convocatoria
+
                         <span class="text-danger">*</span>
+
                     </label>
+
 
                     <input
                         type="text"
@@ -189,16 +320,23 @@
                 </div>
 
 
-                {{-- Convoca --}}
+                {{-- ==========================================================
+                     Convoca
+                     ========================================================== --}}
+
                 <div class="mb-3">
 
                     <label
                         for="convoca"
                         class="form-label"
                     >
+
                         Convoca
+
                         <span class="text-danger">*</span>
+
                     </label>
+
 
                     <input
                         type="text"
@@ -214,7 +352,10 @@
                 </div>
 
 
-                {{-- Sector / Grupo / Manzana / Lote --}}
+                {{-- ==========================================================
+                     Sector / Grupo / Manzana / Lote
+                     ========================================================== --}}
+
                 <div class="row">
 
                     <div class="col-md-3 mb-3">
@@ -223,8 +364,11 @@
                             for="sector"
                             class="form-label"
                         >
+
                             Sector
+
                         </label>
+
 
                         <input
                             type="text"
@@ -244,8 +388,11 @@
                             for="grupo"
                             class="form-label"
                         >
+
                             Grupo
+
                         </label>
+
 
                         <input
                             type="text"
@@ -265,8 +412,11 @@
                             for="manzana"
                             class="form-label"
                         >
+
                             Manzana
+
                         </label>
+
 
                         <input
                             type="text"
@@ -286,8 +436,11 @@
                             for="lote"
                             class="form-label"
                         >
+
                             Lote
+
                         </label>
+
 
                         <input
                             type="text"
@@ -303,7 +456,10 @@
                 </div>
 
 
-                {{-- Fecha y citaciones --}}
+                {{-- ==========================================================
+                     Fecha y citaciones
+                     ========================================================== --}}
+
                 <div class="row">
 
                     <div class="col-md-4 mb-3">
@@ -312,9 +468,13 @@
                             for="fecha"
                             class="form-label"
                         >
+
                             Fecha
+
                             <span class="text-danger">*</span>
+
                         </label>
+
 
                         <input
                             type="date"
@@ -334,9 +494,13 @@
                             for="primera_citacion"
                             class="form-label"
                         >
+
                             Primera citación
+
                             <span class="text-danger">*</span>
+
                         </label>
+
 
                         <input
                             type="time"
@@ -350,15 +514,23 @@
                     </div>
 
 
+                    {{-- SEGUNDA CITACIÓN OPCIONAL --}}
+
                     <div class="col-md-4 mb-3">
 
                         <label
                             for="segunda_citacion"
                             class="form-label"
                         >
+
                             Segunda citación
-                            <span class="text-danger">*</span>
+
+                            <span class="text-body-secondary">
+                                (opcional)
+                            </span>
+
                         </label>
+
 
                         <input
                             type="time"
@@ -366,15 +538,25 @@
                             name="segunda_citacion"
                             class="form-control"
                             value="{{ old('segunda_citacion') }}"
-                            required
                         >
+
+
+                        <div class="form-text">
+
+                            Puedes dejar este campo vacío si la asamblea
+                            tendrá una sola citación.
+
+                        </div>
 
                     </div>
 
                 </div>
 
 
-                {{-- Hora principal y lugar --}}
+                {{-- ==========================================================
+                     Hora principal y lugar
+                     ========================================================== --}}
+
                 <div class="row">
 
                     <div class="col-md-6 mb-3">
@@ -383,8 +565,11 @@
                             for="hora"
                             class="form-label"
                         >
+
                             Hora principal de la asamblea
+
                         </label>
+
 
                         <input
                             type="time"
@@ -394,9 +579,12 @@
                             value="{{ old('hora') }}"
                         >
 
+
                         <div class="form-text">
+
                             Opcional. Las horas oficiales de convocatoria
                             son las de primera y segunda citación.
+
                         </div>
 
                     </div>
@@ -408,9 +596,13 @@
                             for="lugar"
                             class="form-label"
                         >
+
                             Lugar
+
                             <span class="text-danger">*</span>
+
                         </label>
+
 
                         <input
                             type="text"
@@ -428,15 +620,21 @@
                 </div>
 
 
-                {{-- Texto de convocatoria --}}
+                {{-- ==========================================================
+                     Texto de convocatoria
+                     ========================================================== --}}
+
                 <div class="mb-4">
 
                     <label
                         for="descripcion"
                         class="form-label"
                     >
+
                         Texto de la convocatoria
+
                     </label>
+
 
                     <textarea
                         id="descripcion"
@@ -449,23 +647,35 @@
                 </div>
 
 
-                {{-- Agenda --}}
+                {{-- ==========================================================
+                     Agenda
+                     ========================================================== --}}
+
                 <div class="card border mb-4">
 
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div
+                        class="card-header d-flex justify-content-between align-items-center"
+                    >
 
                         <strong>
+
                             <i class="cil-list me-2"></i>
+
                             Agenda
+
                         </strong>
+
 
                         <button
                             type="button"
                             id="btnAgregarAgenda"
                             class="btn btn-sm btn-primary"
                         >
+
                             <i class="cil-plus me-1"></i>
+
                             Agregar punto
+
                         </button>
 
                     </div>
@@ -474,8 +684,10 @@
                     <div class="card-body">
 
                         <p class="text-body-secondary small">
+
                             Agrega los puntos que serán tratados durante
                             la asamblea.
+
                         </p>
 
 
@@ -492,12 +704,18 @@
                                 style="font-size: 2rem;"
                             ></i>
 
+
                             <div class="mt-2">
+
                                 Todavía no hay puntos de agenda.
+
                             </div>
 
+
                             <small>
+
                                 Haz clic en "Agregar punto".
+
                             </small>
 
                         </div>
@@ -507,7 +725,10 @@
                 </div>
 
 
-                {{-- Aviso --}}
+                {{-- ==========================================================
+                     Aviso
+                     ========================================================== --}}
+
                 <div class="alert alert-info">
 
                     <i class="cil-info me-2"></i>
@@ -515,20 +736,28 @@
                     La convocatoria se guardará como
                     <strong>borrador</strong>.
 
+                    <br>
+
                     Podrás revisarla antes de enviar la alerta Push.
 
                 </div>
 
 
-                {{-- Botones --}}
+                {{-- ==========================================================
+                     Botones
+                     ========================================================== --}}
+
                 <div class="d-flex justify-content-end gap-2">
 
                     <a
                         href="{{ route('asambleas.index') }}"
                         class="btn btn-secondary"
                     >
+
                         <i class="cil-x me-1"></i>
+
                         Cancelar
+
                     </a>
 
 
@@ -536,11 +765,15 @@
                         type="submit"
                         class="btn btn-primary"
                     >
+
                         <i class="cil-save me-1"></i>
+
                         Guardar borrador
+
                     </button>
 
                 </div>
+
 
             </form>
 
@@ -551,153 +784,403 @@
 </div>
 
 
-<script>
+{{-- ==========================================================
+     ESTILOS DE PLANTILLAS
+     ========================================================== --}}
 
-document.addEventListener('DOMContentLoaded', function () {
+<style>
 
-    const container =
-        document.getElementById('agendaContainer');
+    .plantilla-card {
 
-    const boton =
-        document.getElementById('btnAgregarAgenda');
+        cursor: pointer;
 
-    const mensajeVacio =
-        document.getElementById('agendaVacia');
+        display: block;
 
+        position: relative;
 
-    let contador = 0;
-
-
-    function actualizarEstado() {
-
-        const puntos =
-            container.querySelectorAll('.agenda-item');
-
-        if (puntos.length === 0) {
-
-            mensajeVacio.style.display = 'block';
-
-        } else {
-
-            mensajeVacio.style.display = 'none';
-
-        }
-
-
-        puntos.forEach(function (punto, index) {
-
-            const numero =
-                punto.querySelector('.agenda-numero');
-
-            if (numero) {
-
-                numero.textContent =
-                    index + 1;
-
-            }
-
-        });
+        width: 100%;
 
     }
 
 
-    function agregarPunto(valor = '') {
+    .plantilla-radio {
 
-        contador++;
+        position: absolute;
+
+        opacity: 0;
+
+        pointer-events: none;
+
+    }
 
 
-        const item =
-            document.createElement('div');
+    .plantilla-preview {
 
-        item.className =
-            'agenda-item border rounded p-3 mb-3';
+        position: relative;
+
+        height: 180px;
+
+        border-radius: 16px;
+
+        overflow: hidden;
+
+        background-color: #f5f5f5;
+
+        background-size: cover;
+
+        background-position: center;
+
+        border: 3px solid transparent;
+
+        box-shadow:
+            0 4px 12px rgba(0,0,0,.10);
+
+        transition:
+            transform .2s ease,
+            border-color .2s ease,
+            box-shadow .2s ease;
+
+    }
 
 
-        item.innerHTML = `
+    .plantilla-card:hover .plantilla-preview {
 
-            <div class="row align-items-center">
+        transform: translateY(-3px);
 
-                <div class="col-auto">
+        box-shadow:
+            0 8px 20px rgba(0,0,0,.16);
 
-                    <div
-                        class="agenda-numero badge bg-primary fs-6"
-                        style="min-width: 38px;"
-                    >
-                        1
+    }
+
+
+    .plantilla-radio:checked
+    + .plantilla-preview {
+
+        border-color: #0d6efd;
+
+        box-shadow:
+            0 0 0 4px rgba(
+                13,
+                110,
+                253,
+                .18
+            );
+
+    }
+
+
+    .plantilla-overlay {
+
+        position: absolute;
+
+        left: 0;
+
+        right: 0;
+
+        bottom: 0;
+
+        padding: 12px;
+
+        color: white;
+
+        background:
+            linear-gradient(
+                transparent,
+                rgba(0,0,0,.75)
+            );
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 8px;
+
+    }
+
+
+    .plantilla-check {
+
+        display: none;
+
+        width: 25px;
+
+        height: 25px;
+
+        align-items: center;
+
+        justify-content: center;
+
+        border-radius: 50%;
+
+        background: #198754;
+
+        color: white;
+
+        font-weight: bold;
+
+    }
+
+
+    .plantilla-radio:checked
+    + .plantilla-preview
+    .plantilla-check {
+
+        display: flex;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fondos de las plantillas
+    |--------------------------------------------------------------------------
+    */
+
+    .fondo-1 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-1.jpg');
+
+    }
+
+
+    .fondo-2 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-2.jpg');
+
+    }
+
+
+    .fondo-3 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-3.jpg');
+
+    }
+
+
+    .fondo-4 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-4.jpg');
+
+    }
+
+
+    .fondo-5 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-5.jpg');
+
+    }
+
+
+    .fondo-6 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-6.jpg');
+
+    }
+
+
+    .fondo-7 {
+
+        background-image:
+            url('/assets/asambleas/fondos/fondo-7.jpg');
+
+    }
+
+</style>
+
+
+<script>
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+
+
+        const container =
+            document.getElementById(
+                'agendaContainer'
+            );
+
+
+        const boton =
+            document.getElementById(
+                'btnAgregarAgenda'
+            );
+
+
+        const mensajeVacio =
+            document.getElementById(
+                'agendaVacia'
+            );
+
+
+        let contador = 0;
+
+
+        function actualizarEstado() {
+
+            const puntos =
+                container.querySelectorAll(
+                    '.agenda-item'
+                );
+
+
+            if (puntos.length === 0) {
+
+                mensajeVacio.style.display =
+                    'block';
+
+            } else {
+
+                mensajeVacio.style.display =
+                    'none';
+
+            }
+
+
+            puntos.forEach(
+                function (punto, index) {
+
+                    const numero =
+                        punto.querySelector(
+                            '.agenda-numero'
+                        );
+
+
+                    if (numero) {
+
+                        numero.textContent =
+                            index + 1;
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        function agregarPunto(valor = '') {
+
+
+            contador++;
+
+
+            const item =
+                document.createElement('div');
+
+
+            item.className =
+                'agenda-item border rounded p-3 mb-3';
+
+
+            item.innerHTML = `
+
+                <div class="row align-items-center">
+
+
+                    <div class="col-auto">
+
+                        <div
+                            class="agenda-numero badge bg-primary fs-6"
+                            style="min-width: 38px;"
+                        >
+
+                            1
+
+                        </div>
+
                     </div>
 
+
+                    <div class="col">
+
+                        <label class="form-label mb-1">
+
+                            Punto de agenda
+
+                        </label>
+
+
+                        <textarea
+                            name="agenda[]"
+                            class="form-control"
+                            rows="2"
+                            maxlength="1000"
+                            placeholder="Escribe el punto que se tratará..."
+                        >${valor}</textarea>
+
+                    </div>
+
+
+                    <div class="col-auto">
+
+                        <button
+                            type="button"
+                            class="btn btn-outline-danger btnEliminarAgenda"
+                            title="Eliminar punto"
+                        >
+
+                            <i class="cil-trash"></i>
+
+                        </button>
+
+                    </div>
+
+
                 </div>
 
-
-                <div class="col">
-
-                    <label class="form-label mb-1">
-                        Punto de agenda
-                    </label>
-
-                    <textarea
-                        name="agenda[]"
-                        class="form-control"
-                        rows="2"
-                        maxlength="1000"
-                        placeholder="Escribe el punto que se tratará..."
-                    >${valor}</textarea>
-
-                </div>
+            `;
 
 
-                <div class="col-auto">
-
-                    <button
-                        type="button"
-                        class="btn btn-outline-danger btnEliminarAgenda"
-                        title="Eliminar punto"
-                    >
-                        <i class="cil-trash"></i>
-                    </button>
-
-                </div>
-
-            </div>
-
-        `;
+            container.appendChild(item);
 
 
-        container.appendChild(item);
+            item
+                .querySelector(
+                    '.btnEliminarAgenda'
+                )
+                .addEventListener(
+                    'click',
+                    function () {
+
+                        item.remove();
+
+                        actualizarEstado();
+
+                    }
+                );
 
 
-        item
-            .querySelector('.btnEliminarAgenda')
-            .addEventListener('click', function () {
+            actualizarEstado();
 
-                item.remove();
 
-                actualizarEstado();
+            item
+                .querySelector('textarea')
+                .focus();
 
-            });
+        }
+
+
+        boton.addEventListener(
+            'click',
+            function () {
+
+                agregarPunto();
+
+            }
+        );
 
 
         actualizarEstado();
 
-
-        item
-            .querySelector('textarea')
-            .focus();
-
     }
-
-
-    boton.addEventListener(
-        'click',
-        function () {
-            agregarPunto();
-        }
-    );
-
-
-    actualizarEstado();
-
-});
+);
 
 </script>
 

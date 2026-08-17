@@ -23,8 +23,11 @@ class Asamblea extends Model
         'lugar',
         'descripcion',
         'importancia',
+        'plantilla_citacion',
         'estado',
         'created_by',
+        'alerta_enviada',
+        'alerta_enviada_at',
     ];
 
     protected $casts = [
@@ -32,6 +35,8 @@ class Asamblea extends Model
         'hora' => 'datetime:H:i',
         'primera_citacion' => 'datetime:H:i',
         'segunda_citacion' => 'datetime:H:i',
+        'alerta_enviada' => 'boolean',
+        'alerta_enviada_at' => 'datetime',
     ];
 
     /**
