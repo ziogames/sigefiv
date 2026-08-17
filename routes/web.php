@@ -15,6 +15,7 @@ use App\Http\Controllers\PeriodoController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ConsultaInteligenteController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\AsambleaController;
 
 
 Route::get('/', function () {
@@ -202,6 +203,23 @@ Route::middleware(['auth'])->group(function () {
         ]);
 
     })->name('push.test');
+
+Route::get(
+    'asambleas/{asamblea}/imprimir',
+    [AsambleaController::class, 'imprimir']
+)->name('asambleas.imprimir');
+
+Route::post(
+    'asambleas/{asamblea}/enviar',
+    [AsambleaController::class, 'enviar']
+)->name('asambleas.enviar');
+
+    Route::resource(
+    'asambleas',
+    AsambleaController::class
+)->middleware('permission:asambleas.index');
+
+
 
 });
 

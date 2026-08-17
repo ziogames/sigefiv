@@ -27,13 +27,43 @@ class RolesSeeder extends Seeder
             'name' => 'Consulta'
         ]);
 
-        // Administrador tiene todos los permisos
+
+        /*
+        |--------------------------------------------------------------------------
+        | Administrador
+        |--------------------------------------------------------------------------
+        |
+        | El Administrador siempre tiene todos los permisos.
+        |
+        */
 
         $admin->syncPermissions(
             Permission::all()
         );
 
-        // Usuario administrador
+
+        /*
+        |--------------------------------------------------------------------------
+        | Secretario
+        |--------------------------------------------------------------------------
+        |
+        | Permisos para gestionar y enviar alertas de asambleas.
+        |
+        */
+
+        $secretario->givePermissionTo([
+            'asambleas.index',
+            'asambleas.create',
+            'asambleas.edit',
+            'asambleas.enviar',
+        ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Usuario administrador
+        |--------------------------------------------------------------------------
+        */
 
         $user = User::find(1);
 
