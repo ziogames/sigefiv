@@ -97,6 +97,27 @@
     </a>
 
 </li>
+                <li class="nav-title">
+            COMUNIDAD
+        </li>
+
+        @can('asambleas.index')
+        <li class="nav-item">
+
+            <a
+                class="nav-link"
+                href="{{ route('asambleas.index') }}"
+            >
+
+                <i class="nav-icon cil-bullhorn"></i>
+
+                Asambleas
+
+            </a>
+
+        </li>
+        @endcan
+
 @endcan
 
         <li class="nav-title">
