@@ -43,4 +43,4 @@ RUN a2enmod rewrite
 
 EXPOSE 80
 
-CMD ["sh", "-c", "php artisan migrate --force && apache2-foreground"]
+CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --class=PermissionSeeder --force && php artisan permission:cache-reset && php artisan optimize:clear && apache2-foreground"]
