@@ -387,7 +387,6 @@ class AsambleaController extends Controller
                 $asamblea->alerta_enviada_at;
 
             $datos['estado'] = 'publicada';
-
         }
 
 
@@ -448,10 +447,10 @@ class AsambleaController extends Controller
     ) {
 
         /*
-         * ==============================================================
-         * PROTECCIÓN CONTRA DOBLE ENVÍO
-         * ==============================================================
-         */
+        |--------------------------------------------------------------------------
+        | PROTECCIÓN CONTRA DOBLE ENVÍO
+        |--------------------------------------------------------------------------
+        */
 
         if ($asamblea->alerta_enviada) {
 
@@ -465,32 +464,228 @@ class AsambleaController extends Controller
 
 
         /*
-         * Cargar agenda antes de construir la notificación.
-         */
+        |--------------------------------------------------------------------------
+        | CARGAR AGENDA
+        |--------------------------------------------------------------------------
+        */
+
         $asamblea->load('agendas');
 
 
-        $titulo = '📢 CITACIÓN VECINAL';
+        /*
+        |--------------------------------------------------------------------------
+        | FECHA EN ESPAÑOL
+        |--------------------------------------------------------------------------
+        */
+
+        $dias = [
+            'Sunday' => 'domingo',
+            'Monday' => 'lunes',
+            'Tuesday' => 'martes',
+            'Wednesday' => 'miércoles',
+            'Thursday' => 'jueves',
+            'Friday' => 'viernes',
+            'Saturday' => 'sábado',
+        ];
 
 
-        $mensaje = $asamblea->titulo;
+        $meses = [
+            1 => 'enero',
+            2 => 'febrero',
+            3 => 'marzo',
+            4 => 'abril',
+            5 => 'mayo',
+            6 => 'junio',
+            7 => 'julio',
+            8 => 'agosto',
+            9 => 'septiembre',
+            10 => 'octubre',
+            11 => 'noviembre',
+            12 => 'diciembre',
+        ];
 
 
-        if ($asamblea->fecha) {
+        $diaSemana =
+            $dias[
+                $asamblea->fecha->format('l')
+            ];
 
-            $mensaje .= ' — ' .
-                $asamblea->fecha->format('d/m/Y');
 
-        }
+        $dia =
+            $asamblea->fecha->format('d');
 
+
+        $mes =
+            $meses[
+                (int) $asamblea->fecha->format('n')
+            ];
+
+
+        $anio =
+            $asamblea->fecha->format('Y');
+
+
+        $fechaTexto =
+            "{$diaSemana} {$dia} de {$mes} de {$anio}";
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HORAS
+        |--------------------------------------------------------------------------
+        */
+
+        $primeraCitacion = null;
 
         if ($asamblea->primera_citacion) {
 
-            $mensaje .= ' — 1ra citación ' .
-                $asamblea->primera_citacion->format('H:i');
+            $primeraCitacion =
+                $asamblea->primera_citacion
+                    ->format('h:i') . ' p. m.';
+        }
+
+
+        $segundaCitacion = null;
+
+        if ($asamblea->segunda_citacion) {
+
+            $segundaCitacion =
+                $asamblea->segunda_citacion
+                    ->format('h:i') . ' p. m.';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TÍTULO DE LA NOTIFICACIÓN
+        |--------------------------------------------------------------------------
+        */
+
+        $titulo = 'CITACIÓN VECINAL';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MENSAJE
+        |--------------------------------------------------------------------------
+        |
+        | Este será el texto visible inicialmente en la
+        | notificación de Android.
+        |
+        */
+
+        $mensaje =
+            $asamblea->titulo;
+
+
+        if ($asamblea->descripcion) {
+
+            $descripcion =
+                trim(
+                    preg_replace(
+                        '/\s+/',
+                        ' ',
+                        strip_tags(
+                            $asamblea->descripcion
+                        )
+                    )
+                );
+
+
+            if ($descripcion !== '') {
+
+                $mensaje .=
+                    "\n" .
+                    $descripcion;
+
+            }
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | INFORMACIÓN ADICIONAL
+        |--------------------------------------------------------------------------
+        */
+
+        $datosExtra = [
+
+            'tipo' => 'asamblea',
+
+            'tag' => 'asamblea-' . $asamblea->id,
+
+            'asamblea_id' => $asamblea->id,
+
+            'fecha' => $fechaTexto,
+
+            'primera_citacion' =>
+                $primeraCitacion,
+
+            'segunda_citacion' =>
+                $segundaCitacion,
+
+            'lugar' =>
+                $asamblea->lugar,
+
+            'convoca' =>
+                $asamblea->convoca,
+
+            'plantilla_citacion' =>
+                (int) $asamblea->plantilla_citacion,
+
+            /*
+             * Logo de Grupo Residencial 21.
+             */
+            'icon' =>
+                '/assets/asambleas/logo-grupo.png',
+
+            /*
+             * Badge pequeño para Android.
+             */
+            'badge' =>
+                '/assets/pwa/icon-192.png',
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FONDO DE LA CITACIÓN
+        |--------------------------------------------------------------------------
+        |
+        | El fondo seleccionado también puede utilizarse
+        | como imagen grande de la notificación cuando
+        | Android soporte la presentación expandida.
+        |
+        */
+
+        $plantilla =
+            (int) (
+                $asamblea->plantilla_citacion ?? 1
+            );
+
+
+        if (
+            $plantilla < 1 ||
+            $plantilla > 7
+        ) {
+
+            $plantilla = 1;
+
+        }
+
+
+        $datosExtra['image'] =
+            url(
+                "/assets/asambleas/fondos/fondo-{$plantilla}.jpg"
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | URL DIRECTA A LA CITACIÓN
+        |--------------------------------------------------------------------------
+        */
 
         $url = route(
             'asambleas.citacion',
@@ -501,10 +696,22 @@ class AsambleaController extends Controller
         $enviadas = 0;
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | SUSCRIPCIONES
+        |--------------------------------------------------------------------------
+        */
+
         $suscripciones =
             \App\Models\PushSubscription::query()
                 ->get();
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | ENVIAR A TODOS LOS DISPOSITIVOS
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($suscripciones as $suscripcion) {
 
@@ -513,7 +720,8 @@ class AsambleaController extends Controller
                     $suscripcion,
                     $titulo,
                     $mensaje,
-                    $url
+                    $url,
+                    $datosExtra
                 )
             ) {
 
@@ -525,27 +733,34 @@ class AsambleaController extends Controller
 
 
         /*
-         * ==============================================================
-         * MARCAR COMO ENVIADA
-         * ==============================================================
-         *
-         * Solo se marca como enviada después de terminar
-         * el proceso de envío.
-         */
+        |--------------------------------------------------------------------------
+        | MARCAR COMO ENVIADA
+        |--------------------------------------------------------------------------
+        |
+        | Solo se marca como enviada después de terminar
+        | el proceso de envío.
+        |
+        */
 
         $asamblea->update([
 
-            'estado' => 'publicada',
+            'estado' =>
+                'publicada',
 
-            'alerta_enviada' => true,
+            'alerta_enviada' =>
+                true,
 
-            'alerta_enviada_at' => now(),
+            'alerta_enviada_at' =>
+                now(),
 
         ]);
 
 
         return redirect()
-            ->route('asambleas.show', $asamblea)
+            ->route(
+                'asambleas.show',
+                $asamblea
+            )
             ->with(
                 'success',
                 "Convocatoria enviada correctamente a {$enviadas} dispositivo(s)."

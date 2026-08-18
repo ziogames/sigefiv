@@ -15,7 +15,8 @@ class PushNotificationService
         PushSubscription $suscripcion,
         string $titulo,
         string $mensaje,
-        ?string $url = null
+        ?string $url = null,
+        array $datosExtra = []
     ): bool {
         $auth = [
             'VAPID' => [
@@ -29,29 +30,108 @@ class PushNotificationService
 
         $subscription = Subscription::create([
             'endpoint' => $suscripcion->endpoint,
+
             'keys' => [
                 'p256dh' => $suscripcion->public_key,
                 'auth' => $suscripcion->auth_token,
             ],
+
             'contentEncoding' => $suscripcion->content_encoding,
         ]);
 
-        $payload = json_encode([
+        /*
+        |--------------------------------------------------------------------------
+        | Payload base
+        |--------------------------------------------------------------------------
+        */
+
+        $payload = [
             'title' => $titulo,
+
             'body' => $mensaje,
+
             'url' => $url ?? '/',
-            'icon' => '/assets/pwa/icon-192.png',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Logo de la notificación
+            |--------------------------------------------------------------------------
+            */
+
+            'icon' => '/assets/asambleas/logo-grupo.png',
+
             'badge' => '/assets/pwa/icon-192.png',
-        ], JSON_UNESCAPED_UNICODE);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Identificación
+            |--------------------------------------------------------------------------
+            */
+
+            'tipo' => 'general',
+
+            'tag' => 'sigefiv-notificacion',
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Datos adicionales
+        |--------------------------------------------------------------------------
+        |
+        | Permite que otros módulos, especialmente Asambleas,
+        | agreguen información al Push sin romper las
+        | notificaciones existentes.
+        |
+        */
+
+        if (!empty($datosExtra)) {
+
+            $payload = array_merge(
+                $payload,
+                $datosExtra
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Convertir a JSON
+        |--------------------------------------------------------------------------
+        */
+
+        $jsonPayload = json_encode(
+            $payload,
+            JSON_UNESCAPED_UNICODE |
+            JSON_UNESCAPED_SLASHES
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Enviar Push
+        |--------------------------------------------------------------------------
+        */
 
         $report = $webPush->sendOneNotification(
             $subscription,
-            $payload
+            $jsonPayload
         );
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Resultado
+        |--------------------------------------------------------------------------
+        */
+
         if ($report->isSuccess()) {
+
             return true;
+
         }
+
 
         return false;
     }

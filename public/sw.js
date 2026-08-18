@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sigefiv-v1';
+const CACHE_NAME = 'sigefiv-v3';
 
 
 /*
@@ -31,7 +31,9 @@ self.addEventListener('activate', event => {
     );
 
     event.waitUntil(
+
         self.clients.claim()
+
     );
 
 });
@@ -53,17 +55,37 @@ self.addEventListener('push', event => {
     );
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | DATOS POR DEFECTO
+    |--------------------------------------------------------------------------
+    */
+
     let datos = {
-        title: 'SIGEFIV',
+
+        title: 'Grupo Residencial 21',
+
         body: 'Tienes una nueva notificación.',
+
         url: '/dashboard',
-        icon: '/assets/pwa/icon-192.png',
-        badge: '/assets/pwa/icon-192.png'
+
+        icon: '/assets/asambleas/logo-grupo.png',
+
+        badge: '/assets/pwa/icon-192.png',
+
+        image: null,
+
+        tag: 'sigefiv-notificacion',
+
+        tipo: 'general'
+
     };
 
 
     /*
-    | Intentamos leer el payload enviado por Laravel.
+    |--------------------------------------------------------------------------
+    | LEER PAYLOAD
+    |--------------------------------------------------------------------------
     */
 
     if (event.data) {
@@ -73,16 +95,24 @@ self.addEventListener('push', event => {
             const payload =
                 event.data.json();
 
+
             datos = {
+
                 ...datos,
+
                 ...payload
+
             };
+
 
         } catch (error) {
 
             console.warn(
+
                 '[SIGEFIV] No se pudo interpretar el payload Push.',
+
                 error
+
             );
 
         }
@@ -91,32 +121,154 @@ self.addEventListener('push', event => {
 
 
     /*
-    | Mostramos la notificación.
+    |--------------------------------------------------------------------------
+    | OPCIONES DE LA NOTIFICACIÓN
+    |--------------------------------------------------------------------------
+    */
+
+    const opciones = {
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONTENIDO
+        |--------------------------------------------------------------------------
+        */
+
+        body: datos.body,
+
+        icon: datos.icon,
+
+        badge: datos.badge,
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | IDENTIFICACIÓN
+        |--------------------------------------------------------------------------
+        */
+
+        tag: datos.tag,
+
+        renotify: true,
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SONIDO
+        |--------------------------------------------------------------------------
+        |
+        | false significa que NO estamos silenciando la notificación.
+        |
+        | Android / navegador utilizará el comportamiento de sonido
+        | configurado para las notificaciones.
+        |
+        */
+
+        silent: false,
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VIBRACIÓN
+        |--------------------------------------------------------------------------
+        */
+
+        vibrate: [
+
+            200,
+            100,
+            200
+
+        ],
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INTERACCIÓN
+        |--------------------------------------------------------------------------
+        */
+
+        requireInteraction: false,
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATOS PARA EL CLICK
+        |--------------------------------------------------------------------------
+        */
+
+        data: {
+
+            url: datos.url,
+
+            tipo: datos.tipo,
+
+            asamblea_id:
+                datos.asamblea_id ?? null
+
+        },
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | BOTONES
+        |--------------------------------------------------------------------------
+        */
+
+        actions: [
+
+            {
+
+                action: 'ver_citacion',
+
+                title: 'VER CITACIÓN'
+
+            },
+
+            {
+
+                action: 'cerrar',
+
+                title: 'CERRAR'
+
+            }
+
+        ]
+
+    };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | IMAGEN GRANDE
+    |--------------------------------------------------------------------------
+    |
+    | Se utiliza solamente cuando Laravel envía una imagen.
+    |
+    */
+
+    if (datos.image) {
+
+        opciones.image =
+            datos.image;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MOSTRAR NOTIFICACIÓN
+    |--------------------------------------------------------------------------
     */
 
     event.waitUntil(
 
         self.registration.showNotification(
+
             datos.title,
-            {
-                body: datos.body,
 
-                icon: datos.icon,
+            opciones
 
-                badge: datos.badge,
-
-                data: {
-                    url: datos.url
-                },
-
-                vibrate: [
-                    200,
-                    100,
-                    200
-                ],
-
-                requireInteraction: false
-            }
         )
 
     );
@@ -131,45 +283,103 @@ self.addEventListener('push', event => {
 */
 
 self.addEventListener(
+
     'notificationclick',
+
     event => {
 
         console.log(
-            '[SIGEFIV] Notificación seleccionada'
+
+            '[SIGEFIV] Notificación seleccionada:',
+
+            event.action
+
         );
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | CERRAR
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            event.action === 'cerrar'
+        ) {
+
+            event.notification.close();
+
+            return;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OBTENER URL
+        |--------------------------------------------------------------------------
+        */
+
+        const url =
+
+            event.notification.data?.url ||
+
+            '/dashboard';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CERRAR NOTIFICACIÓN
+        |--------------------------------------------------------------------------
+        */
 
         event.notification.close();
 
 
-        const url =
-            event.notification.data?.url ||
-            '/dashboard';
-
+        /*
+        |--------------------------------------------------------------------------
+        | ABRIR / ENFOCAR SIGEFIV
+        |--------------------------------------------------------------------------
+        */
 
         event.waitUntil(
 
             self.clients
                 .matchAll({
+
                     type: 'window',
+
                     includeUncontrolled: true
+
                 })
+
                 .then(clients => {
 
+
                     /*
-                    | Si SIGEFIV ya está abierto,
-                    | llevamos al usuario a esa ventana.
+                    |--------------------------------------------------------------------------
+                    | SI SIGEFIV YA ESTÁ ABIERTO
+                    |--------------------------------------------------------------------------
                     */
 
-                    for (const client of clients) {
+                    for (
+                        const client of clients
+                    ) {
+
 
                         if (
                             'focus' in client
                         ) {
 
-                            client.navigate(url);
 
-                            return client.focus();
+                            return client
+                                .navigate(url)
+                                .then(() => {
+
+                                    return client.focus();
+
+                                });
+
 
                         }
 
@@ -177,8 +387,9 @@ self.addEventListener(
 
 
                     /*
-                    | Si no está abierto,
-                    | abrimos SIGEFIV.
+                    |--------------------------------------------------------------------------
+                    | SI SIGEFIV NO ESTÁ ABIERTO
+                    |--------------------------------------------------------------------------
                     */
 
                     if (
@@ -186,7 +397,9 @@ self.addEventListener(
                     ) {
 
                         return self.clients.openWindow(
+
                             url
+
                         );
 
                     }
@@ -196,6 +409,7 @@ self.addEventListener(
         );
 
     }
+
 );
 
 
@@ -204,13 +418,19 @@ self.addEventListener(
 | FETCH
 |--------------------------------------------------------------------------
 |
-| Por ahora dejamos las peticiones pasar directamente a Laravel.
+| Las peticiones pasan directamente a Laravel.
 | No cacheamos datos financieros ni páginas dinámicas.
 |
 */
 
-self.addEventListener('fetch', event => {
+self.addEventListener(
 
-    // Las peticiones pasan directamente a Laravel.
+    'fetch',
 
-});
+    event => {
+
+        // Sin caché para datos dinámicos.
+
+    }
+
+);
