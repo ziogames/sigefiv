@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sigefiv-v4';
+const CACHE_NAME = 'sigefiv-v5';
 
 
 /*
@@ -10,7 +10,8 @@ const CACHE_NAME = 'sigefiv-v4';
 self.addEventListener('install', event => {
 
     console.log(
-        '[SIGEFIV] Service Worker instalado'
+        '[SIGEFIV] Service Worker instalado:',
+        CACHE_NAME
     );
 
     self.skipWaiting();
@@ -27,7 +28,8 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
 
     console.log(
-        '[SIGEFIV] Service Worker activo'
+        '[SIGEFIV] Service Worker activo:',
+        CACHE_NAME
     );
 
     event.waitUntil(
@@ -60,23 +62,32 @@ self.addEventListener('push', event => {
 
     let datos = {
 
-        title: 'Grupo Residencial 21',
+        title:
+            'Grupo Residencial 21',
 
-        body: 'Tienes una nueva notificación.',
+        body:
+            'Tienes una nueva notificación.',
 
-        url: '/dashboard',
+        url:
+            '/dashboard',
 
-        icon: '/assets/asambleas/logo-grupo.png',
+        icon:
+            '/assets/asambleas/logo-grupo.png',
 
-        badge: '/assets/pwa/icon-192.png',
+        badge:
+            '/assets/pwa/icon-192.png',
 
-        image: null,
+        image:
+            null,
 
-        tag: 'sigefiv-notificacion',
+        tag:
+            'sigefiv-notificacion',
 
-        tipo: 'general',
+        tipo:
+            'general',
 
-        asamblea_id: null
+        asamblea_id:
+            null
 
     };
 
@@ -96,7 +107,7 @@ self.addEventListener('push', event => {
 
 
             console.log(
-                '[SIGEFIV] Payload recibido:',
+                '[SIGEFIV] Payload:',
                 payload
             );
 
@@ -112,8 +123,8 @@ self.addEventListener('push', event => {
 
         } catch (error) {
 
-            console.warn(
-                '[SIGEFIV] No se pudo interpretar el payload Push.',
+            console.error(
+                '[SIGEFIV] Error leyendo payload:',
                 error
             );
 
@@ -126,20 +137,28 @@ self.addEventListener('push', event => {
     |--------------------------------------------------------------------------
     | CONSTRUIR URL
     |--------------------------------------------------------------------------
-    |
-    | Si es una asamblea y tenemos su ID,
-    | construimos directamente la URL pública
-    | de la citación.
-    |
     */
 
     let urlNotificacion =
         datos.url;
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | ASAMBLEA
+    |--------------------------------------------------------------------------
+    |
+    | Para una asamblea NO confiamos en la URL recibida.
+    | Construimos directamente la ruta pública.
+    |
+    */
+
     if (
+
         datos.tipo === 'asamblea' &&
+
         datos.asamblea_id
+
     ) {
 
         urlNotificacion =
@@ -149,7 +168,7 @@ self.addEventListener('push', event => {
 
 
     console.log(
-        '[SIGEFIV] URL de la notificación:',
+        '[SIGEFIV] URL final:',
         urlNotificacion
     );
 
@@ -162,17 +181,23 @@ self.addEventListener('push', event => {
 
     const opciones = {
 
-        body: datos.body,
+        body:
+            datos.body,
 
-        icon: datos.icon,
+        icon:
+            datos.icon,
 
-        badge: datos.badge,
+        badge:
+            datos.badge,
 
-        tag: datos.tag,
+        tag:
+            datos.tag,
 
-        renotify: true,
+        renotify:
+            true,
 
-        silent: false,
+        silent:
+            false,
 
         vibrate: [
 
@@ -182,30 +207,33 @@ self.addEventListener('push', event => {
 
         ],
 
-        requireInteraction: false,
+        requireInteraction:
+            false,
 
 
         /*
         |--------------------------------------------------------------------------
-        | DATOS QUE QUEDAN GUARDADOS EN LA NOTIFICACIÓN
+        | DATOS DE LA NOTIFICACIÓN
         |--------------------------------------------------------------------------
         */
 
         data: {
 
-            url: urlNotificacion,
+            url:
+                urlNotificacion,
 
-            tipo: datos.tipo,
+            tipo:
+                datos.tipo,
 
             asamblea_id:
-                datos.asamblea_id ?? null
+                datos.asamblea_id
 
         },
 
 
         /*
         |--------------------------------------------------------------------------
-        | ACCIONES
+        | BOTONES
         |--------------------------------------------------------------------------
         */
 
@@ -213,17 +241,21 @@ self.addEventListener('push', event => {
 
             {
 
-                action: 'ver_citacion',
+                action:
+                    'ver_citacion',
 
-                title: 'VER CITACIÓN'
+                title:
+                    'VER CITACIÓN'
 
             },
 
             {
 
-                action: 'cerrar',
+                action:
+                    'cerrar',
 
-                title: 'CERRAR'
+                title:
+                    'CERRAR'
 
             }
 
@@ -234,7 +266,7 @@ self.addEventListener('push', event => {
 
     /*
     |--------------------------------------------------------------------------
-    | IMAGEN GRANDE
+    | IMAGEN
     |--------------------------------------------------------------------------
     */
 
@@ -248,7 +280,7 @@ self.addEventListener('push', event => {
 
     /*
     |--------------------------------------------------------------------------
-    | MOSTRAR NOTIFICACIÓN
+    | MOSTRAR
     |--------------------------------------------------------------------------
     */
 
@@ -269,7 +301,7 @@ self.addEventListener('push', event => {
 
 /*
 |--------------------------------------------------------------------------
-| CLICK EN LA NOTIFICACIÓN
+| CLICK EN NOTIFICACIÓN
 |--------------------------------------------------------------------------
 */
 
@@ -278,8 +310,19 @@ self.addEventListener(
     event => {
 
         console.log(
-            '[SIGEFIV] Click en notificación:',
+            '[SIGEFIV] CLICK NOTIFICACIÓN'
+        );
+
+
+        console.log(
+            '[SIGEFIV] Acción:',
             event.action
+        );
+
+
+        console.log(
+            '[SIGEFIV] Datos:',
+            event.notification.data
         );
 
 
@@ -312,66 +355,48 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | URL
+        | CONSTRUIR URL
         |--------------------------------------------------------------------------
         */
 
-        let url =
-            datos.url ||
-            '/dashboard';
+        let url;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASEGURAR URL CORRECTA PARA ASAMBLEAS
-        |--------------------------------------------------------------------------
-        */
 
         if (
+
             datos.tipo === 'asamblea' &&
+
             datos.asamblea_id
+
         ) {
 
             url =
                 `/asambleas/${datos.asamblea_id}/citacion`;
 
+        } else {
+
+            url =
+                datos.url ||
+                '/dashboard';
+
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | CONVERTIR A URL ABSOLUTA
+        | URL ABSOLUTA
         |--------------------------------------------------------------------------
         */
 
-        let urlFinal;
-
-        try {
-
-            urlFinal =
-                new URL(
-                    url,
-                    self.location.origin
-                ).href;
-
-        } catch (error) {
-
-            console.error(
-                '[SIGEFIV] URL inválida:',
-                error
-            );
-
-            urlFinal =
-                new URL(
-                    '/dashboard',
-                    self.location.origin
-                ).href;
-
-        }
+        const urlFinal =
+            new URL(
+                url,
+                self.location.origin
+            ).href;
 
 
         console.log(
-            '[SIGEFIV] Abriendo:',
+            '[SIGEFIV] ABRIENDO:',
             urlFinal
         );
 
@@ -387,91 +412,20 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | ABRIR CITACIÓN
+        | ABRIR DIRECTAMENTE
         |--------------------------------------------------------------------------
+        |
+        | No usamos client.navigate().
+        |
+        | Abrimos directamente la página.
+        |
         */
 
         event.waitUntil(
 
-            self.clients
-                .matchAll({
-
-                    type: 'window',
-
-                    includeUncontrolled: true
-
-                })
-
-                .then(clients => {
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | BUSCAR SIGEFIV ABIERTO
-                    |--------------------------------------------------------------------------
-                    */
-
-                    for (
-                        const client of clients
-                    ) {
-
-
-                        if (
-                            client.url.startsWith(
-                                self.location.origin
-                            )
-                        ) {
-
-
-                            return client
-                                .navigate(urlFinal)
-                                .then(() => {
-
-                                    return client.focus();
-
-                                })
-                                .catch(error => {
-
-                                    console.error(
-                                        '[SIGEFIV] Error al navegar:',
-                                        error
-                                    );
-
-
-                                    if (
-                                        self.clients.openWindow
-                                    ) {
-
-                                        return self.clients.openWindow(
-                                            urlFinal
-                                        );
-
-                                    }
-
-                                });
-
-                        }
-
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SIGEFIV NO ESTÁ ABIERTO
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        self.clients.openWindow
-                    ) {
-
-                        return self.clients.openWindow(
-                            urlFinal
-                        );
-
-                    }
-
-                })
+            self.clients.openWindow(
+                urlFinal
+            )
 
         );
 
@@ -489,7 +443,7 @@ self.addEventListener(
     'fetch',
     event => {
 
-        // No cacheamos datos dinámicos.
+        // No cacheamos páginas dinámicas.
 
     }
 );
