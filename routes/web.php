@@ -18,44 +18,125 @@ use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\AsambleaController;
 
 
+/*
+|--------------------------------------------------------------------------
+| INICIO
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/', function () {
+
     return redirect()->route('login');
+
 });
 
+
+/*
+|--------------------------------------------------------------------------
+| CITACIÓN PÚBLICA DE ASAMBLEA
+|--------------------------------------------------------------------------
+|
+| Esta ruta NO requiere autenticación.
+|
+| El vecino puede llegar aquí directamente desde
+| la notificación Push.
+|
+*/
+
+Route::get(
+    '/asambleas/{asamblea}/citacion',
+    [AsambleaController::class, 'citacion']
+)->name('asambleas.citacion');
+
+
+/*
+|--------------------------------------------------------------------------
+| RUTAS PROTEGIDAS
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware(['auth'])->group(function () {
 
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])
+    /*
+    |--------------------------------------------------------------------------
+    | DASHBOARD
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/dashboard',
+        [DashboardController::class, 'index']
+    )
         ->name('dashboard')
         ->middleware('permission:dashboard');
 
 
-    Route::resource('usuarios', UsuarioController::class)
+    /*
+    |--------------------------------------------------------------------------
+    | USUARIOS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::resource(
+        'usuarios',
+        UsuarioController::class
+    )
         ->middleware('permission:usuarios.index');
 
 
-    Route::resource('roles', RolController::class)
+    /*
+    |--------------------------------------------------------------------------
+    | ROLES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::resource(
+        'roles',
+        RolController::class
+    )
         ->middleware('permission:roles.index');
 
 
-    Route::get('/mi-cuenta', [PerfilController::class, 'index'])
+    /*
+    |--------------------------------------------------------------------------
+    | MI CUENTA
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/mi-cuenta',
+        [PerfilController::class, 'index']
+    )
         ->name('perfil.index');
 
 
-    Route::put('/mi-cuenta', [PerfilController::class, 'update'])
+    Route::put(
+        '/mi-cuenta',
+        [PerfilController::class, 'update']
+    )
         ->name('perfil.update');
 
 
-    Route::put('/mi-cuenta/password', [PerfilController::class, 'password'])
+    Route::put(
+        '/mi-cuenta/password',
+        [PerfilController::class, 'password']
+    )
         ->name('perfil.password');
 
 
     Route::post(
         '/mi-cuenta/foto',
         [PerfilController::class, 'foto']
-    )->name('perfil.foto');
+    )
+        ->name('perfil.foto');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | BITÁCORA
+    |--------------------------------------------------------------------------
+    */
 
     Route::get(
         '/bitacora',
@@ -65,23 +146,50 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:bitacora.index');
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | CONFIGURACIÓN
+    |--------------------------------------------------------------------------
+    */
+
     Route::resource(
         'configuracion',
         ConfiguracionController::class
-    )->middleware('permission:configuracion');
+    )
+        ->middleware('permission:configuracion');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | CATEGORÍAS
+    |--------------------------------------------------------------------------
+    */
 
     Route::resource(
         'categorias',
         CategoriaController::class
-    )->middleware('permission:categorias.index');
+    )
+        ->middleware('permission:categorias.index');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | MOVIMIENTOS
+    |--------------------------------------------------------------------------
+    */
 
     Route::resource(
         'movimientos',
         MovimientoController::class
-    )->middleware('permission:movimientos.index');
+    )
+        ->middleware('permission:movimientos.index');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | REPORTES
+    |--------------------------------------------------------------------------
+    */
 
     Route::get(
         '/reportes',
@@ -107,6 +215,12 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:dashboard');
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | PERIODOS
+    |--------------------------------------------------------------------------
+    */
+
     Route::post(
         '/periodos/{periodo}/cerrar',
         [PeriodoController::class, 'cerrar']
@@ -115,6 +229,12 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:dashboard');
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | CAJA
+    |--------------------------------------------------------------------------
+    */
+
     Route::get(
         '/caja',
         [CajaController::class, 'index']
@@ -122,6 +242,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('caja.index')
         ->middleware('permission:caja.index');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | REPORTE EXCEL
+    |--------------------------------------------------------------------------
+    */
 
     Route::get(
         '/reportes/excel',
@@ -135,9 +261,6 @@ Route::middleware(['auth'])->group(function () {
     |--------------------------------------------------------------------------
     | CONSULTA INTELIGENTE
     |--------------------------------------------------------------------------
-    |
-    | Aquí llegará la pregunta escrita por el usuario.
-    |
     */
 
     Route::post(
@@ -154,16 +277,24 @@ Route::middleware(['auth'])->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::post('/push-subscriptions', [
-        PushSubscriptionController::class,
-        'store'
-    ])->name('push-subscriptions.store');
+    Route::post(
+        '/push-subscriptions',
+        [
+            PushSubscriptionController::class,
+            'store'
+        ]
+    )
+        ->name('push-subscriptions.store');
 
 
-    Route::delete('/push-subscriptions', [
-        PushSubscriptionController::class,
-        'destroy'
-    ])->name('push-subscriptions.destroy');
+    Route::delete(
+        '/push-subscriptions',
+        [
+            PushSubscriptionController::class,
+            'destroy'
+        ]
+    )
+        ->name('push-subscriptions.destroy');
 
 
     /*
@@ -172,65 +303,100 @@ Route::middleware(['auth'])->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/push-test', function () {
+    Route::get(
+        '/push-test',
+        function () {
 
-        $suscripcion =
-            \App\Models\PushSubscription::latest()->first();
+            $suscripcion =
+                \App\Models\PushSubscription::latest()->first();
 
-        if (!$suscripcion) {
+
+            if (!$suscripcion) {
+
+                return response()->json([
+                    'success' => false,
+                    'message' =>
+                        'No existe ninguna suscripción Push.',
+                ], 404);
+
+            }
+
+
+            $resultado =
+                app(
+                    \App\Services\PushNotificationService::class
+                )->enviar(
+
+                    $suscripcion,
+
+                    'SIGEFIV',
+
+                    'Esta es una notificación de prueba.',
+
+                    '/dashboard'
+
+                );
+
 
             return response()->json([
-                'success' => false,
-                'message' => 'No existe ninguna suscripción Push.',
-            ], 404);
+
+                'success' =>
+                    $resultado,
+
+                'message' =>
+                    $resultado
+                        ? 'Notificación enviada correctamente.'
+                        : 'No se pudo enviar la notificación.',
+
+                'subscription_id' =>
+                    $suscripcion->id,
+
+            ]);
 
         }
+    )
+        ->name('push.test');
 
-        $resultado =
-            app(\App\Services\PushNotificationService::class)->enviar(
-                $suscripcion,
-                'SIGEFIV',
-                'Esta es una notificación de prueba.',
-                '/dashboard'
-            );
 
-        return response()->json([
-            'success' => $resultado,
-            'message' => $resultado
-                ? 'Notificación enviada correctamente.'
-                : 'No se pudo enviar la notificación.',
-            'subscription_id' => $suscripcion->id,
-        ]);
+    /*
+    |--------------------------------------------------------------------------
+    | ASAMBLEAS
+    |--------------------------------------------------------------------------
+    */
 
-    })->name('push.test');
+    Route::get(
+        'asambleas/{asamblea}/imprimir',
+        [
+            AsambleaController::class,
+            'imprimir'
+        ]
+    )
+        ->name('asambleas.imprimir');
 
-Route::get(
-    'asambleas/{asamblea}/imprimir',
-    [AsambleaController::class, 'imprimir']
-)->name('asambleas.imprimir');
 
-Route::post(
-    'asambleas/{asamblea}/enviar',
-    [AsambleaController::class, 'enviar']
-)->name('asambleas.enviar');
+    Route::post(
+        'asambleas/{asamblea}/enviar',
+        [
+            AsambleaController::class,
+            'enviar'
+        ]
+    )
+        ->name('asambleas.enviar');
+
 
     Route::resource(
-    'asambleas',
-    AsambleaController::class
-)->middleware('permission:asambleas.index');
-
-
+        'asambleas',
+        AsambleaController::class
+    )
+        ->middleware('permission:asambleas.index');
 
 });
+
+
 /*
 |--------------------------------------------------------------------------
-| CITACIÓN PÚBLICA
+| AUTENTICACIÓN
 |--------------------------------------------------------------------------
 */
-
-Route::get(
-    '/citacion/{asamblea}',
-    [AsambleaController::class, 'citacion']
-)->name('asambleas.citacion');
 
 require __DIR__.'/auth.php';
