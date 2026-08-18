@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sigefiv-v3';
+const CACHE_NAME = 'sigefiv-v4';
 
 
 /*
@@ -43,9 +43,6 @@ self.addEventListener('activate', event => {
 |--------------------------------------------------------------------------
 | PUSH
 |--------------------------------------------------------------------------
-|
-| Recibe la notificación enviada por Laravel/WebPush.
-|
 */
 
 self.addEventListener('push', event => {
@@ -77,7 +74,9 @@ self.addEventListener('push', event => {
 
         tag: 'sigefiv-notificacion',
 
-        tipo: 'general'
+        tipo: 'general',
+
+        asamblea_id: null
 
     };
 
@@ -96,6 +95,12 @@ self.addEventListener('push', event => {
                 event.data.json();
 
 
+            console.log(
+                '[SIGEFIV] Payload recibido:',
+                payload
+            );
+
+
             datos = {
 
                 ...datos,
@@ -108,11 +113,8 @@ self.addEventListener('push', event => {
         } catch (error) {
 
             console.warn(
-
                 '[SIGEFIV] No se pudo interpretar el payload Push.',
-
                 error
-
             );
 
         }
@@ -122,17 +124,43 @@ self.addEventListener('push', event => {
 
     /*
     |--------------------------------------------------------------------------
-    | OPCIONES DE LA NOTIFICACIÓN
+    | CONSTRUIR URL
+    |--------------------------------------------------------------------------
+    |
+    | Si es una asamblea y tenemos su ID,
+    | construimos directamente la URL pública
+    | de la citación.
+    |
+    */
+
+    let urlNotificacion =
+        datos.url;
+
+
+    if (
+        datos.tipo === 'asamblea' &&
+        datos.asamblea_id
+    ) {
+
+        urlNotificacion =
+            `/asambleas/${datos.asamblea_id}/citacion`;
+
+    }
+
+
+    console.log(
+        '[SIGEFIV] URL de la notificación:',
+        urlNotificacion
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | OPCIONES
     |--------------------------------------------------------------------------
     */
 
     const opciones = {
-
-        /*
-        |--------------------------------------------------------------------------
-        | CONTENIDO
-        |--------------------------------------------------------------------------
-        */
 
         body: datos.body,
 
@@ -140,38 +168,11 @@ self.addEventListener('push', event => {
 
         badge: datos.badge,
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | IDENTIFICACIÓN
-        |--------------------------------------------------------------------------
-        */
-
         tag: datos.tag,
 
         renotify: true,
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | SONIDO
-        |--------------------------------------------------------------------------
-        |
-        | false significa que NO estamos silenciando la notificación.
-        |
-        | Android / navegador utilizará el comportamiento de sonido
-        | configurado para las notificaciones.
-        |
-        */
-
         silent: false,
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VIBRACIÓN
-        |--------------------------------------------------------------------------
-        */
 
         vibrate: [
 
@@ -181,25 +182,18 @@ self.addEventListener('push', event => {
 
         ],
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | INTERACCIÓN
-        |--------------------------------------------------------------------------
-        */
-
         requireInteraction: false,
 
 
         /*
         |--------------------------------------------------------------------------
-        | DATOS PARA EL CLICK
+        | DATOS QUE QUEDAN GUARDADOS EN LA NOTIFICACIÓN
         |--------------------------------------------------------------------------
         */
 
         data: {
 
-            url: datos.url,
+            url: urlNotificacion,
 
             tipo: datos.tipo,
 
@@ -211,7 +205,7 @@ self.addEventListener('push', event => {
 
         /*
         |--------------------------------------------------------------------------
-        | BOTONES
+        | ACCIONES
         |--------------------------------------------------------------------------
         */
 
@@ -242,9 +236,6 @@ self.addEventListener('push', event => {
     |--------------------------------------------------------------------------
     | IMAGEN GRANDE
     |--------------------------------------------------------------------------
-    |
-    | Se utiliza solamente cuando Laravel envía una imagen.
-    |
     */
 
     if (datos.image) {
@@ -283,17 +274,12 @@ self.addEventListener('push', event => {
 */
 
 self.addEventListener(
-
     'notificationclick',
-
     event => {
 
         console.log(
-
-            '[SIGEFIV] Notificación seleccionada:',
-
+            '[SIGEFIV] Click en notificación:',
             event.action
-
         );
 
 
@@ -316,15 +302,78 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | OBTENER URL
+        | OBTENER DATOS
         |--------------------------------------------------------------------------
         */
 
-        const url =
+        const datos =
+            event.notification.data || {};
 
-            event.notification.data?.url ||
 
+        /*
+        |--------------------------------------------------------------------------
+        | URL
+        |--------------------------------------------------------------------------
+        */
+
+        let url =
+            datos.url ||
             '/dashboard';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASEGURAR URL CORRECTA PARA ASAMBLEAS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            datos.tipo === 'asamblea' &&
+            datos.asamblea_id
+        ) {
+
+            url =
+                `/asambleas/${datos.asamblea_id}/citacion`;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONVERTIR A URL ABSOLUTA
+        |--------------------------------------------------------------------------
+        */
+
+        let urlFinal;
+
+        try {
+
+            urlFinal =
+                new URL(
+                    url,
+                    self.location.origin
+                ).href;
+
+        } catch (error) {
+
+            console.error(
+                '[SIGEFIV] URL inválida:',
+                error
+            );
+
+            urlFinal =
+                new URL(
+                    '/dashboard',
+                    self.location.origin
+                ).href;
+
+        }
+
+
+        console.log(
+            '[SIGEFIV] Abriendo:',
+            urlFinal
+        );
 
 
         /*
@@ -338,7 +387,7 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | ABRIR / ENFOCAR SIGEFIV
+        | ABRIR CITACIÓN
         |--------------------------------------------------------------------------
         */
 
@@ -358,7 +407,7 @@ self.addEventListener(
 
                     /*
                     |--------------------------------------------------------------------------
-                    | SI SIGEFIV YA ESTÁ ABIERTO
+                    | BUSCAR SIGEFIV ABIERTO
                     |--------------------------------------------------------------------------
                     */
 
@@ -368,18 +417,38 @@ self.addEventListener(
 
 
                         if (
-                            'focus' in client
+                            client.url.startsWith(
+                                self.location.origin
+                            )
                         ) {
 
 
                             return client
-                                .navigate(url)
+                                .navigate(urlFinal)
                                 .then(() => {
 
                                     return client.focus();
 
-                                });
+                                })
+                                .catch(error => {
 
+                                    console.error(
+                                        '[SIGEFIV] Error al navegar:',
+                                        error
+                                    );
+
+
+                                    if (
+                                        self.clients.openWindow
+                                    ) {
+
+                                        return self.clients.openWindow(
+                                            urlFinal
+                                        );
+
+                                    }
+
+                                });
 
                         }
 
@@ -388,7 +457,7 @@ self.addEventListener(
 
                     /*
                     |--------------------------------------------------------------------------
-                    | SI SIGEFIV NO ESTÁ ABIERTO
+                    | SIGEFIV NO ESTÁ ABIERTO
                     |--------------------------------------------------------------------------
                     */
 
@@ -397,9 +466,7 @@ self.addEventListener(
                     ) {
 
                         return self.clients.openWindow(
-
-                            url
-
+                            urlFinal
                         );
 
                     }
@@ -409,7 +476,6 @@ self.addEventListener(
         );
 
     }
-
 );
 
 
@@ -417,20 +483,13 @@ self.addEventListener(
 |--------------------------------------------------------------------------
 | FETCH
 |--------------------------------------------------------------------------
-|
-| Las peticiones pasan directamente a Laravel.
-| No cacheamos datos financieros ni páginas dinámicas.
-|
 */
 
 self.addEventListener(
-
     'fetch',
-
     event => {
 
-        // Sin caché para datos dinámicos.
+        // No cacheamos datos dinámicos.
 
     }
-
 );
