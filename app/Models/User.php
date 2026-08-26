@@ -8,12 +8,16 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
     'name',
     'email',
     'password',
+    'google_id',
+    'estado',
+    'recibir_notificaciones',
     'telefono',
     'dni',
     'direccion',
@@ -28,6 +32,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
+    use HasApiTokens;
     use HasFactory;
     use Notifiable;
     use HasRoles;
@@ -42,19 +47,65 @@ class User extends Authenticatable
 
             'ultimo_acceso' => 'datetime',
 
+            'recibir_notificaciones' => 'boolean',
+
         ];
     }
 
     /**
-     * Avatar del usuario
+     * Avatar del usuario.
+     *
+     * Soporta:
+     *
+     * 1. URL externa de Google.
+     * 2. Foto almacenada localmente.
+     * 3. Avatar generado automáticamente.
      */
     public function getAvatarAttribute(): string
     {
-        if ($this->foto && file_exists(public_path('storage/' . $this->foto))) {
+        /*
+        |--------------------------------------------------------------------------
+        | Foto de Google
+        |--------------------------------------------------------------------------
+        */
 
-            return asset('storage/' . $this->foto);
+        if (
+            $this->foto &&
+            filter_var($this->foto, FILTER_VALIDATE_URL)
+        ) {
+
+            return $this->foto;
 
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Foto local de SIGEFIV
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $this->foto &&
+            file_exists(
+                public_path(
+                    'storage/' . $this->foto
+                )
+            )
+        ) {
+
+            return asset(
+                'storage/' . $this->foto
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Avatar generado
+        |--------------------------------------------------------------------------
+        */
 
         return 'https://ui-avatars.com/api/?name=' .
             urlencode($this->name) .

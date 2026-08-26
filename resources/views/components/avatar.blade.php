@@ -1,31 +1,35 @@
 @php
 
-$colores = [
-    'bg-primary',
-    'bg-success',
-    'bg-danger',
-    'bg-warning',
-    'bg-info',
-    'bg-secondary',
-];
+    $colores = [
+        'bg-primary',
+        'bg-success',
+        'bg-danger',
+        'bg-warning',
+        'bg-info',
+        'bg-secondary',
+    ];
 
-$color = $colores[
-    crc32($user->name) % count($colores)
-];
+    $color = $colores[
+        crc32($user->name) % count($colores)
+    ];
+
+    $avatar = $user->avatar;
 
 @endphp
 
-@if(!empty($user->foto))
+@if($avatar)
 
     <img
-        src="{{ $user->avatar }}"
+        src="{{ $avatar }}"
         alt="{{ $user->name }}"
         class="rounded-circle"
         style="
             width:{{ $size }}px;
             height:{{ $size }}px;
             object-fit:cover;
-        ">
+        "
+        loading="lazy"
+        referrerpolicy="no-referrer">
 
 @else
 

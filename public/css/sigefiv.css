@@ -28,6 +28,192 @@
 
 }
 
+
+/*=========================================================
+=        SIGEFIV THEME SYSTEM - CLARO / OSCURO            =
+=========================================================*/
+
+/*
+ * CoreUI utiliza data-coreui-theme="light|dark".
+ *
+ * El sidebar conserva deliberadamente su identidad oscura
+ * en ambos temas. El contenido principal, tarjetas, tablas,
+ * formularios y componentes generales sí se adaptan.
+ */
+
+:root {
+    --sigi-page-bg: #f8fafc;
+    --sigi-card-bg: #ffffff;
+    --sigi-surface: #ffffff;
+    --sigi-text: #1f2937;
+    --sigi-text-secondary: #64748b;
+    --sigi-border: #e2e8f0;
+    --sigi-table-hover: #f5f9ff;
+    --sigi-input-bg: #ffffff;
+    --sigi-shadow: 0 3px 15px rgba(0,0,0,.08);
+    --sigi-dropdown-bg: #ffffff;
+    --sigi-dropdown-text: #1f2937;
+}
+
+[data-coreui-theme="dark"] {
+    --sigi-page-bg: #111827;
+    --sigi-card-bg: #1f2937;
+    --sigi-surface: #1f2937;
+    --sigi-text: #e5e7eb;
+    --sigi-text-secondary: #9ca3af;
+    --sigi-border: #374151;
+    --sigi-table-hover: rgba(79,124,255,.12);
+    --sigi-input-bg: #1f2937;
+    --sigi-shadow: 0 8px 24px rgba(0,0,0,.25);
+    --sigi-dropdown-bg: #273247;
+    --sigi-dropdown-text: #dbe6f5;
+}
+
+/*
+ * Fondo y texto globales del área de contenido.
+ */
+body {
+    background-color: var(--sigi-page-bg);
+    color: var(--sigi-text);
+}
+
+.body {
+    background-color: var(--sigi-page-bg) !important;
+    color: var(--sigi-text);
+}
+
+/*
+ * Tarjetas generales.
+ */
+.card {
+    background-color: var(--sigi-card-bg);
+    color: var(--sigi-text);
+    border-color: var(--sigi-border);
+    box-shadow: var(--sigi-shadow);
+}
+
+/*
+ * Cabeceras de tarjetas.
+ */
+.card-header {
+    background-color: transparent;
+    color: var(--sigi-text);
+    border-bottom-color: var(--sigi-border);
+}
+
+/*
+ * Tablas.
+ */
+.table {
+    color: var(--sigi-text);
+    --cui-table-color: var(--sigi-text);
+}
+
+.table > tbody > tr:hover {
+    background: var(--sigi-table-hover);
+}
+
+.table > :not(caption) > * > * {
+    border-bottom-color: var(--sigi-border);
+}
+
+/*
+ * Formularios.
+ */
+.form-control,
+.form-select {
+    background-color: var(--sigi-input-bg);
+    color: var(--sigi-text);
+    border-color: var(--sigi-border);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--sigi-input-bg);
+    color: var(--sigi-text);
+}
+
+.form-control::placeholder {
+    color: var(--sigi-text-secondary);
+}
+
+/*
+ * Dropdowns.
+ */
+.dropdown-menu {
+    background-color: var(--sigi-dropdown-bg);
+    color: var(--sigi-dropdown-text);
+    border-color: var(--sigi-border);
+}
+
+.dropdown-item {
+    color: var(--sigi-dropdown-text);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--sigi-table-hover);
+    color: var(--sigi-dropdown-text);
+}
+
+/*
+ * Modales.
+ */
+.modal-content {
+    background-color: var(--sigi-card-bg);
+    color: var(--sigi-text);
+    border-color: var(--sigi-border);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--sigi-border);
+}
+
+/*
+ * Texto secundario.
+ */
+.text-muted {
+    color: var(--sigi-text-secondary) !important;
+}
+
+/*
+ * Paginación.
+ */
+.page-link {
+    background-color: var(--sigi-card-bg);
+    color: var(--sigi-text);
+    border-color: var(--sigi-border);
+}
+
+.page-link:hover {
+    background-color: var(--sigi-table-hover);
+    color: var(--sigi-text);
+}
+
+/*
+ * Transición suave al cambiar de tema.
+ */
+body,
+.card,
+.card-header,
+.table,
+.form-control,
+.form-select,
+.dropdown-menu,
+.dropdown-item,
+.modal-content,
+.modal-header,
+.modal-footer,
+.page-link {
+    transition:
+        background-color .25s ease,
+        color .25s ease,
+        border-color .25s ease,
+        box-shadow .25s ease;
+}
+
+
 /*=========================================================*/
 
 .sidebar{

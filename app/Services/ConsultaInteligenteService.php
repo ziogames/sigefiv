@@ -16,7 +16,119 @@ class ConsultaInteligenteService
             trim($consulta)
         );
 
+        $tabla = $this->detectarTabla($texto);
+
         $operacion = $this->detectarOperacion($texto);
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONSULTAS DE USUARIOS Y ROLES
+        |--------------------------------------------------------------------------
+        |
+        | Las consultas administrativas sobre usuarios y roles deben
+        | ejecutarse dentro de SIGEFIV y no enviarse a Ollama.
+        |
+        | detectarOperacion() necesita conservar "conversation" para
+        | preguntas realmente conversacionales como:
+        |
+        | "explícame cómo funcionan los roles"
+        |
+        | pero expresiones como:
+        |
+        | "muéstrame los usuarios del sistema"
+        | "dame los roles"
+        | "qué usuarios existen"
+        |
+        | son consultas directas de datos.
+        |
+        */
+
+        if (
+            in_array(
+                $tabla,
+                [
+                    'usuarios',
+                    'roles',
+                ],
+                true
+            ) &&
+            $operacion === 'conversation'
+        ) {
+
+            $esConsultaDirecta =
+                str_contains($texto, 'muéstrame') ||
+                str_contains($texto, 'muestrame') ||
+                str_contains($texto, 'mostrar') ||
+                str_contains($texto, 'dame') ||
+                str_contains($texto, 'lista') ||
+                str_contains($texto, 'listado') ||
+                str_contains($texto, 'quiénes') ||
+                str_contains($texto, 'quienes') ||
+                str_contains($texto, 'qué usuarios') ||
+                str_contains($texto, 'que usuarios') ||
+                str_contains($texto, 'qué roles') ||
+                str_contains($texto, 'que roles') ||
+                str_contains($texto, 'usuarios del sistema') ||
+                str_contains($texto, 'roles del sistema') ||
+                str_contains($texto, 'usuarios existen') ||
+                str_contains($texto, 'roles existen');
+
+            if ($esConsultaDirecta) {
+
+                $operacion = 'show';
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONSULTAS DE USUARIOS POR ROL
+        |--------------------------------------------------------------------------
+        |
+        | Estas consultas deben tener prioridad sobre la detección genérica
+        | de "roles".
+        |
+        | Ejemplos:
+        |
+        | "¿Cuántos administradores hay?"
+        | "¿Cuántos tesoreros hay?"
+        | "¿Cuántos secretarios hay?"
+        | "Muéstrame los usuarios que tienen el rol Consulta"
+        | "¿Quién es el administrador?"
+        |
+        | En estos casos la tabla correcta es "usuarios".
+        |
+        */
+
+        if (
+            $this->esConsultaUsuariosPorRol($texto)
+        ) {
+
+            $tabla = 'usuarios';
+
+            /*
+             * Si la pregunta solicita una cantidad, usamos count.
+             *
+             * Esto debe hacerse después de detectar la intención de
+             * usuarios por rol porque "cuántos administradores" contiene
+             * también palabras que podrían llevarnos a roles.
+             */
+
+            if (
+                $this->esConsultaCantidad($texto)
+            ) {
+
+                $operacion = 'count';
+
+            } elseif (
+                $operacion === 'conversation' ||
+                $this->esConsultaListaUsuarios($texto)
+            ) {
+
+                $operacion = 'show';
+            }
+        }
+
 
         return [
 
@@ -24,7 +136,7 @@ class ConsultaInteligenteService
                 $consulta,
 
             'tabla' =>
-                $this->detectarTabla($texto),
+                $tabla,
 
             'operacion' =>
                 $operacion,
@@ -67,10 +179,14 @@ class ConsultaInteligenteService
             str_contains($texto, 'alquileres') ||
             str_contains($texto, 'ingreso') ||
             str_contains($texto, 'ingresos') ||
+            str_contains($texto, 'ingresamos') ||
+            str_contains($texto, 'ingresó') ||
             str_contains($texto, 'egreso') ||
             str_contains($texto, 'egresos') ||
             str_contains($texto, 'gasto') ||
             str_contains($texto, 'gastos') ||
+            str_contains($texto, 'gastamos') ||
+            str_contains($texto, 'gastó') ||
             str_contains($texto, 'movimiento') ||
             str_contains($texto, 'movimientos') ||
             str_contains($texto, 'recaud') ||
@@ -81,6 +197,70 @@ class ConsultaInteligenteService
             str_contains($texto, 'agua') ||
             str_contains($texto, 'luz') ||
             str_contains($texto, 'electricidad')
+        ) {
+
+            return 'movimientos';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEGUIMIENTOS FINANCIEROS NATURALES
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            preg_match(
+                '/\bcu[aá]nto\s+ingresamos\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\bcu[aá]nto\s+ingres[oó]\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\bcu[aá]nto\s+recaudamos\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\bcu[aá]nto\s+gastamos\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\bcu[aá]nto\s+gast[oó]\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\bcu[aá]nto\s+egresamos\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\b(?:los|las)?\s*ingresos\b/u',
+                $texto
+            ) ||
+            preg_match(
+                '/\b(?:los|las)?\s*egresos\b/u',
+                $texto
+            )
+        ) {
+
+            return 'movimientos';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LISTAS / DETALLES DE MOVIMIENTOS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains($texto, 'qué ingresos') ||
+            str_contains($texto, 'que ingresos') ||
+            str_contains($texto, 'qué egresos') ||
+            str_contains($texto, 'que egresos') ||
+            str_contains($texto, 'qué gastos') ||
+            str_contains($texto, 'que gastos')
         ) {
 
             return 'movimientos';
@@ -108,15 +288,38 @@ class ConsultaInteligenteService
 
         /*
         |--------------------------------------------------------------------------
+        | USUARIOS POR ROL
+        |--------------------------------------------------------------------------
+        |
+        | Esta detección se ejecuta ANTES de "roles".
+        |
+        | Es importante porque palabras como "administrador", "tesorero"
+        | y "secretario" representan usuarios cuando aparecen en preguntas
+        | que buscan personas.
+        |
+        */
+
+        if (
+            $this->esConsultaUsuariosPorRol($texto)
+        ) {
+
+            return 'usuarios';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
         | ROLES
         |--------------------------------------------------------------------------
+        |
+        | Aquí quedan las consultas que realmente preguntan por los roles
+        | registrados en SIGEFIV.
+        |
         */
 
         if (
             str_contains($texto, 'rol') ||
-            str_contains($texto, 'roles') ||
-            str_contains($texto, 'administrador') ||
-            str_contains($texto, 'tesorero')
+            str_contains($texto, 'roles')
         ) {
 
             return 'roles';
@@ -163,6 +366,178 @@ class ConsultaInteligenteService
 
     /*
     |--------------------------------------------------------------------------
+    | DETECTAR CONSULTA DE USUARIOS POR ROL
+    |--------------------------------------------------------------------------
+    */
+
+    private function esConsultaUsuariosPorRol(
+        string $texto
+    ): bool {
+
+        $tieneRolAdministrativo =
+            str_contains($texto, 'administrador') ||
+            str_contains($texto, 'administradores') ||
+            str_contains($texto, 'secretario') ||
+            str_contains($texto, 'secretarios') ||
+            str_contains($texto, 'tesorero') ||
+            str_contains($texto, 'tesoreros');
+
+
+        $tieneRolConsulta =
+            str_contains($texto, 'rol consulta') ||
+            str_contains($texto, 'rol de consulta') ||
+            str_contains($texto, 'rol "consulta"') ||
+            str_contains($texto, "rol 'consulta'") ||
+            str_contains($texto, 'rol consulta');
+
+
+        $preguntaResponsable =
+            str_contains($texto, 'quien es') ||
+            str_contains($texto, 'quién es') ||
+            str_contains($texto, 'quienes son') ||
+            str_contains($texto, 'quiénes son') ||
+            str_contains($texto, 'quien administra') ||
+            str_contains($texto, 'quién administra') ||
+            str_contains($texto, 'quien tiene el rol') ||
+            str_contains($texto, 'quién tiene el rol') ||
+            str_contains($texto, 'dime quien') ||
+            str_contains($texto, 'dime quién');
+
+
+        $preguntaUsuarios =
+            str_contains($texto, 'usuario') ||
+            str_contains($texto, 'usuarios') ||
+            str_contains($texto, 'persona') ||
+            str_contains($texto, 'personas');
+
+
+        $preguntaCantidad =
+            $this->esConsultaCantidad(
+                $texto
+            );
+
+
+        $preguntaLista =
+            $this->esConsultaListaUsuarios(
+                $texto
+            );
+
+
+        /*
+         * Administrador, Secretario o Tesorero:
+         *
+         * "¿Cuántos administradores hay?"
+         * "¿Quién es el tesorero?"
+         * "Muéstrame los secretarios"
+         */
+
+        if (
+            $tieneRolAdministrativo &&
+            (
+                $preguntaResponsable ||
+                $preguntaCantidad ||
+                $preguntaLista ||
+                $preguntaUsuarios
+            )
+        ) {
+
+            return true;
+        }
+
+
+        /*
+         * Rol Consulta:
+         *
+         * "Muéstrame los usuarios que tienen el rol Consulta."
+         * "¿Cuántos usuarios tienen el rol Consulta?"
+         */
+
+        if (
+            $tieneRolConsulta &&
+            (
+                $preguntaUsuarios ||
+                $preguntaCantidad ||
+                $preguntaLista
+            )
+        ) {
+
+            return true;
+        }
+
+
+        /*
+         * "Muéstrame los usuarios con rol Consulta"
+         *
+         * Esta forma puede no contener la expresión exacta "rol consulta"
+         * si existe puntuación o palabras intermedias, por lo que comprobamos
+         * también la combinación general de usuario + consulta.
+         */
+
+        if (
+            str_contains($texto, 'consulta') &&
+            $preguntaUsuarios &&
+            (
+                str_contains($texto, 'rol') ||
+                str_contains($texto, 'tienen') ||
+                str_contains($texto, 'tiene')
+            )
+        ) {
+
+            return true;
+        }
+
+
+        return false;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DETECTAR CANTIDAD
+    |--------------------------------------------------------------------------
+    */
+
+    private function esConsultaCantidad(
+        string $texto
+    ): bool {
+
+        return
+            str_contains($texto, 'cuántos') ||
+            str_contains($texto, 'cuantos') ||
+            str_contains($texto, 'cuántas') ||
+            str_contains($texto, 'cuantas') ||
+            str_contains($texto, 'cantidad') ||
+            str_contains($texto, 'número de') ||
+            str_contains($texto, 'numero de');
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DETECTAR LISTA DE USUARIOS
+    |--------------------------------------------------------------------------
+    */
+
+    private function esConsultaListaUsuarios(
+        string $texto
+    ): bool {
+
+        return
+            str_contains($texto, 'muéstrame') ||
+            str_contains($texto, 'muestrame') ||
+            str_contains($texto, 'mostrar') ||
+            str_contains($texto, 'dame') ||
+            str_contains($texto, 'lista') ||
+            str_contains($texto, 'listado') ||
+            str_contains($texto, 'quiénes') ||
+            str_contains($texto, 'quienes') ||
+            str_contains($texto, 'usuarios del sistema') ||
+            str_contains($texto, 'usuarios existen');
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | DETECTAR OPERACION
     |--------------------------------------------------------------------------
     */
@@ -173,63 +548,75 @@ class ConsultaInteligenteService
         |--------------------------------------------------------------------------
         | SALUDOS
         |--------------------------------------------------------------------------
-        |
-        | Solo se reconoce como saludo cuando la consulta completa corresponde
-        | a un saludo. Así no interferimos con consultas como:
-        |
-        | "Hola Sigi, ¿cuánto gastamos en agua?"
-        |
         */
 
-        $textoSaludo = trim(
-            preg_replace(
-                '/[¿?¡!.,;:]+/u',
-                ' ',
-                $texto
+        $textoLimpio =
+            trim(
+                preg_replace(
+                    '/[¿?¡!.,;:]+/u',
+                    ' ',
+                    $texto
+                )
+            );
+
+        $textoLimpio =
+            trim(
+                preg_replace(
+                    '/\s+/u',
+                    ' ',
+                    $textoLimpio
+                )
+            );
+
+        if (
+            preg_match(
+                '/^(?:hola|hola sigi|buenos dias|buenos días|buenas tardes|buenas noches)(?: sigi)?$/u',
+                $textoLimpio
             )
-        );
+        ) {
 
-        $textoSaludo = trim(
-            preg_replace(
-                '/\\s+/u',
-                ' ',
-                $textoSaludo
-            )
-        );
-
-        $saludos = [
-            'hola',
-            'holaaa',
-            'holaaaa',
-            'hey',
-            'buenas',
-            'buen dia',
-            'buen día',
-            'buenos dias',
-            'buenos días',
-            'buenas tardes',
-            'buenas noches',
-            'que tal',
-            'qué tal',
-            'como estas',
-            'cómo estas',
-            'cómo estás',
-            'hola sigi',
-            'hola asistente',
-        ];
-
-        if (in_array($textoSaludo, $saludos, true)) {
             return 'greeting';
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONVERSACION GENERAL
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            preg_match(
+                '/^(?:cómo estás|como estas|qué tal|que tal|qué tal sigi|que tal sigi|quiero conversar contigo|quiero conversar|solo quiero conversar|hablemos un rato|podemos conversar)$/u',
+                $textoLimpio
+            )
+        ) {
+
+            return 'conversation';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AYUDA / CONSULTA CONVERSACIONAL
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            preg_match(
+                '/\b(tengo una duda|tengo una pregunta|puedes ayudarme|me puedes ayudar|necesito ayuda|quiero saber cómo|quiero saber como|explícame|explicame|me puedes explicar|puedes explicarme|cómo funciona|como funciona|quisiera saber cómo|quisiera saber como)\b/u',
+                $texto
+            )
+        ) {
+
+            return 'conversation';
+        }
+
 
         /*
         |--------------------------------------------------------------------------
         | MAYORES INGRESOS POR MES
         |--------------------------------------------------------------------------
-        |
-        | IMPORTANTE:
-        | Estas condiciones deben estar ANTES de "mayor" genérico.
-        |
         */
 
         if (
@@ -248,38 +635,14 @@ class ConsultaInteligenteService
                 str_contains($texto, 'mas') &&
                 str_contains($texto, 'ingreso')
             ) ||
-            str_contains(
-                $texto,
-                'mayor ingreso'
-            ) ||
-            str_contains(
-                $texto,
-                'mayores ingresos'
-            ) ||
-            str_contains(
-                $texto,
-                'más ingresos'
-            ) ||
-            str_contains(
-                $texto,
-                'mas ingresos'
-            ) ||
-            str_contains(
-                $texto,
-                'mes con mayor ingreso'
-            ) ||
-            str_contains(
-                $texto,
-                'mes con mayores ingresos'
-            ) ||
-            str_contains(
-                $texto,
-                'mes que mayor ingreso'
-            ) ||
-            str_contains(
-                $texto,
-                'mes que mayores ingresos'
-            )
+            str_contains($texto, 'mayor ingreso') ||
+            str_contains($texto, 'mayores ingresos') ||
+            str_contains($texto, 'más ingresos') ||
+            str_contains($texto, 'mas ingresos') ||
+            str_contains($texto, 'mes con mayor ingreso') ||
+            str_contains($texto, 'mes con mayores ingresos') ||
+            str_contains($texto, 'mes que mayor ingreso') ||
+            str_contains($texto, 'mes que mayores ingresos')
         ) {
 
             return 'max_mes_ingreso';
@@ -303,18 +666,9 @@ class ConsultaInteligenteService
                 str_contains($texto, 'menos') &&
                 str_contains($texto, 'ingreso')
             ) ||
-            str_contains(
-                $texto,
-                'menor ingreso'
-            ) ||
-            str_contains(
-                $texto,
-                'menores ingresos'
-            ) ||
-            str_contains(
-                $texto,
-                'menos ingresos'
-            )
+            str_contains($texto, 'menor ingreso') ||
+            str_contains($texto, 'menores ingresos') ||
+            str_contains($texto, 'menos ingresos')
         ) {
 
             return 'min_mes_ingreso';
@@ -352,30 +706,12 @@ class ConsultaInteligenteService
                     str_contains($texto, 'gasto')
                 )
             ) ||
-            str_contains(
-                $texto,
-                'mayores egresos'
-            ) ||
-            str_contains(
-                $texto,
-                'mayores gastos'
-            ) ||
-            str_contains(
-                $texto,
-                'más egresos'
-            ) ||
-            str_contains(
-                $texto,
-                'mas egresos'
-            ) ||
-            str_contains(
-                $texto,
-                'más gastos'
-            ) ||
-            str_contains(
-                $texto,
-                'mas gastos'
-            )
+            str_contains($texto, 'mayores egresos') ||
+            str_contains($texto, 'mayores gastos') ||
+            str_contains($texto, 'más egresos') ||
+            str_contains($texto, 'mas egresos') ||
+            str_contains($texto, 'más gastos') ||
+            str_contains($texto, 'mas gastos')
         ) {
 
             return 'max_mes';
@@ -405,22 +741,10 @@ class ConsultaInteligenteService
                     str_contains($texto, 'gasto')
                 )
             ) ||
-            str_contains(
-                $texto,
-                'menores egresos'
-            ) ||
-            str_contains(
-                $texto,
-                'menores gastos'
-            ) ||
-            str_contains(
-                $texto,
-                'menos egresos'
-            ) ||
-            str_contains(
-                $texto,
-                'menos gastos'
-            )
+            str_contains($texto, 'menores egresos') ||
+            str_contains($texto, 'menores gastos') ||
+            str_contains($texto, 'menos egresos') ||
+            str_contains($texto, 'menos gastos')
         ) {
 
             return 'min_mes';
@@ -431,11 +755,6 @@ class ConsultaInteligenteService
         |--------------------------------------------------------------------------
         | MESES EN LOS QUE APARECE UN CONCEPTO
         |--------------------------------------------------------------------------
-        |
-        | Ejemplos:
-        | "¿En qué meses el profesor de taekwondo hizo sus pagos?"
-        | "¿En qué meses hubo pagos del vaso de leche?"
-        |
         */
 
         if (
@@ -458,7 +777,56 @@ class ConsultaInteligenteService
         ) {
 
             return 'meses_concepto';
+        }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | LISTA / DETALLE DE INGRESOS Y EGRESOS
+        |--------------------------------------------------------------------------
+        */
+
+        $esLista =
+            str_contains($texto, 'lista') ||
+            str_contains($texto, 'listado') ||
+            str_contains($texto, 'detalle') ||
+            str_contains($texto, 'detallame') ||
+            str_contains($texto, 'detállame') ||
+            str_contains($texto, 'muéstrame') ||
+            str_contains($texto, 'muestrame') ||
+            str_contains($texto, 'mostrar') ||
+            str_contains($texto, 'enséñame') ||
+            str_contains($texto, 'ensename') ||
+            str_contains($texto, 'dame el detalle') ||
+            str_contains($texto, 'qué ingresos tuvimos') ||
+            str_contains($texto, 'que ingresos tuvimos') ||
+            str_contains($texto, 'qué egresos tuvimos') ||
+            str_contains($texto, 'que egresos tuvimos') ||
+            str_contains($texto, 'qué gastos tuvimos') ||
+            str_contains($texto, 'que gastos tuvimos') ||
+            str_contains($texto, 'qué ingresos hubo') ||
+            str_contains($texto, 'que ingresos hubo') ||
+            str_contains($texto, 'qué egresos hubo') ||
+            str_contains($texto, 'que egresos hubo') ||
+            str_contains($texto, 'qué gastos hubo') ||
+            str_contains($texto, 'que gastos hubo');
+
+        $esIngreso =
+            str_contains($texto, 'ingreso') ||
+            str_contains($texto, 'ingresamos') ||
+            str_contains($texto, 'recaud');
+
+        $esEgreso =
+            str_contains($texto, 'egreso') ||
+            str_contains($texto, 'gasto') ||
+            str_contains($texto, 'gastamos');
+
+        if (
+            $esLista &&
+            ($esIngreso || $esEgreso)
+        ) {
+
+            return 'show';
         }
 
 
@@ -603,26 +971,77 @@ class ConsultaInteligenteService
 
         /*
         |--------------------------------------------------------------------------
-        | CONVERSACIÓN GENERAL
-        |--------------------------------------------------------------------------
-        |
-        | Si no encontramos una tabla de SIGEFIV ni una operación financiera
-        | conocida, la consulta pasa a OpenRouter.
-        |
-        | Las consultas financieras siguen siendo locales.
+        | CONSULTAS DE PERIODOS
         |--------------------------------------------------------------------------
         */
 
         if (
-            $this->detectarTabla($texto) === null
+            str_contains($texto, 'periodo actual') ||
+            str_contains($texto, 'período actual') ||
+            str_contains($texto, 'periodo vigente') ||
+            str_contains($texto, 'período vigente') ||
+            str_contains($texto, 'periodo abierto') ||
+            str_contains($texto, 'período abierto') ||
+            str_contains($texto, 'periodo de ahora') ||
+            str_contains($texto, 'período de ahora') ||
+            str_contains($texto, 'en que periodo estamos') ||
+            str_contains($texto, 'en qué periodo estamos') ||
+            str_contains($texto, 'en que período estamos') ||
+            str_contains($texto, 'en qué período estamos')
         ) {
 
-            return 'conversation';
-
+            return 'show';
         }
 
 
-        return 'show';
+        /*
+        |--------------------------------------------------------------------------
+        | CONSULTA FINANCIERA SIMPLE
+        |--------------------------------------------------------------------------
+        */
+
+        $terminosFinancieros = [
+            'ingreso',
+            'ingresos',
+            'ingresamos',
+            'recaudación',
+            'recaudacion',
+            'recaudamos',
+            'egreso',
+            'egresos',
+            'egresamos',
+            'gasto',
+            'gastos',
+            'gastamos',
+            'pago',
+            'pagos',
+            'saldo',
+            'caja',
+            'movimiento',
+            'movimientos',
+        ];
+
+        foreach ($terminosFinancieros as $termino) {
+
+            if (
+                str_contains(
+                    $texto,
+                    $termino
+                )
+            ) {
+
+                return 'sum';
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONVERSACIÓN GENERAL / OLLAMA
+        |--------------------------------------------------------------------------
+        */
+
+        return 'conversation';
     }
 
 
@@ -759,34 +1178,15 @@ class ConsultaInteligenteService
                 $meses as $nombre => $numero
             ) {
 
-                /*
-                |--------------------------------------------------------------------------
-                | Buscar el nombre del mes como palabra completa
-                |--------------------------------------------------------------------------
-                |
-                | Importante:
-                | "mayo" aparece dentro de "mayor".
-                | Si usamos mb_strpos() directamente, una consulta como
-                | "mayor ingreso de enero" detecta también "mayo"
-                | dentro de "mayor" y puede terminar seleccionando mayo.
-                |
-                | Por eso exigimos que el mes esté separado por límites
-                | de palabra/letras.
-                |
-                */
+                $posicion =
+                    mb_strpos(
+                        $texto,
+                        $nombre
+                    );
 
-                $patronMes =
-                    '/(?<![\p{L}])' .
-                    preg_quote($nombre, '/') .
-                    '(?![\p{L}])/iu';
 
                 if (
-                    preg_match(
-                        $patronMes,
-                        $texto,
-                        $coincidencia,
-                        PREG_OFFSET_CAPTURE
-                    )
+                    $posicion !== false
                 ) {
 
                     $mesEncontrados[] = [
@@ -795,12 +1195,10 @@ class ConsultaInteligenteService
                             $numero,
 
                         'posicion' =>
-                            $coincidencia[0][1],
+                            $posicion,
 
                     ];
-
                 }
-
             }
 
 
@@ -812,7 +1210,6 @@ class ConsultaInteligenteService
                         $a['posicion']
                         <=>
                         $b['posicion'];
-
                 }
             );
 
@@ -851,9 +1248,7 @@ class ConsultaInteligenteService
                             $mesPrimero,
                             $mesSegundo
                         );
-
                 }
-
             }
 
 
@@ -864,9 +1259,7 @@ class ConsultaInteligenteService
 
                 $mes =
                     $mesEncontrados[0]['mes'];
-
             }
-
         }
 
 
@@ -878,6 +1271,7 @@ class ConsultaInteligenteService
 
         $anio = null;
 
+        $anioExplicito = false;
 
         if (
             preg_match(
@@ -890,6 +1284,86 @@ class ConsultaInteligenteService
             $anio =
                 (int) $coincidencia[1];
 
+            $anioExplicito = true;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ESTE MES
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains($texto, 'este mes')
+        ) {
+
+            $fechaActual =
+                now();
+
+            $mes =
+                $fechaActual->month;
+
+            $anio =
+                $fechaActual->year;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MES PASADO
+        |--------------------------------------------------------------------------
+        */
+
+        elseif (
+            str_contains($texto, 'mes pasado') ||
+            str_contains($texto, 'el mes pasado')
+        ) {
+
+            $fechaAnterior =
+                now()->subMonth();
+
+            $mes =
+                $fechaAnterior->month;
+
+            $anio =
+                $fechaAnterior->year;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ESTE AÑO
+        |--------------------------------------------------------------------------
+        */
+
+        elseif (
+            str_contains($texto, 'este año') ||
+            str_contains($texto, 'este ano')
+        ) {
+
+            $anio =
+                now()->year;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AÑO ACTUAL POR DEFECTO
+        |--------------------------------------------------------------------------
+        */
+
+        elseif (
+            !$anioExplicito &&
+            (
+                $mes !== null ||
+                $mesDesde !== null ||
+                $mesHasta !== null
+            )
+        ) {
+
+            $anio =
+                now()->year;
         }
 
 
@@ -980,9 +1454,7 @@ class ConsultaInteligenteService
                         $categoria->tipo,
 
                 ];
-
             }
-
         }
 
 
@@ -994,9 +1466,6 @@ class ConsultaInteligenteService
     |--------------------------------------------------------------------------
     | DETECTAR CONCEPTO
     |--------------------------------------------------------------------------
-    |
-    | Los conceptos se obtienen directamente de SQLite.
-    |
     */
 
     private function detectarConcepto(
@@ -1021,13 +1490,6 @@ class ConsultaInteligenteService
         |--------------------------------------------------------------------------
         | Normalizar texto
         |--------------------------------------------------------------------------
-        |
-        | Permitimos comparar:
-        |
-        | "basquet" = "básquet"
-        | "colegio" = "colegio"
-        | "reflectores" = "reflectores"
-        |
         */
 
         $normalizar = function (string $valor): string {
@@ -1036,6 +1498,7 @@ class ConsultaInteligenteService
                 mb_strtolower(
                     trim($valor)
                 );
+
 
             $valor =
                 strtr(
@@ -1051,12 +1514,14 @@ class ConsultaInteligenteService
                     ]
                 );
 
+
             $valor =
                 preg_replace(
                     '/[^a-z0-9\s]+/u',
                     ' ',
                     $valor
                 );
+
 
             return trim(
                 preg_replace(
@@ -1076,17 +1541,6 @@ class ConsultaInteligenteService
         |--------------------------------------------------------------------------
         | CONSULTAS GENERALES
         |--------------------------------------------------------------------------
-        |
-        | Para sumas, promedios y consultas de mayor/menor monto,
-        | no debemos detectar un concepto accidentalmente.
-        |
-        | Ejemplo:
-        | "suma de ingresos de enero hasta febrero de 2025"
-        |
-        | Esta consulta debe sumar todos los ingresos del período y
-        | NO seleccionar un concepto que contenga "enero", "febrero"
-        | o "pago".
-        |
         */
 
         $operacionesGenerales = [
@@ -1100,6 +1554,7 @@ class ConsultaInteligenteService
             'min_mes_ingreso',
         ];
 
+
         if (
             in_array(
                 $operacion,
@@ -1107,6 +1562,7 @@ class ConsultaInteligenteService
                 true
             )
         ) {
+
             return null;
         }
 
@@ -1238,7 +1694,9 @@ class ConsultaInteligenteService
 
 
         $mejorCoincidencia = null;
+
         $mejorPuntaje = 0;
+
         $mejorLongitud = 0;
 
 
@@ -1249,6 +1707,7 @@ class ConsultaInteligenteService
 
 
             if ($conceptoOriginal === '') {
+
                 continue;
             }
 
@@ -1260,6 +1719,7 @@ class ConsultaInteligenteService
 
 
             if ($conceptoNormalizado === '') {
+
                 continue;
             }
 
@@ -1289,15 +1749,6 @@ class ConsultaInteligenteService
                 |--------------------------------------------------------------------------
                 | 2. Coincidencia por palabras
                 |--------------------------------------------------------------------------
-                |
-                | Esto permite consultas como:
-                |
-                | "pago por alquiler de reflectores"
-                | "pago del profesor de basquet"
-                | "pagos del colegio"
-                |
-                | aunque el texto almacenado tenga más palabras.
-                |
                 */
 
                 $palabrasConcepto =
@@ -1327,6 +1778,7 @@ class ConsultaInteligenteService
                     empty($palabrasConcepto) ||
                     empty($palabrasConsulta)
                 ) {
+
                     continue;
                 }
 
@@ -1383,6 +1835,7 @@ class ConsultaInteligenteService
 
 
                 if ($coincidencias === 0) {
+
                     continue;
                 }
 
@@ -1416,6 +1869,7 @@ class ConsultaInteligenteService
                         $palabrasConcepto[0]
                     ) < 6
                 ) {
+
                     continue;
                 }
             }

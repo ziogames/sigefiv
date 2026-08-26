@@ -188,6 +188,8 @@ class PeriodoService
 
             'estado' => 'Cerrado',
 
+            'fecha_cierre' => now(),
+
         ]);
 
     }
@@ -202,6 +204,8 @@ class PeriodoService
         $periodo->update([
 
             'estado' => 'Abierto',
+
+            'fecha_cierre' => null,
 
         ]);
 
@@ -245,212 +249,231 @@ class PeriodoService
         );
 
     }
+
+    /**
+     * Verifica si existe un cambio de mes que requiera cierre.
+     */
     public static function verificarCambioDeMes(): array
-{
-    /*
-    |--------------------------------------------------------------------------
-    | Buscar el último período abierto
-    |--------------------------------------------------------------------------
-    */
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | Buscar el último período abierto
+        |--------------------------------------------------------------------------
+        */
 
-    $periodo = Periodo::obtenerAbierto();
-    /*
-    |--------------------------------------------------------------------------
-    | No existe ningún período abierto
-    |--------------------------------------------------------------------------
-    */
-
-    if (!$periodo) {
-
-        return [
-
-            'requiere_cierre' => false,
-
-            'periodo' => null,
-
-            'siguiente_periodo' => null,
-
-            'resumen' => null,
-
-        ];
-
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Recalcular totales
-    |--------------------------------------------------------------------------
-    */
-
-    self::actualizarTotales($periodo);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Calcular siguiente período
-    |--------------------------------------------------------------------------
-    */
-
-    $fecha = Carbon::create(
-        $periodo->anio,
-        $periodo->mes,
-        1
-    )->addMonth();
-
-    /*
-    |--------------------------------------------------------------------------
-    | Respuesta
-    |--------------------------------------------------------------------------
-    */
-
-    return [
-
-        'requiere_cierre' => true,
-
-        'periodo' => $periodo,
-
-        'siguiente_periodo' =>
-
-            Periodo::nombreMes($fecha->month)
-
-            .' '
-
-            .$fecha->year,
-
-        'resumen' => [
-
-            'saldo_inicial' =>
-
-                $periodo->saldo_inicial,
-
-            'ingresos' =>
-
-                $periodo->total_ingresos,
-
-            'egresos' =>
-
-                $periodo->total_egresos,
-
-            'saldo_final' =>
-
-                $periodo->saldo_final,
-
-        ],
-
-    ];
-}
-/**
- * Devuelve el período abierto.
- */
-public static function obtenerPeriodoAbierto(): ?Periodo
-{
-    return Periodo::obtenerAbierto();
-}
-/**
- * Cierra un período contable.
- */
-public static function cerrarPeriodo(Periodo $periodo): void
-{
-    DB::transaction(function () use ($periodo) {
+        $periodo = Periodo::obtenerAbierto();
 
         /*
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | No existe ningún período abierto
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$periodo) {
+
+            return [
+
+                'requiere_cierre' => false,
+
+                'periodo' => null,
+
+                'siguiente_periodo' => null,
+
+                'resumen' => null,
+
+            ];
+
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Recalcular totales
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
         */
 
         self::actualizarTotales($periodo);
 
         /*
-        |----------------------------------------------------------
-        | Cerrar período
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Calcular siguiente período
+        |--------------------------------------------------------------------------
         */
 
-        $periodo->update([
-
-            'estado' => 'Cerrado',
-
-        ]);
+        $fecha = Carbon::create(
+            $periodo->anio,
+            $periodo->mes,
+            1
+        )->addMonth();
 
         /*
-        |----------------------------------------------------------
-        | Crear siguiente período
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Respuesta
+        |--------------------------------------------------------------------------
         */
 
-        self::crearSiguientePeriodo($periodo);
+        return [
 
-    });
-}
-/**
- * Crea automáticamente el siguiente período.
- */
-private static function crearSiguientePeriodo(
-    Periodo $periodo
-): Periodo {
+            'requiere_cierre' => true,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Calcular siguiente período
-    |--------------------------------------------------------------------------
-    */
+            'periodo' => $periodo,
 
-    $mes = $periodo->mes + 1;
+            'siguiente_periodo' =>
 
-    $anio = $periodo->anio;
+                Periodo::nombreMes($fecha->month)
 
-    if ($mes > 12) {
+                . ' '
 
-        $mes = 1;
+                . $fecha->year,
 
-        $anio++;
+            'resumen' => [
+
+                'saldo_inicial' =>
+
+                    $periodo->saldo_inicial,
+
+                'ingresos' =>
+
+                    $periodo->total_ingresos,
+
+                'egresos' =>
+
+                    $periodo->total_egresos,
+
+                'saldo_final' =>
+
+                    $periodo->saldo_final,
+
+            ],
+
+        ];
+    }
+
+    /**
+     * Devuelve el período abierto.
+     */
+    public static function obtenerPeriodoAbierto(): ?Periodo
+    {
+        return Periodo::obtenerAbierto();
+    }
+
+    /**
+     * Cierra un período contable.
+     */
+    public static function cerrarPeriodo(
+        Periodo $periodo
+    ): void {
+
+        DB::transaction(function () use ($periodo) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Recalcular totales
+            |--------------------------------------------------------------------------
+            */
+
+            self::actualizarTotales($periodo);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cerrar período
+            |--------------------------------------------------------------------------
+            */
+
+            $periodo->update([
+
+                'estado' => 'Cerrado',
+
+                'fecha_cierre' => now(),
+
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Crear siguiente período
+            |--------------------------------------------------------------------------
+            */
+
+            self::crearSiguientePeriodo($periodo);
+
+        });
 
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Crear si no existe
-    |--------------------------------------------------------------------------
-    */
+    /**
+     * Crea automáticamente el siguiente período.
+     */
+    private static function crearSiguientePeriodo(
+        Periodo $periodo
+    ): Periodo {
 
-    return Periodo::firstOrCreate(
+        /*
+        |--------------------------------------------------------------------------
+        | Calcular siguiente período
+        |--------------------------------------------------------------------------
+        */
 
-        [
+        $mes = $periodo->mes + 1;
 
-            'anio' => $anio,
+        $anio = $periodo->anio;
 
-            'mes'  => $mes,
+        if ($mes > 12) {
 
-        ],
+            $mes = 1;
 
-        [
+            $anio++;
 
-            'nombre' => Periodo::nombreMes($mes),
+        }
 
-            'saldo_inicial' => $periodo->saldo_final,
+        /*
+        |--------------------------------------------------------------------------
+        | Crear si no existe
+        |--------------------------------------------------------------------------
+        */
 
-            'total_ingresos' => 0,
+        return Periodo::firstOrCreate(
 
-            'total_egresos' => 0,
+            [
 
-            'saldo_final' => $periodo->saldo_final,
+                'anio' => $anio,
 
-            'estado' => 'Abierto',
+                'mes' => $mes,
 
-        ]
+            ],
 
-    );
+            [
 
-}
-/**
- * Verifica que un período permita registrar movimientos.
- */
-public static function validarPeriodoAbierto(Periodo $periodo): void
-{
-    if ($periodo->estaCerrado()) {
-        throw new \Exception(
-            "El período {$periodo->nombre_completo} está cerrado."
+                'nombre' => Periodo::nombreMes($mes),
+
+                'saldo_inicial' => $periodo->saldo_final,
+
+                'total_ingresos' => 0,
+
+                'total_egresos' => 0,
+
+                'saldo_final' => $periodo->saldo_final,
+
+                'estado' => 'Abierto',
+
+            ]
+
         );
+
     }
-}
+
+    /**
+     * Verifica que un período permita registrar movimientos.
+     */
+    public static function validarPeriodoAbierto(
+        Periodo $periodo
+    ): void {
+
+        if ($periodo->estaCerrado()) {
+
+            throw new \Exception(
+                "El período {$periodo->nombre_completo} está cerrado."
+            );
+
+        }
+
+    }
 }

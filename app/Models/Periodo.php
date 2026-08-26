@@ -24,6 +24,8 @@ class Periodo extends Model
 
         'estado',
 
+        'fecha_cierre',
+
     ];
 
     protected $casts = [
@@ -35,6 +37,8 @@ class Periodo extends Model
         'total_egresos'  => 'decimal:2',
 
         'saldo_final'    => 'decimal:2',
+
+        'fecha_cierre'   => 'datetime',
 
     ];
 
@@ -106,14 +110,15 @@ class Periodo extends Model
     {
         return $this->estado === 'Cerrado';
     }
+
     /**
- * Devuelve el período abierto.
- */
-public static function obtenerAbierto(): ?self
-{
-    return self::where('estado', 'Abierto')
-        ->orderByDesc('anio')
-        ->orderByDesc('mes')
-        ->first();
-}
+     * Devuelve el período abierto.
+     */
+    public static function obtenerAbierto(): ?self
+    {
+        return self::where('estado', 'Abierto')
+            ->orderByDesc('anio')
+            ->orderByDesc('mes')
+            ->first();
+    }
 }

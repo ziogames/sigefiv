@@ -1,419 +1,187 @@
 <div class="dashboard-indicadores">
 
-    {{-- =====================================================
-         LIQUIDEZ
-    ====================================================== --}}
-
+    {{-- LIQUIDEZ --}}
     <div class="indicador-card liquidez-card">
-
         <div class="indicador-icon liquidez">
-
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 6h16v13H4z"/>
                 <path d="M7 6V4h10v2"/>
                 <path d="M8 11h8"/>
                 <path d="M8 15h5"/>
             </svg>
-
         </div>
-
 
         <div class="indicador-content">
-
-            <div class="indicador-label">
-                Liquidez
-            </div>
-
-
-            <div
-                id="indicadorLiquidez"
-                class="indicador-value">
-
+            <span class="indicador-label">Liquidez</span>
+            <div id="indicadorLiquidez" class="indicador-value liquidez">
                 100%
-
             </div>
-
-
-            <div class="indicador-description">
-
-                Caja disponible
-
-            </div>
-
+            <span class="indicador-description">Caja disponible</span>
         </div>
-
     </div>
 
-
-    {{-- =====================================================
-         RENTABILIDAD
-    ====================================================== --}}
-
+    {{-- RENTABILIDAD --}}
     <div class="indicador-card rentabilidad-card">
-
         <div class="indicador-icon rentabilidad">
-
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 17l5-5 4 3 7-8"/>
                 <path d="M15 7h5v5"/>
             </svg>
-
         </div>
-
 
         <div class="indicador-content">
-
-            <div class="indicador-label">
-                Rentabilidad
-            </div>
-
-
-            <div
-                id="indicadorRentabilidad"
-                class="indicador-value">
-
+            <span class="indicador-label">Rentabilidad</span>
+            <div id="indicadorRentabilidad" class="indicador-value rentabilidad">
                 0%
-
             </div>
-
-
-            <div class="indicador-description">
-
-                Ingresos - Egresos
-
-            </div>
-
+            <span class="indicador-description">Ingresos - Egresos</span>
         </div>
-
     </div>
 
-
-    {{-- =====================================================
-         ESTADO FINANCIERO
-    ====================================================== --}}
-
+    {{-- ESTADO FINANCIERO --}}
     <div class="indicador-card estado-card">
-
         <div class="indicador-icon estado">
-
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="8"/>
                 <path d="M8.5 12l2.3 2.3 4.7-5"/>
             </svg>
-
         </div>
-
 
         <div class="indicador-content">
-
-            <div class="indicador-label">
-                Estado
-            </div>
-
-
-            <div
-                id="estadoFinanciero"
-                class="indicador-value">
-
+            <span class="indicador-label">Estado</span>
+            <div id="estadoFinanciero" class="indicador-value estado">
                 Excelente
-
             </div>
-
-
-            <div class="indicador-description">
-
-                Salud financiera
-
-            </div>
-
+            <span class="indicador-description">Salud financiera</span>
         </div>
-
     </div>
 
 </div>
 
-
 <style>
-
 /* =========================================================
    CONTENEDOR
 ========================================================= */
-
 .dashboard-indicadores {
-
     display: grid;
-
-    grid-template-columns:
-        repeat(3, minmax(0, 1fr));
-
-    gap: 14px;
-
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 20px;
 }
 
-
 /* =========================================================
-   TARJETA
+   TARJETA INDIVIDUAL
 ========================================================= */
-
 .indicador-card {
-
     display: flex;
-
     align-items: center;
-
-    gap: 13px;
-
-    min-height: 86px;
-
-    padding: 14px 16px;
-
-    background:
-        linear-gradient(
-            145deg,
-            #172033 0%,
-            #1b273a 100%
-        );
-
-    border:
-        1px solid rgba(92, 117, 150, .25);
-
-    border-radius: 8px;
-
-    box-shadow:
-        0 5px 18px rgba(0, 0, 0, .14);
-
-    transition:
-        transform .2s ease,
-        border-color .2s ease;
-
+    gap: 14px;
+    min-height: 82px;
+    padding: 16px 18px;
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-
-
-/* =========================================================
-   HOVER
-========================================================= */
 
 .indicador-card:hover {
-
     transform: translateY(-2px);
-
-    border-color:
-        rgba(120, 150, 190, .38);
-
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
-
 
 /* =========================================================
-   ICONOS
+   ÍCONOS
 ========================================================= */
-
 .indicador-icon {
-
-    width: 40px;
-
-    height: 40px;
-
+    width: 42px;
+    height: 42px;
     display: flex;
-
     align-items: center;
-
     justify-content: center;
-
     border-radius: 10px;
-
     flex-shrink: 0;
-
 }
-
-
-/* SVG */
 
 .indicador-icon svg {
-
-    width: 23px;
-
-    height: 23px;
-
+    width: 22px;
+    height: 22px;
     fill: none;
-
     stroke: currentColor;
-
-    stroke-width: 1.8;
-
+    stroke-width: 2;
     stroke-linecap: round;
-
     stroke-linejoin: round;
-
 }
 
-
-/* =========================================================
-   LIQUIDEZ
-========================================================= */
-
+/* Colores e identidades de los íconos */
 .indicador-icon.liquidez {
-
-    color: #75a9ff;
-
-    background:
-        rgba(67, 126, 221, .16);
-
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.15);
 }
-
-
-.liquidez-card {
-
-    border-top:
-        2px solid #3b82f6;
-
-}
-
-
-/* =========================================================
-   RENTABILIDAD
-========================================================= */
 
 .indicador-icon.rentabilidad {
-
-    color: #36d96d;
-
-    background:
-        rgba(32, 201, 90, .14);
-
+    background: rgba(52, 211, 153, 0.1);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.15);
 }
-
-
-.rentabilidad-card {
-
-    border-top:
-        2px solid #20c95a;
-
-}
-
-
-/* =========================================================
-   ESTADO
-========================================================= */
 
 .indicador-icon.estado {
-
-    color: #45d6e8;
-
-    background:
-        rgba(13, 202, 240, .13);
-
+    background: rgba(45, 212, 191, 0.1);
+    color: #2dd4bf;
+    border: 1px solid rgba(45, 212, 191, 0.15);
 }
-
-
-.estado-card {
-
-    border-top:
-        2px solid #0dcaf0;
-
-}
-
 
 /* =========================================================
-   CONTENIDO
+   CONTENIDO Y TEXTOS
 ========================================================= */
-
 .indicador-content {
-
     min-width: 0;
-
 }
-
 
 .indicador-label {
-
-    margin-bottom: 3px;
-
-    color: #77859a;
-
-    font-size: 9px;
-
-    font-weight: 800;
-
+    display: block;
+    margin-bottom: 2px;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
-
-    letter-spacing: .6px;
-
+    letter-spacing: 0.06em;
 }
-
 
 .indicador-value {
-
-    color: #f2f5f9;
-
     font-size: 18px;
-
-    line-height: 1.15;
-
-    font-weight: 800;
-
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
+.indicador-value.liquidez    { color: #38bdf8; }
+.indicador-value.rentabilidad { color: #34d399; }
+.indicador-value.estado       { color: #2dd4bf; }
 
 .indicador-description {
-
-    margin-top: 3px;
-
-    color: #8d9aab;
-
-    font-size: 9px;
-
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 500;
 }
-
-
-/* =========================================================
-   COLORES DE LOS VALORES
-========================================================= */
-
-.liquidez-card .indicador-value {
-
-    color: #75a9ff;
-
-}
-
-
-.rentabilidad-card .indicador-value {
-
-    color: #36d96d;
-
-}
-
-
-.estado-card .indicador-value {
-
-    color: #45d6e8;
-
-}
-
 
 /* =========================================================
    RESPONSIVE
 ========================================================= */
-
 @media (max-width: 900px) {
-
     .dashboard-indicadores {
-
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-
 }
-
 
 @media (max-width: 576px) {
-
     .dashboard-indicadores {
-
         grid-template-columns: 1fr;
-
+        gap: 12px;
     }
-
 }
-
 </style>

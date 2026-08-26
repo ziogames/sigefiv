@@ -44,6 +44,7 @@
 
                     </div>
 
+
                     <!-- FORMULARIO -->
 
                     <div class="col-lg-6">
@@ -62,12 +63,32 @@
 
                             </p>
 
-                           <form
-    id="formLogin"
-    method="POST"
-    action="{{ route('login') }}">
+
+                            {{-- MENSAJE DE ERROR GENERAL --}}
+
+                            @if(session('error'))
+
+                                <div class="alert alert-danger">
+
+                                    {{ session('error') }}
+
+                                </div>
+
+                            @endif
+
+
+                            <!-- LOGIN SIGEFIV -->
+
+                            <form
+                                id="formLogin"
+                                method="POST"
+                                action="{{ route('login') }}"
+                            >
 
                                 @csrf
+
+
+                                <!-- CORREO -->
 
                                 <div class="mb-3">
 
@@ -91,7 +112,8 @@
                                             value="{{ old('email') }}"
                                             class="form-control @error('email') is-invalid @enderror"
                                             required
-                                            autofocus>
+                                            autofocus
+                                        >
 
                                         @error('email')
 
@@ -106,6 +128,9 @@
                                     </div>
 
                                 </div>
+
+
+                                <!-- CONTRASEÑA -->
 
                                 <div class="mb-3">
 
@@ -128,12 +153,14 @@
                                             type="password"
                                             name="password"
                                             class="form-control @error('password') is-invalid @enderror"
-                                            required>
+                                            required
+                                        >
 
-                                       <button
-                                                    class="btn border"
-                                                    type="button"
-                                                    id="mostrarPassword">
+                                        <button
+                                            class="btn border"
+                                            type="button"
+                                            id="mostrarPassword"
+                                        >
 
                                             <i class="bi bi-eye"></i>
 
@@ -153,6 +180,9 @@
 
                                 </div>
 
+
+                                <!-- RECORDAR / RECUPERAR -->
+
                                 <div class="d-flex justify-content-between align-items-center mb-4">
 
                                     <div class="form-check">
@@ -161,11 +191,13 @@
                                             class="form-check-input"
                                             type="checkbox"
                                             name="remember"
-                                            id="remember">
+                                            id="remember"
+                                        >
 
                                         <label
                                             class="form-check-label"
-                                            for="remember">
+                                            for="remember"
+                                        >
 
                                             Recordarme
 
@@ -173,9 +205,12 @@
 
                                     </div>
 
+
                                     @if(Route::has('password.request'))
 
-                                        <a href="{{ route('password.request') }}">
+                                        <a
+                                            href="{{ route('password.request') }}"
+                                        >
 
                                             ¿Olvidó su contraseña?
 
@@ -185,21 +220,78 @@
 
                                 </div>
 
-                              <button
-    id="btnLogin"
-    class="btn btn-primary w-100 py-2">
 
-    <i class="bi bi-box-arrow-in-right me-2"></i>
+                                <!-- BOTÓN INGRESAR -->
 
-    <span id="textoBoton">
+                                <button
+                                    id="btnLogin"
+                                    type="submit"
+                                    class="btn btn-primary w-100 py-2"
+                                >
 
-        Ingresar
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>
 
-    </span>
+                                    <span id="textoBoton">
 
-</button>
+                                        Ingresar
+
+                                    </span>
+
+                                </button>
 
                             </form>
+
+
+                            <!-- SEPARADOR -->
+
+                            <div class="d-flex align-items-center my-4">
+
+                                <hr class="flex-grow-1">
+
+                                <span class="mx-3 text-body-secondary">
+
+                                    o
+
+                                </span>
+
+                                <hr class="flex-grow-1">
+
+                            </div>
+
+
+                            <!-- GOOGLE -->
+
+                            <a
+                                href="{{ route('google.redirect') }}"
+                                class="btn btn-outline-secondary w-100 py-2 d-flex align-items-center justify-content-center gap-2"
+                                style="text-decoration:none;"
+                            >
+
+                                <img
+                                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                                    alt="Google"
+                                    width="20"
+                                    height="20"
+                                >
+
+                                <span>
+
+                                    Continuar con Google
+
+                                </span>
+
+                            </a>
+
+
+                            <!-- INFORMACIÓN GOOGLE -->
+
+                            <p class="text-body-secondary text-center small mt-3 mb-0">
+
+                                Puedes ingresar con tu cuenta de SIGEFIV
+                                o utilizar una cuenta de Google.
+
+                            </p>
+
 
                         </div>
 
@@ -215,60 +307,101 @@
 
 </div>
 
+
 <script>
 
-const boton=document.getElementById('mostrarPassword');
+/*
+|--------------------------------------------------------------------------
+| MOSTRAR / OCULTAR CONTRASEÑA
+|--------------------------------------------------------------------------
+*/
 
-const password=document.getElementById('password');
+const boton = document.getElementById('mostrarPassword');
 
-boton.addEventListener('click',()=>{
+const password = document.getElementById('password');
 
-    if(password.type==='password'){
+if (boton && password) {
 
-        password.type='text';
+    boton.addEventListener('click', () => {
 
-      boton.innerHTML='<i class="bi bi-eye-slash"></i>';
+        if (password.type === 'password') {
 
-    }else{
+            password.type = 'text';
 
-        password.type='password';
+            boton.innerHTML =
+                '<i class="bi bi-eye-slash"></i>';
 
-      boton.innerHTML='<i class="bi bi-eye"></i>';
+        } else {
+
+            password.type = 'password';
+
+            boton.innerHTML =
+                '<i class="bi bi-eye"></i>';
+
+        }
+
+    });
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| LOGIN
+|--------------------------------------------------------------------------
+*/
+
+const formLogin =
+    document.getElementById('formLogin');
+
+const btnLogin =
+    document.getElementById('btnLogin');
+
+const textoBoton =
+    document.getElementById('textoBoton');
+
+if (formLogin && btnLogin && textoBoton) {
+
+    formLogin.addEventListener('submit', () => {
+
+        btnLogin.disabled = true;
+
+        textoBoton.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Ingresando...
+        `;
+
+    });
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| RESTAURAR BOTÓN AL VOLVER CON EL NAVEGADOR
+|--------------------------------------------------------------------------
+*/
+
+window.addEventListener('pageshow', function () {
+
+    const btnLogin =
+        document.getElementById('btnLogin');
+
+    const textoBoton =
+        document.getElementById('textoBoton');
+
+    if (btnLogin && textoBoton) {
+
+        btnLogin.disabled = false;
+
+        textoBoton.innerHTML = `
+            Ingresar
+        `;
 
     }
 
 });
 
-const formLogin = document.getElementById('formLogin');
-
-const btnLogin = document.getElementById('btnLogin');
-
-const textoBoton = document.getElementById('textoBoton');
-
-formLogin.addEventListener('submit', () => {
-
-    btnLogin.disabled = true;
-
-    textoBoton.innerHTML = `
-        <span class="spinner-border spinner-border-sm me-2"></span>
-        Ingresando...
-    `;
-
-});
-
-window.addEventListener('pageshow', function () {
-
-    const btnLogin = document.getElementById('btnLogin');
-    const textoBoton = document.getElementById('textoBoton');
-
-    btnLogin.disabled = false;
-
-    textoBoton.innerHTML = `
-  
-        Ingresar
-    `;
-
-});
 </script>
 
 @endsection

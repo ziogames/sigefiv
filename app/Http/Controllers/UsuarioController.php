@@ -5,15 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreUsuarioRequest;
 use App\Http\Requests\UpdateUsuarioRequest;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use App\Services\BitacoraService;
-
 use App\Traits\BitacoraTrait;
-class UsuarioController extends Controller
 
+class UsuarioController extends Controller
 {
     use BitacoraTrait;
+
     /**
      * Listado de usuarios
      */
@@ -24,8 +26,12 @@ class UsuarioController extends Controller
         $usuarios = User::with('roles')
             ->when($buscar, function ($query) use ($buscar) {
 
-                $query->where('name', 'like', "%{$buscar}%")
-                    ->orWhere('email', 'like', "%{$buscar}%");
+                $query->where(function ($q) use ($buscar) {
+
+                    $q->where('name', 'like', "%{$buscar}%")
+                        ->orWhere('email', 'like', "%{$buscar}%");
+
+                });
 
             })
             ->orderBy('name')
@@ -68,17 +74,21 @@ class UsuarioController extends Controller
             'password' => Hash::make(
                 $request->password
             ),
-            
+
+            'estado' => 'activo',
+
+            'recibir_notificaciones' => true,
 
         ]);
-                        $this->registrarBitacora(
-                    'Usuarios',
-                    'Crear',
-                    'Se creó el usuario: '.$usuario->name
-                );
 
         $usuario->assignRole(
             $request->role
+        );
+
+        $this->registrarBitacora(
+            'Usuarios',
+            'Crear',
+            'Se creó el usuario: ' . $usuario->name
         );
 
         return redirect()
@@ -89,7 +99,7 @@ class UsuarioController extends Controller
             );
     }
 
-        /**
+    /**
      * Mostrar usuario
      */
     public function show(User $usuario)
@@ -116,11 +126,13 @@ class UsuarioController extends Controller
         );
     }
 
-        /**
+    /**
      * Actualizar usuario
      */
-    public function update(UpdateUsuarioRequest $request, User $usuario)
-    {
+    public function update(
+        UpdateUsuarioRequest $request,
+        User $usuario
+    ) {
         // El administrador principal nunca puede perder su rol
         if (
             $usuario->id === 1 &&
@@ -136,22 +148,19 @@ class UsuarioController extends Controller
 
         $usuario->update([
 
-            'name'  => $request->name,
+            'name' => $request->name,
 
             'email' => $request->email,
 
         ]);
 
-$this->registrarBitacora(
-    'Usuarios',
-    'Crear',
-    'Se creó el usuario: '.$usuario->name
-);
         if ($request->filled('password')) {
 
             $usuario->update([
 
-                'password' => Hash::make($request->password),
+                'password' => Hash::make(
+                    $request->password
+                ),
 
             ]);
 
@@ -162,6 +171,12 @@ $this->registrarBitacora(
             $request->role
         ]);
 
+        $this->registrarBitacora(
+            'Usuarios',
+            'Editar',
+            'Se actualizó el usuario: ' . $usuario->name
+        );
+
         return redirect()
             ->route('usuarios.index')
             ->with(
@@ -169,7 +184,82 @@ $this->registrarBitacora(
                 'Usuario actualizado correctamente.'
             );
     }
-        /**
+
+    /**
+     * Cambiar estado del usuario
+     */
+    public function cambiarEstado(
+        Request $request,
+        User $usuario
+    ): RedirectResponse {
+        $request->validate([
+            'estado' => [
+                'required',
+                'in:pendiente,activo,bloqueado',
+            ],
+        ]);
+
+        // El administrador principal no puede ser bloqueado
+        if (
+            $usuario->id === 1 &&
+            $request->estado === 'bloqueado'
+        ) {
+            return back()
+                ->with(
+                    'error',
+                    'El Administrador principal no puede ser bloqueado.'
+                );
+        }
+
+        // No permitir bloquear al último administrador
+        if (
+            $usuario->hasRole('Administrador') &&
+            $request->estado === 'bloqueado' &&
+            User::role('Administrador')
+                ->where('estado', 'activo')
+                ->count() === 1
+        ) {
+            return back()
+                ->with(
+                    'error',
+                    'Debe existir al menos un Administrador activo.'
+                );
+        }
+
+        $estadoAnterior = $usuario->estado;
+
+        $usuario->update([
+            'estado' => $request->estado,
+        ]);
+
+        $descripciones = [
+            'pendiente' => 'pendiente',
+            'activo' => 'activo',
+            'bloqueado' => 'bloqueado',
+        ];
+
+        $estadoNuevo = $descripciones[$request->estado];
+
+        $this->registrarBitacora(
+            'Usuarios',
+            'Editar',
+            'Se cambió el estado del usuario '
+            . $usuario->name
+            . ' de '
+            . $estadoAnterior
+            . ' a '
+            . $estadoNuevo
+        );
+
+        return redirect()
+            ->route('usuarios.index')
+            ->with(
+                'success',
+                'Estado del usuario actualizado correctamente.'
+            );
+    }
+
+    /**
      * Eliminar usuario
      */
     public function destroy(User $usuario)
@@ -181,7 +271,6 @@ $this->registrarBitacora(
                 'error',
                 'El Administrador principal no puede eliminarse.'
             );
-
         }
 
         // No permitir eliminar el último administrador
@@ -194,14 +283,14 @@ $this->registrarBitacora(
                 'error',
                 'Debe existir al menos un usuario con el rol Administrador.'
             );
-
         }
-            $this->registrarBitacora(
-    'Usuarios',
-    'Crear',
-    'Se creó el usuario: '.$usuario->name
-);
-    
+
+        $this->registrarBitacora(
+            'Usuarios',
+            'Eliminar',
+            'Se eliminó el usuario: ' . $usuario->name
+        );
+
         $usuario->delete();
 
         return redirect()

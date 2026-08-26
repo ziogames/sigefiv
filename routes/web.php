@@ -16,6 +16,8 @@ use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ConsultaInteligenteController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\AsambleaController;
+use App\Http\Controllers\SigiMemoriaController;
+use App\Http\Controllers\ActividadController;
 
 
 /*
@@ -25,9 +27,7 @@ use App\Http\Controllers\AsambleaController;
 */
 
 Route::get('/', function () {
-
     return redirect()->route('login');
-
 });
 
 
@@ -51,11 +51,87 @@ Route::get(
 
 /*
 |--------------------------------------------------------------------------
+| CUENTA PENDIENTE
+|--------------------------------------------------------------------------
+|
+| Esta ruta requiere autenticación, pero NO utiliza
+| el middleware estado.usuario porque un usuario
+| pendiente debe poder acceder a esta página.
+|
+*/
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::get(
+        '/cuenta/pendiente',
+        function () {
+            return view('auth.pendiente');
+        }
+    )->name('cuenta.pendiente');
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
 | RUTAS PROTEGIDAS
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware([
+    'auth',
+    'estado.usuario',
+])->group(function () {
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIGI — ASISTENTE INTELIGENTE
+    |--------------------------------------------------------------------------
+    |
+    | SIGI está disponible para cualquier usuario autenticado.
+    | No requiere un permiso específico.
+    |
+    */
+
+    Route::view(
+        '/sigi',
+        'sigi.index'
+    )->name('sigi.index');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIGI — ESTATUTOS DEL GRUPO
+    |--------------------------------------------------------------------------
+    |
+    | El documento se muestra directamente en el navegador
+    | mediante el visor PDF del navegador.
+    |
+    | Archivo esperado:
+    |
+    | storage/app/public/documentos/estatutos-grupo-21.pdf
+    |
+    */
+
+    Route::get(
+        '/sigi/estatutos',
+        function () {
+
+            $ruta = storage_path(
+                'documentos/estatutos-grupo-21.pdf'
+            );
+
+            if (!file_exists($ruta)) {
+                abort(
+                    404,
+                    'El archivo de estatutos todavía no está disponible.'
+                );
+            }
+
+            return response()->file($ruta);
+        }
+    )->name('sigi.estatutos');
 
 
     /*
@@ -82,6 +158,20 @@ Route::middleware(['auth'])->group(function () {
         'usuarios',
         UsuarioController::class
     )
+        ->middleware('permission:usuarios.index');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAMBIAR ESTADO DE USUARIO
+    |--------------------------------------------------------------------------
+    */
+
+    Route::patch(
+        '/usuarios/{usuario}/estado',
+        [UsuarioController::class, 'cambiarEstado']
+    )
+        ->name('usuarios.estado')
         ->middleware('permission:usuarios.index');
 
 
@@ -145,6 +235,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('bitacora.index')
         ->middleware('permission:bitacora.index');
 
+    
+       Route::get('/actividad', [ActividadController::class, 'index'])
+    ->middleware('permission:actividad.index')
+    ->name('actividad.index'); 
 
     /*
     |--------------------------------------------------------------------------
@@ -269,6 +363,26 @@ Route::middleware(['auth'])->group(function () {
     )
         ->name('consulta.inteligente')
         ->middleware('auth');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MEMORIA DE SIGI
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/sigi/memoria',
+        [SigiMemoriaController::class, 'index']
+    )
+        ->name('sigi.memoria.index');
+
+
+    Route::delete(
+        '/sigi/memoria/{memoria}',
+        [SigiMemoriaController::class, 'destroy']
+    )
+        ->name('sigi.memoria.destroy');
 
 
     /*

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\ActividadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,25 +23,117 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
-    {
+    public function store(
+        LoginRequest $request
+    ): RedirectResponse {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Autenticar usuario
+        |--------------------------------------------------------------------------
+        */
+
         $request->authenticate();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Regenerar sesión
+        |--------------------------------------------------------------------------
+        */
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Obtener usuario autenticado
+        |--------------------------------------------------------------------------
+        */
+
+        $usuario = Auth::user();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Registrar inicio de sesión
+        |--------------------------------------------------------------------------
+        */
+
+        if ($usuario) {
+
+            ActividadService::loginPassword(
+                $usuario
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Redirigir al dashboard
+        |--------------------------------------------------------------------------
+        */
+
+        return redirect()
+            ->intended(
+                route(
+                    'dashboard',
+                    absolute: false
+                )
+            );
     }
 
     /**
      * Destroy an authenticated session.
      */
-    public function destroy(Request $request): RedirectResponse
-    {
+    public function destroy(
+        Request $request
+    ): RedirectResponse {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Guardar usuario antes de cerrar sesión
+        |--------------------------------------------------------------------------
+        */
+
+        $usuario = Auth::user();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Registrar cierre de sesión
+        |--------------------------------------------------------------------------
+        */
+
+        if ($usuario) {
+
+            ActividadService::logout(
+                $usuario
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cerrar sesión
+        |--------------------------------------------------------------------------
+        */
+
         Auth::guard('web')->logout();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Invalidar sesión
+        |--------------------------------------------------------------------------
+        */
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
+
 
         return redirect('/');
     }

@@ -30,26 +30,25 @@
             <tr>
 
                 <th width="70">
-
                     ID
-
                 </th>
 
                 <th>
-
                     Nombre
-
                 </th>
 
                 <th>
-
                     Correo
-
                 </th>
 
                 <th>
-
                     Rol
+                </th>
+
+                <th width="260"
+                    class="text-center">
+
+                    Estado
 
                 </th>
 
@@ -71,21 +70,34 @@
                 <tr>
 
                     <td>
-
                         {{ $usuario->id }}
-
                     </td>
 
                     <td>
 
                         {{ $usuario->name }}
 
+                        @if($usuario->google_id)
+
+                            <div class="mt-1">
+
+                                <span
+                                    class="badge bg-light text-dark border">
+
+                                    <i class="cil-cloud-download me-1"></i>
+
+                                    Google
+
+                                </span>
+
+                            </div>
+
+                        @endif
+
                     </td>
 
                     <td>
-
                         {{ $usuario->email }}
-
                     </td>
 
                     <td>
@@ -112,9 +124,80 @@
 
                     <td class="text-center">
 
+                        <form
+                            action="{{ route('usuarios.estado', $usuario) }}"
+                            method="POST"
+                            class="formulario-estado d-flex align-items-center justify-content-center gap-2"
+                        >
+
+                            @csrf
+
+                            @method('PATCH')
+
+                            <select
+                                name="estado"
+                                class="form-select form-select-sm estado-select"
+                                style="width: 135px;"
+                            >
+
+                                <option
+                                    value="pendiente"
+                                    {{ $usuario->estado === 'pendiente' ? 'selected' : '' }}
+                                >
+                                    Pendiente
+                                </option>
+
+                                <option
+                                    value="activo"
+                                    {{ $usuario->estado === 'activo' ? 'selected' : '' }}
+                                >
+                                    Activo
+                                </option>
+
+                                <option
+                                    value="bloqueado"
+                                    {{ $usuario->estado === 'bloqueado' ? 'selected' : '' }}
+                                >
+                                    Bloqueado
+                                </option>
+
+                            </select>
+
+                            @if($usuario->id !== 1)
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary btn-sm"
+                                    title="Guardar estado"
+                                >
+
+                                    <i class="cil-save"></i>
+
+                                </button>
+
+                            @else
+
+                                <span
+                                    class="badge bg-success"
+                                    title="El Administrador principal está protegido"
+                                >
+
+                                    Protegido
+
+                                </span>
+
+                            @endif
+
+                        </form>
+
+                    </td>
+
+                    <td class="text-center">
+
                         <a
                             href="{{ route('usuarios.show',$usuario) }}"
-                            class="btn btn-info btn-sm">
+                            class="btn btn-info btn-sm"
+                            title="Ver usuario">
 
                             <i class="cil-magnifying-glass"></i>
 
@@ -122,28 +205,38 @@
 
                         <a
                             href="{{ route('usuarios.edit',$usuario) }}"
-                            class="btn btn-warning btn-sm">
+                            class="btn btn-warning btn-sm"
+                            title="Editar usuario">
 
                             <i class="cil-pencil"></i>
 
                         </a>
 
-                        <form
-                            action="{{ route('usuarios.destroy',$usuario) }}"
-                            method="POST"
-                            class="d-inline formulario-eliminar">
+                        @if($usuario->id !== 1)
 
-                            @csrf
-                            @method('DELETE')
+                            <form
+                                action="{{ route('usuarios.destroy',$usuario) }}"
+                                method="POST"
+                                class="d-inline formulario-eliminar"
+                            >
 
-                            <button
-                                class="btn btn-danger btn-sm">
+                                @csrf
 
-                                <i class="cil-trash"></i>
+                                @method('DELETE')
 
-                            </button>
+                                <button
+                                    type="submit"
+                                    class="btn btn-danger btn-sm"
+                                    title="Eliminar usuario"
+                                >
 
-                        </form>
+                                    <i class="cil-trash"></i>
+
+                                </button>
+
+                            </form>
+
+                        @endif
 
                     </td>
 
@@ -154,13 +247,14 @@
                 <tr>
 
                     <td
-                        colspan="5"
-                        class="text-center py-5">
+                        colspan="6"
+                        class="text-center py-5"
+                    >
 
                         <i
                             class="cil-user"
-                            style="font-size:50px">
-
+                            style="font-size:50px"
+                        >
                         </i>
 
                         <br>
@@ -185,45 +279,138 @@
 
 </x-card>
 
-@push('js')
+
+@push('scripts')
 
 <script>
 
-document.querySelectorAll('.formulario-eliminar').forEach(form=>{
+/*
+|--------------------------------------------------------------------------
+| ELIMINAR USUARIO
+|--------------------------------------------------------------------------
+*/
 
-form.addEventListener('submit',function(e){
+document
+    .querySelectorAll('.formulario-eliminar')
+    .forEach(form => {
 
-e.preventDefault();
+        form.addEventListener('submit', function(e) {
 
-Swal.fire({
+            e.preventDefault();
 
-title:'Eliminar usuario',
+            Swal.fire({
 
-text:'Esta acción no podrá deshacerse.',
+                title: 'Eliminar usuario',
 
-icon:'warning',
+                text: 'Esta acción no podrá deshacerse.',
 
-showCancelButton:true,
+                icon: 'warning',
 
-confirmButtonText:'Eliminar',
+                showCancelButton: true,
 
-cancelButtonText:'Cancelar',
+                confirmButtonText: 'Eliminar',
 
-confirmButtonColor:'#d33'
+                cancelButtonText: 'Cancelar',
 
-}).then((r)=>{
+                confirmButtonColor: '#d33'
 
-if(r.isConfirmed){
+            }).then((r) => {
 
-form.submit();
+                if (r.isConfirmed) {
 
-}
+                    form.submit();
 
-});
+                }
 
-});
+            });
 
-});
+        });
+
+    });
+
+
+/*
+|--------------------------------------------------------------------------
+| CAMBIAR ESTADO
+|--------------------------------------------------------------------------
+*/
+
+document
+    .querySelectorAll('.formulario-estado')
+    .forEach(form => {
+
+        form.addEventListener('submit', function(e) {
+
+            e.preventDefault();
+
+            const select =
+                form.querySelector('.estado-select');
+
+            const estado =
+                select.value;
+
+            const nombres = {
+
+                pendiente: 'Pendiente',
+
+                activo: 'Activo',
+
+                bloqueado: 'Bloqueado'
+
+            };
+
+            const mensajes = {
+
+                pendiente:
+                    'El usuario quedará pendiente de aprobación.',
+
+                activo:
+                    'El usuario podrá ingresar al sistema.',
+
+                bloqueado:
+                    'El usuario no podrá ingresar al sistema.'
+
+            };
+
+            Swal.fire({
+
+                title: 'Cambiar estado',
+
+                text:
+                    mensajes[estado] +
+                    ' ¿Deseas continuar?',
+
+                icon: estado === 'bloqueado'
+                    ? 'warning'
+                    : 'question',
+
+                showCancelButton: true,
+
+                confirmButtonText:
+                    estado === 'activo'
+                        ? 'Sí, activar'
+                        : 'Sí, cambiar',
+
+                cancelButtonText: 'Cancelar',
+
+                confirmButtonColor:
+                    estado === 'bloqueado'
+                        ? '#d33'
+                        : '#0d6efd'
+
+            }).then((r) => {
+
+                if (r.isConfirmed) {
+
+                    form.submit();
+
+                }
+
+            });
+
+        });
+
+    });
 
 </script>
 

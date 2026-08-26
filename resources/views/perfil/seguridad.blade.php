@@ -3,49 +3,96 @@
     icon="cil-lock-locked"
     class="mt-4">
 
-    <form
-        action="{{ route('perfil.password') }}"
-        method="POST">
+    @if($usuario->google_id)
 
-        @csrf
-        @method('PUT')
+        <div
+            class="alert alert-info
+                   d-flex align-items-start gap-3 mb-0"
+        >
 
-        <div class="row">
+            <i
+                class="cil-info"
+                style="font-size:22px;"
+            ></i>
 
-            <div class="col-md-6">
+            <div>
 
-                <x-input
-                    label="Nueva contraseña"
-                    name="password"
-                    type="password"
-                    required />
+                <div class="fw-semibold mb-1">
 
-            </div>
+                    Contraseña administrada por Google
 
-            <div class="col-md-6">
+                </div>
 
-                <x-input
-                    label="Confirmar contraseña"
-                    name="password_confirmation"
-                    type="password"
-                    required />
+                <div class="small">
+
+                    Tu cuenta está vinculada con Google.
+                    La contraseña utilizada para iniciar sesión
+                    se administra directamente desde tu cuenta
+                    de Google.
+
+                    SIGEFIV no puede modificarla.
+
+                </div>
 
             </div>
 
         </div>
 
-        <div class="text-end">
+    @else
 
-            <x-button
-                color="success"
-                icon="cil-lock-locked">
+        <form
+            action="{{ route('perfil.password') }}"
+            method="POST"
+        >
 
-                Cambiar contraseña
+            @csrf
 
-            </x-button>
+            @method('PUT')
 
-        </div>
 
-    </form>
+            <div class="row">
+
+                <div class="col-md-6">
+
+                    <x-input
+                        label="Nueva contraseña"
+                        name="password"
+                        type="password"
+                        required
+                    />
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <x-input
+                        label="Confirmar contraseña"
+                        name="password_confirmation"
+                        type="password"
+                        required
+                    />
+
+                </div>
+
+            </div>
+
+
+            <div class="text-end">
+
+                <x-button
+                    color="success"
+                    icon="cil-lock-locked"
+                >
+
+                    Cambiar contraseña
+
+                </x-button>
+
+            </div>
+
+        </form>
+
+    @endif
 
 </x-card>

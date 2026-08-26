@@ -8,36 +8,52 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-         $middleware->trustProxies(
-    at: '*',
-    headers: Request::HEADER_X_FORWARDED_FOR |
-        Request::HEADER_X_FORWARDED_HOST |
-        Request::HEADER_X_FORWARDED_PORT |
-        Request::HEADER_X_FORWARDED_PROTO
-);
-    $middleware->alias([
 
-        'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-
-        'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-
-        'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-
-    ]);
-
-    $middleware->web(append: [
-
-        \App\Http\Middleware\RegistrarUltimoAcceso::class,
-
-    ]);
-
-})
-    ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is( 'api/*'),
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR |
+                Request::HEADER_X_FORWARDED_HOST |
+                Request::HEADER_X_FORWARDED_PORT |
+                Request::HEADER_X_FORWARDED_PROTO
         );
-    })->create();
+
+        $middleware->alias([
+
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+
+            'estado.usuario' => \App\Http\Middleware\VerificarEstadoUsuario::class,
+
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Middleware web
+        |--------------------------------------------------------------------------
+        */
+
+        $middleware->web(append: [
+
+            \App\Http\Middleware\RegistrarUltimoAcceso::class,
+
+            \App\Http\Middleware\RegistrarActividad::class,
+
+        ]);
+
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request) => $request->is('api/*'),
+        );
+
+    })
+    ->create();

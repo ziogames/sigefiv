@@ -555,7 +555,7 @@ else {
     */
 
     $movimientos = $movimientosQuery
-        ->orderByDesc('fecha')
+        ->orderBy('fecha', 'asc')
         ->paginate(15)
         ->withQueryString();
 

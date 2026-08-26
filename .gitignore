@@ -26,3 +26,21 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 coreui-free-bootstrap-admin-template-v5.5.0-dist.zip
+# Backups de bases de datos
+*.sql
+*.dump
+*.backup
+*.bak
+
+# Archivos temporales / copias de desarrollo
+*_actual.php
+*.old.php
+*.bak.php
+*.old
+*.bak
+
+# Backups y archivos de prueba
+sigefiv_backup*
+# Archivos antiguos de desarrollo
+*.old
+*.bak

@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 
 class PerfilController extends Controller
 {
-    public function index()
+    /**
+     * Mostrar el perfil del usuario autenticado.
+     */
+    public function index(): View
     {
         $usuario = auth()->user();
 
@@ -18,27 +23,57 @@ class PerfilController extends Controller
         );
     }
 
-    public function update(Request $request)
+    /**
+     * Actualizar información personal.
+     */
+    public function update(Request $request): RedirectResponse
     {
+        $usuario = auth()->user();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validación
+        |--------------------------------------------------------------------------
+        */
+
         $request->validate([
 
-            'name' => 'required|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
 
-            'email' => 'required|email|unique:users,email,' . auth()->id(),
+            'telefono' => [
+                'nullable',
+                'string',
+                'max:20',
+            ],
 
-            'telefono' => 'nullable|max:20',
+            'dni' => [
+                'nullable',
+                'string',
+                'max:20',
+            ],
 
-            'dni' => 'nullable|max:20',
-
-            'direccion' => 'nullable|max:255',
+            'direccion' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
 
         ]);
 
-        auth()->user()->update([
+
+        /*
+        |--------------------------------------------------------------------------
+        | Datos que todos los usuarios pueden modificar
+        |--------------------------------------------------------------------------
+        */
+
+        $datos = [
 
             'name' => $request->name,
-
-            'email' => $request->email,
 
             'telefono' => $request->telefono,
 
@@ -46,7 +81,46 @@ class PerfilController extends Controller
 
             'direccion' => $request->direccion,
 
-        ]);
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Correo electrónico
+        |--------------------------------------------------------------------------
+        |
+        | Los usuarios vinculados con Google deben conservar el correo
+        | utilizado por su cuenta de Google.
+        |
+        | Los usuarios tradicionales de SIGEFIV sí pueden modificarlo.
+        |
+        */
+
+        if (!$usuario->google_id) {
+
+            $request->validate([
+
+                'email' => [
+                    'required',
+                    'email',
+                    'max:255',
+                    'unique:users,email,' . $usuario->id,
+                ],
+
+            ]);
+
+            $datos['email'] = $request->email;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Actualizar usuario
+        |--------------------------------------------------------------------------
+        */
+
+        $usuario->update($datos);
+
 
         return back()->with(
             'success',
@@ -54,19 +128,62 @@ class PerfilController extends Controller
         );
     }
 
-    public function password(Request $request)
+    /**
+     * Cambiar contraseña.
+     *
+     * Las cuentas vinculadas con Google no pueden
+     * cambiar su contraseña desde SIGEFIV.
+     */
+    public function password(Request $request): RedirectResponse
     {
+        $usuario = auth()->user();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cuenta vinculada con Google
+        |--------------------------------------------------------------------------
+        */
+
+        if ($usuario->google_id) {
+
+            return back()->with(
+                'error',
+                'Tu cuenta utiliza Google para iniciar sesión. La contraseña se administra desde Google.'
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validación
+        |--------------------------------------------------------------------------
+        */
+
         $request->validate([
 
-            'password' => 'required|confirmed|min:8',
+            'password' => [
+                'required',
+                'confirmed',
+                'min:8',
+            ],
 
         ]);
 
-        auth()->user()->update([
 
-            'password' => Hash::make($request->password)
+        /*
+        |--------------------------------------------------------------------------
+        | Actualizar contraseña
+        |--------------------------------------------------------------------------
+        */
+
+        $usuario->update([
+
+            'password' => Hash::make(
+                $request->password
+            ),
 
         ]);
+
 
         return back()->with(
             'success',
@@ -74,32 +191,71 @@ class PerfilController extends Controller
         );
     }
 
-    public function foto(Request $request)
+    /**
+     * Actualizar fotografía del usuario.
+     */
+    public function foto(Request $request): RedirectResponse
     {
         $request->validate([
 
-            'foto' => 'required|image|max:2048',
+            'foto' => [
+                'required',
+                'image',
+                'max:2048',
+            ],
 
         ]);
 
         $usuario = auth()->user();
 
-        if ($usuario->foto) {
 
-            Storage::disk('public')->delete($usuario->foto);
+        /*
+        |--------------------------------------------------------------------------
+        | Eliminar fotografía local anterior
+        |--------------------------------------------------------------------------
+        |
+        | Si la fotografía anterior es una ruta local,
+        | la eliminamos del almacenamiento.
+        |
+        | Si es una URL externa, como una fotografía de Google,
+        | no intentamos eliminarla.
+        |
+        */
 
+        if (
+            $usuario->foto &&
+            !filter_var(
+                $usuario->foto,
+                FILTER_VALIDATE_URL
+            )
+        ) {
+
+            Storage::disk('public')->delete(
+                $usuario->foto
+            );
         }
 
-        $ruta = $request->file('foto')->store(
-            'usuarios',
-            'public'
-        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Guardar nueva fotografía
+        |--------------------------------------------------------------------------
+        */
+
+        $ruta = $request
+            ->file('foto')
+            ->store(
+                'usuarios',
+                'public'
+            );
+
 
         $usuario->update([
 
             'foto' => $ruta,
 
         ]);
+
 
         return back()->with(
             'success',

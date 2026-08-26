@@ -1320,3 +1320,567 @@
     }
 
 }
+/* ============================================================
+   GRUPOS POR DÍA
+   ============================================================ */
+
+.mov-days-container {
+    padding: 10px 0;
+}
+
+
+/* ============================================================
+   GRUPO DEL DÍA
+   ============================================================ */
+
+.mov-day-group {
+    margin-bottom: 28px;
+}
+
+
+/* ============================================================
+   CABECERA DEL DÍA
+   ============================================================ */
+
+.mov-day-header {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 14px;
+
+    padding: 10px 14px;
+
+    border-left: 3px solid #20c978;
+
+    background:
+        rgba(32, 201, 120, 0.055);
+
+    border-radius: 8px;
+}
+
+
+.mov-day-title {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    color: #dce3eb;
+
+    font-size: 0.82rem;
+
+    font-weight: 700;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.04em;
+}
+
+
+.mov-day-title i {
+    color: #20c978;
+
+    font-size: 0.9rem;
+}
+
+
+/* ============================================================
+   RESUMEN DEL DÍA
+   ============================================================ */
+
+.mov-day-summary {
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+
+    color: #8793a3;
+
+    font-size: 0.7rem;
+}
+
+
+.mov-day-income {
+    color: #20c978;
+}
+
+
+.mov-day-expense {
+    color: #ef5350;
+}
+
+
+/* ============================================================
+   TARJETAS
+   ============================================================ */
+
+.mov-cards-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap: 16px;
+}
+
+
+/* ============================================================
+   TARJETA BASE
+   ============================================================ */
+
+.mov-card {
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    min-width: 0;
+
+    padding: 16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(31, 42, 58, 0.96),
+            rgba(24, 34, 48, 0.96)
+        );
+
+    border: 1px solid
+        rgba(255, 255, 255, 0.07);
+
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    transition:
+        transform 0.22s ease,
+        box-shadow 0.22s ease,
+        border-color 0.22s ease;
+}
+
+
+/* ============================================================
+   INGRESO
+   ============================================================ */
+
+.mov-card-income {
+    border-left: 3px solid #20c978;
+}
+
+
+/* ============================================================
+   EGRESO
+   ============================================================ */
+
+.mov-card-expense {
+    border-left: 3px solid #ef5350;
+}
+
+
+/* ============================================================
+   HOVER
+   ============================================================ */
+
+.mov-card:hover {
+    transform: translateY(-4px);
+
+    box-shadow:
+        0 12px 28px
+        rgba(0, 0, 0, 0.28);
+}
+
+
+.mov-card-income:hover {
+    border-color:
+        rgba(32, 201, 120, 0.45);
+}
+
+
+.mov-card-expense:hover {
+    border-color:
+        rgba(239, 83, 80, 0.45);
+}
+
+
+/* ============================================================
+   CABECERA TARJETA
+   ============================================================ */
+
+.mov-card-header {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 17px;
+}
+
+
+.mov-card-type {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+
+.mov-card-type-icon {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 30px;
+
+    height: 30px;
+
+    border-radius: 50%;
+}
+
+
+.mov-card-type-income {
+    color: #20c978;
+
+    background:
+        rgba(32, 201, 120, 0.12);
+
+    border:
+        1px solid
+        rgba(32, 201, 120, 0.25);
+}
+
+
+.mov-card-type-expense {
+    color: #ef5350;
+
+    background:
+        rgba(239, 83, 80, 0.12);
+
+    border:
+        1px solid
+        rgba(239, 83, 80, 0.25);
+}
+
+
+.mov-card-type-label {
+    font-size: 0.78rem;
+
+    font-weight: 700;
+}
+
+
+.mov-card-income-text {
+    color: #20c978;
+}
+
+
+.mov-card-expense-text {
+    color: #ef5350;
+}
+
+
+.mov-card-amount {
+    font-size: 1rem;
+
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+
+/* ============================================================
+   INFORMACIÓN
+   ============================================================ */
+
+.mov-card-body {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    flex: 1;
+}
+
+
+.mov-card-info {
+    display: grid;
+
+    grid-template-columns:
+        82px minmax(0, 1fr);
+
+    gap: 10px;
+
+    align-items: start;
+}
+
+
+.mov-card-info-label {
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    color: #7f8b9b;
+
+    font-size: 0.71rem;
+}
+
+
+.mov-card-info-label i {
+    font-size: 0.78rem;
+}
+
+
+.mov-card-info-value {
+    min-width: 0;
+
+    color: #e0e5eb;
+
+    font-size: 0.75rem;
+
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+}
+
+
+/* ============================================================
+   PIE
+   ============================================================ */
+
+.mov-card-footer {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-top: 18px;
+
+    padding-top: 12px;
+
+    border-top:
+        1px solid
+        rgba(255, 255, 255, 0.06);
+}
+
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+
+.mov-card-status {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 4px 8px;
+
+    border-radius: 6px;
+
+    font-size: 0.66rem;
+
+    font-weight: 700;
+}
+
+
+.mov-card-status-registered {
+    color: #f2bb50;
+
+    background:
+        rgba(242, 187, 80, 0.09);
+
+    border:
+        1px solid
+        rgba(242, 187, 80, 0.20);
+}
+
+
+.mov-card-status-cancelled {
+    color: #ef5350;
+
+    background:
+        rgba(239, 83, 80, 0.09);
+
+    border:
+        1px solid
+        rgba(239, 83, 80, 0.20);
+}
+
+
+/* ============================================================
+   ACCIONES
+   ============================================================ */
+
+.mov-card-actions {
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+}
+
+
+.mov-card-actions .mov-action {
+    width: 32px;
+
+    height: 32px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 0;
+
+    border-radius: 7px;
+
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease;
+}
+
+
+.mov-card-actions .mov-action:hover {
+    transform: scale(1.08);
+}
+
+
+/* ============================================================
+   SIN RESULTADOS
+   ============================================================ */
+
+.mov-empty {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-height: 220px;
+
+    color: #8995a6;
+
+    text-align: center;
+}
+
+
+.mov-empty-icon {
+    margin-bottom: 10px;
+
+    font-size: 42px;
+
+    opacity: 0.55;
+}
+
+
+/* ============================================================
+   TABLET
+   ============================================================ */
+
+@media (max-width: 1100px) {
+
+    .mov-cards-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+
+/* ============================================================
+   MÓVIL
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    .mov-day-header {
+        align-items: flex-start;
+
+        flex-direction: column;
+
+        gap: 7px;
+    }
+
+
+    .mov-day-summary {
+        gap: 8px;
+    }
+
+
+    .mov-cards-grid {
+        grid-template-columns: 1fr;
+
+        gap: 12px;
+    }
+
+
+    .mov-card {
+        padding: 14px;
+    }
+
+}
+
+
+/* ============================================================
+   MÓVILES PEQUEÑOS
+   ============================================================ */
+
+@media (max-width: 420px) {
+
+    .mov-day-header {
+        padding: 9px 10px;
+    }
+
+
+    .mov-day-title {
+        font-size: 0.74rem;
+    }
+
+
+    .mov-card-header {
+        flex-wrap: wrap;
+    }
+
+
+    .mov-card-amount {
+        margin-left: auto;
+    }
+
+
+    .mov-card-info {
+        grid-template-columns: 1fr;
+
+        gap: 2px;
+    }
+
+
+    .mov-card-info-value {
+        margin-bottom: 5px;
+    }
+
+}
