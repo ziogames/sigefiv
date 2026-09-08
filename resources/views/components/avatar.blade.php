@@ -9,11 +9,17 @@
         'bg-secondary',
     ];
 
-    $color = $colores[
-        crc32($user->name) % count($colores)
-    ];
+    /*
+     * Este componente también puede renderizarse desde páginas
+     * de error (403, 404, etc.) donde puede no existir un
+     * usuario autenticado.
+     */
+    $nombreUsuario = $user?->name ?? 'Usuario';
+    $avatar = $user?->avatar;
 
-    $avatar = $user->avatar;
+    $color = $colores[
+        crc32($nombreUsuario) % count($colores)
+    ];
 
 @endphp
 
@@ -21,7 +27,7 @@
 
     <img
         src="{{ $avatar }}"
-        alt="{{ $user->name }}"
+        alt="{{ $nombreUsuario }}"
         class="rounded-circle"
         style="
             width:{{ $size }}px;
@@ -40,9 +46,9 @@
             height:{{ $size }}px;
             font-size:{{ intval($size/2.3) }}px;
         "
-        title="{{ $user->name }}">
+        title="{{ $nombreUsuario }}">
 
-        {{ strtoupper(substr($user->name,0,1)) }}
+        {{ strtoupper(substr($nombreUsuario,0,1)) }}
 
     </div>
 

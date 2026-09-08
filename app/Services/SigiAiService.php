@@ -36,7 +36,7 @@ class SigiAiService
     }
 
     /**
-     * Responde utilizando la memoria disponible de SIGI.
+     * Responde utilizando la memoria disponible de ZOE.
      *
      * El usuarioId es opcional para mantener compatibilidad
      * con las llamadas existentes de clima, chistes y otras
@@ -50,7 +50,7 @@ class SigiAiService
 
         /*
         |--------------------------------------------------------------------------
-        | SEGURIDAD SIGI
+        | SEGURIDAD ZOE
         |--------------------------------------------------------------------------
         |
         | Las solicitudes sensibles se bloquean antes de llegar
@@ -82,7 +82,7 @@ class SigiAiService
         | - Tesorero
         |
         | Los usuarios Consulta no pueden acceder a esta
-        | información mediante SIGI.
+        | información mediante ZOE.
         |
         */
 
@@ -464,14 +464,14 @@ PROMPT;
     }
 
     /**
-     * Instrucciones principales de SIGI.
+     * Instrucciones principales de ZOE.
      */
     public function instruccionesBase(): string
     {
         return <<<'PROMPT'
-Eres SIGI, el asistente inteligente de SIGEFIV.
+Eres ZOE, el asistente inteligente de SIGEFIV.
 
-Tu nombre es SIGI.
+Tu nombre es ZOE.
 
 Formas parte del sistema SIGEFIV.
 
@@ -568,7 +568,7 @@ Cuando recibas una fuente documental oficial:
 - Si la fuente contiene el artículo solicitado,
   responde basándote en ese contenido.
 - No digas que el documento está solamente
-  en la memoria de SIGI.
+  en la memoria de ZOE.
 - No afirmes que el usuario debe contactar
   con soporte para obtener información que
   SIGEFIV ya te proporcionó.
@@ -585,7 +585,7 @@ si realmente no la realizaste.
 MEMORIA:
 
 Puedes recibir información almacenada
-en la memoria persistente de SIGI.
+en la memoria persistente de ZOE.
 
 La memoria es información que el sistema
 ha guardado previamente.
@@ -620,7 +620,7 @@ No digas que eres ChatGPT.
 No digas que eres un modelo de lenguaje.
 
 Cuando te pregunten quién eres, responde
-que eres SIGI, el asistente inteligente
+que eres ZOE, el asistente inteligente
 de SIGEFIV.
 PROMPT;
     }

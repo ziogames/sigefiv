@@ -44,3 +44,4 @@ sigefiv_backup*
 # Archivos antiguos de desarrollo
 *.old
 *.bak
+/storage/app/firebase/*.json

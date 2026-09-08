@@ -18,6 +18,9 @@ use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\AsambleaController;
 use App\Http\Controllers\SigiMemoriaController;
 use App\Http\Controllers\ActividadController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\SigiVoiceController;
+use App\Http\Middleware\CheckUserNotBlocked;
 
 
 /*
@@ -38,9 +41,6 @@ Route::get('/', function () {
 |
 | Esta ruta NO requiere autenticación.
 |
-| El vecino puede llegar aquí directamente desde
-| la notificación Push.
-|
 */
 
 Route::get(
@@ -53,11 +53,6 @@ Route::get(
 |--------------------------------------------------------------------------
 | CUENTA PENDIENTE
 |--------------------------------------------------------------------------
-|
-| Esta ruta requiere autenticación, pero NO utiliza
-| el middleware estado.usuario porque un usuario
-| pendiente debe poder acceder a esta página.
-|
 */
 
 Route::middleware(['auth'])->group(function () {
@@ -74,24 +69,36 @@ Route::middleware(['auth'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| RUTAS PROTEGIDAS
+| RUTAS PROTEGIDAS (Incluye el sistema de ZOE y el Chat Vecinal)
 |--------------------------------------------------------------------------
 */
 
 Route::middleware([
     'auth',
     'estado.usuario',
+    CheckUserNotBlocked::class, // <-- ZOE bloquea automáticamente el acceso si el usuario está suspendido
 ])->group(function () {
 
+    /*
+    |--------------------------------------------------------------------------
+    | BIENVENIDA DE SIGEFIV
+    |--------------------------------------------------------------------------
+    */
+
+    Route::view(
+        '/bienvenida',
+        'bienvenida'
+    )->name('bienvenida');
+
+    Route::post(
+        '/bienvenida/completar',
+        [\App\Http\Controllers\BienvenidaController::class, 'completar']
+    )->name('bienvenida.completar');
 
     /*
     |--------------------------------------------------------------------------
     | SIGI — ASISTENTE INTELIGENTE
     |--------------------------------------------------------------------------
-    |
-    | SIGI está disponible para cualquier usuario autenticado.
-    | No requiere un permiso específico.
-    |
     */
 
     Route::view(
@@ -99,25 +106,14 @@ Route::middleware([
         'sigi.index'
     )->name('sigi.index');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | SIGI — ESTATUTOS DEL GRUPO
-    |--------------------------------------------------------------------------
-    |
-    | El documento se muestra directamente en el navegador
-    | mediante el visor PDF del navegador.
-    |
-    | Archivo esperado:
-    |
-    | storage/app/public/documentos/estatutos-grupo-21.pdf
-    |
-    */
+    Route::post(
+        '/sigi/voz',
+        [SigiVoiceController::class, 'speak']
+    )->name('sigi.voz');
 
     Route::get(
         '/sigi/estatutos',
         function () {
-
             $ruta = storage_path(
                 'documentos/estatutos-grupo-21.pdf'
             );
@@ -132,6 +128,42 @@ Route::middleware([
             return response()->file($ruta);
         }
     )->name('sigi.estatutos');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHAT VECINAL (Protegido por ZOE)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/chat',
+        [ChatController::class, 'index']
+    )->name('chat.index');
+
+
+    Route::post(
+        '/chat',
+        [ChatController::class, 'store']
+    )->name('chat.store');
+
+
+    Route::get(
+        '/chat/nuevos',
+        [ChatController::class, 'nuevos']
+    )->name('chat.nuevos');
+
+
+    Route::post(
+        '/chat/presencia',
+        [ChatController::class, 'presencia']
+    )->name('chat.presencia');
+
+
+    Route::post(
+        '/chat/escribiendo',
+        [ChatController::class, 'escribiendo']
+    )->name('chat.escribiendo');
 
 
     /*
@@ -160,12 +192,6 @@ Route::middleware([
     )
         ->middleware('permission:usuarios.index');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CAMBIAR ESTADO DE USUARIO
-    |--------------------------------------------------------------------------
-    */
 
     Route::patch(
         '/usuarios/{usuario}/estado',
@@ -235,10 +261,14 @@ Route::middleware([
         ->name('bitacora.index')
         ->middleware('permission:bitacora.index');
 
-    
-       Route::get('/actividad', [ActividadController::class, 'index'])
-    ->middleware('permission:actividad.index')
-    ->name('actividad.index'); 
+
+    Route::get(
+        '/actividad',
+        [ActividadController::class, 'index']
+    )
+        ->middleware('permission:actividad.index')
+        ->name('actividad.index');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -424,47 +454,33 @@ Route::middleware([
             $suscripcion =
                 \App\Models\PushSubscription::latest()->first();
 
-
             if (!$suscripcion) {
-
                 return response()->json([
                     'success' => false,
                     'message' =>
                         'No existe ninguna suscripción Push.',
                 ], 404);
-
             }
-
 
             $resultado =
                 app(
                     \App\Services\PushNotificationService::class
                 )->enviar(
-
                     $suscripcion,
-
                     'SIGEFIV',
-
                     'Esta es una notificación de prueba.',
-
                     '/dashboard'
-
                 );
 
-
             return response()->json([
-
                 'success' =>
                     $resultado,
-
                 'message' =>
                     $resultado
                         ? 'Notificación enviada correctamente.'
                         : 'No se pudo enviar la notificación.',
-
                 'subscription_id' =>
                     $suscripcion->id,
-
             ]);
 
         }
@@ -503,6 +519,7 @@ Route::middleware([
         AsambleaController::class
     )
         ->middleware('permission:asambleas.index');
+
 
 });
 

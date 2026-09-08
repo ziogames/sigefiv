@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use App\Services\BitacoraService;
+use App\Services\ZoeModeracionService; // <-- Importamos el servicio de moderación ZOE
 use App\Traits\BitacoraTrait;
 
 class UsuarioController extends Controller
@@ -190,7 +191,8 @@ class UsuarioController extends Controller
      */
     public function cambiarEstado(
         Request $request,
-        User $usuario
+        User $usuario,
+        ZoeModeracionService $zoeService // <-- Inyectamos el servicio aquí
     ): RedirectResponse {
         $request->validate([
             'estado' => [
@@ -227,10 +229,17 @@ class UsuarioController extends Controller
         }
 
         $estadoAnterior = $usuario->estado;
+        $nuevoEstado = $request->estado;
 
+        // Actualizamos el estado base
         $usuario->update([
-            'estado' => $request->estado,
+            'estado' => $nuevoEstado,
         ]);
+
+        // 💡 Si el administrador cambia el estado a 'activo', limpiamos las faltas (Lista blanca)
+        if ($nuevoEstado === 'activo') {
+            $zoeService->perdonarVecino($usuario);
+        }
 
         $descripciones = [
             'pendiente' => 'pendiente',
@@ -238,7 +247,7 @@ class UsuarioController extends Controller
             'bloqueado' => 'bloqueado',
         ];
 
-        $estadoNuevo = $descripciones[$request->estado];
+        $estadoNuevoTexto = $descripciones[$nuevoEstado];
 
         $this->registrarBitacora(
             'Usuarios',
@@ -248,7 +257,8 @@ class UsuarioController extends Controller
             . ' de '
             . $estadoAnterior
             . ' a '
-            . $estadoNuevo
+            . $estadoNuevoTexto
+            . ($nuevoEstado === 'activo' ? ' (Se restablecieron sus advertencias)' : '')
         );
 
         return redirect()

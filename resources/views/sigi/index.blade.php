@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'SIGI — Asistente Inteligente')
+@section('title', 'ZOE — Asistente Inteligente')
 
 @section('content')
 
@@ -23,7 +23,7 @@
                     </div>
                     <div class="sigi-bot-neck"></div>
                     <div class="sigi-bot-body">
-                        <div class="sigi-bot-logo">SIGI</div>
+                        <div class="sigi-bot-logo">ZOE</div>
                         <div class="sigi-bot-light"></div>
                     </div>
                     <div class="sigi-bot-arm left"></div>
@@ -116,7 +116,7 @@
                 <div class="sigi-chat-toolbar">
                     <div class="sigi-chat-identity">
                         <div class="sigi-chat-avatar"><i class="cil-bolt"></i><span></span></div>
-                        <div><strong>SIGI</strong><small>Asistente de SIGEFIV · Responde en lenguaje natural</small></div>
+                        <div><strong>ZOE</strong><small>Asistente de SIGEFIV · Responde en lenguaje natural</small></div>
                     </div>
                     <div class="sigi-chat-tools">
                         <span class="sigi-tool-status"><i class="cil-check-circle"></i> Disponible</span>
@@ -128,14 +128,14 @@
                         <div class="sigi-welcome-icon"><i class="cil-sparkles"></i></div>
                         <div>
                             <span class="sigi-welcome-kicker">BUENAS {{ strtoupper(auth()->user()?->name ?? 'AMIGO') }}</span>
-                            <h3>Soy SIGI. Vamos a conversar.</h3>
+                            <h3>Soy ZOE. Vamos a conversar.</h3>
                             <p>Puedo responder preguntas sobre la gestión de SIGEFIV y ayudarte a encontrar información sin que tengas que navegar por varios módulos.</p>
                         </div>
                     </div>
 
                     <div class="sigi-message sigi-message-assistant">
                         <div class="sigi-message-content">
-                            <div class="sigi-message-meta"><span class="sigi-meta-avatar">S</span><strong>SIGI</strong><span>Ahora</span></div>
+                            <div class="sigi-message-meta"><span class="sigi-meta-avatar">Z</span><strong>ZOE</strong><span>Ahora</span></div>
                             <div class="sigi-bubble sigi-bubble-assistant">
                                 <p>¡Hola, {{ auth()->user()?->name ?? 'amigo' }}! 👋</p>
                                 <p class="mb-0">Estoy listo. Puedes preguntarme, por ejemplo, <strong>cuál es el saldo de caja</strong>, cuánto se recaudó, cuáles fueron los últimos egresos o continuar una pregunta anterior.</p>
@@ -150,7 +150,7 @@
                             <button type="button" class="sigi-suggestion" data-sigi-query="¿Cuánto se recaudó este mes?"><span><i class="cil-chart-line"></i></span><div><strong>Ingresos del período</strong><small>¿Cuánto ingresamos?</small></div><i class="cil-arrow-right"></i></button>
                             <button type="button" class="sigi-suggestion" data-sigi-query="¿Cuánto se gastó este mes?"><span><i class="cil-transfer"></i></span><div><strong>Egresos del período</strong><small>¿Cuánto gastamos?</small></div><i class="cil-arrow-right"></i></button>
                             <button type="button" class="sigi-suggestion" data-sigi-query="¿Cuáles fueron los últimos movimientos?"><span><i class="cil-list"></i></span><div><strong>Últimos movimientos</strong><small>Revisa los movimientos recientes</small></div><i class="cil-arrow-right"></i></button>
-                            <button type="button" class="sigi-suggestion" data-sigi-query="¿Qué puedo consultar en SIGI?"><span><i class="cil-lightbulb"></i></span><div><strong>Qué puedes hacer</strong><small>Conoce las capacidades de SIGI</small></div><i class="cil-arrow-right"></i></button>
+                            <button type="button" class="sigi-suggestion" data-sigi-query="¿Qué puedo consultar en ZOE?"><span><i class="cil-lightbulb"></i></span><div><strong>Qué puedes hacer</strong><small>Conoce las capacidades de ZOE</small></div><i class="cil-arrow-right"></i></button>
                             <button type="button" class="sigi-suggestion sigi-suggestion-document" data-sigi-open-pdf><span><i class="cil-description"></i></span><div><strong>Estatutos del Grupo 21</strong><small>Consulta el documento oficial en PDF</small></div><i class="cil-arrow-right"></i></button>
                         </div>
                     </div>
@@ -159,14 +159,14 @@
                 <div class="sigi-composer-wrap">
                     <div class="sigi-composer">
                         <div class="sigi-composer-top">
-                            <textarea id="sigiConsulta" class="sigi-textarea" rows="2" placeholder="Escribe aquí lo que quieres saber..." aria-label="Consulta para SIGI"></textarea>
+                            <textarea id="sigiConsulta" class="sigi-textarea" rows="2" placeholder="Escribe aquí lo que quieres saber..." aria-label="Consulta para ZOE"></textarea>
                         </div>
                         <div class="sigi-composer-bottom">
                             <div class="sigi-composer-hint"><span class="hint-dot"></span><span>Lenguaje natural</span><span class="hint-separator">·</span><span>Enter para enviar</span></div>
                             <button type="button" class="sigi-send-button" id="btnSigiConsultar"><span>Enviar</span><i class="cil-arrow-right"></i></button>
                         </div>
                     </div>
-                    <div class="sigi-disclaimer"><i class="cil-info"></i> SIGI puede cometer errores. Verifica la información importante antes de tomar decisiones.</div>
+                    <div class="sigi-disclaimer"><i class="cil-info"></i> ZOE puede cometer errores. Verifica la información importante antes de tomar decisiones.</div>
                 </div>
             </section>
         </main>
@@ -176,7 +176,7 @@
 @push('styles')
 <style>
 :root { --sigi-ink:#172033; --sigi-muted:#718096; --sigi-line:#e7ebf2; --sigi-bg:#f4f7fb; --sigi-blue:#2563eb; --sigi-violet:#6d5dfc; }
-/* Tema oscuro: solo cambia colores; no modifica la estructura de SIGI. */
+/* Tema oscuro: solo cambia colores; no modifica la estructura de ZOE. */
 [data-coreui-theme="dark"] .sigi-shell{
     --sigi-ink:#e8eefc;
     --sigi-muted:#9aa9c7;
@@ -267,10 +267,10 @@
 
 /*
 |--------------------------------------------------------------------------
-| SCROLL INTERNO DE LA CONVERSACIÓN DE SIGI
+| SCROLL INTERNO DE LA CONVERSACIÓN DE ZOE
 |--------------------------------------------------------------------------
 |
-| Mantiene fija la interfaz de SIGI y permite desplazar únicamente
+| Mantiene fija la interfaz de ZOE y permite desplazar únicamente
 | el historial de mensajes cuando la conversación crece.
 |
 */
@@ -438,7 +438,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| PERSONALIDAD DE SIGI — BURBUJA DEL ROBOT
+| PERSONALIDAD DE ZOE — BURBUJA DEL ROBOT
 |--------------------------------------------------------------------------
 */
 .sigi-sidebar-hero {
@@ -532,7 +532,7 @@
 }
 
 /*
- * El robot también reacciona ligeramente cuando SIGI está atento.
+ * El robot también reacciona ligeramente cuando ZOE está atento.
  */
 .sigi-bot.is-listening .sigi-bot-antenna span {
     animation: sigiAntennaListen 1s ease-in-out infinite;
@@ -613,10 +613,10 @@
 
 /*
 |--------------------------------------------------------------------------
-| CABECERA LIMPIA DE SIGI
+| CABECERA LIMPIA DE ZOE
 |--------------------------------------------------------------------------
 |
-| El navbar duplicado se elimina. El estado de SIGI vive junto al robot
+| El navbar duplicado se elimina. El estado de ZOE vive junto al robot
 | y las acciones principales quedan junto a "IA activa".
 |
 */
@@ -752,7 +752,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| ANTENA DE SIGI — ÚNICA PARTE ANIMADA DEL ROBOT
+| ANTENA DE ZOE — ÚNICA PARTE ANIMADA DEL ROBOT
 |--------------------------------------------------------------------------
 */
 .sigi-bot-antenna span {
@@ -886,7 +886,7 @@
     flex: 0 0 auto;
 }
 
-/* Mensajes de SIGI: más grandes, claros y contrastados */
+/* Mensajes de ZOE: más grandes, claros y contrastados */
 .sigi-message {
     max-width: 920px;
     margin-bottom: 20px;
@@ -1053,7 +1053,7 @@
     margin-bottom: 30px;
 }
 
-/* Más aire entre el nombre de SIGI y su mensaje */
+/* Más aire entre el nombre de ZOE y su mensaje */
 .sigi-message-content {
     max-width: 82%;
 }
@@ -1110,7 +1110,7 @@
     padding: 12px 14px;
 }
 
-/* Más espacio entre la consulta del usuario y la respuesta de SIGI */
+/* Más espacio entre la consulta del usuario y la respuesta de ZOE */
 .sigi-message-user {
     margin-bottom: 34px;
 }
@@ -1153,12 +1153,12 @@
 
 /*
 |--------------------------------------------------------------------------
-| SIDEBAR SIGI MÁS ANCHO
+| SIDEBAR ZOE MÁS ANCHO
 |--------------------------------------------------------------------------
 |
 | Objetivo:
 | - Dar más espacio al robot y a su nube.
-| - Permitir que el texto de SIGI se vea completo.
+| - Permitir que el texto de ZOE se vea completo.
 | - Mantener el chat y sus funciones intactos.
 |
 */
@@ -1242,10 +1242,10 @@
 
 /*
 |--------------------------------------------------------------------------
-| MENSAJES DE SIGI AL LADO IZQUIERDO
+| MENSAJES DE ZOE AL LADO IZQUIERDO
 |--------------------------------------------------------------------------
 |
-| Las respuestas de SIGI quedan alineadas a la izquierda.
+| Las respuestas de ZOE quedan alineadas a la izquierda.
 | Los mensajes del usuario continúan a la derecha.
 |
 */
@@ -1257,14 +1257,14 @@
     justify-content: flex-start;
 }
 
-/* Contenido de SIGI alineado a la izquierda */
+/* Contenido de ZOE alineado a la izquierda */
 .sigi-message-assistant .sigi-message-content {
     margin-left: 0;
     margin-right: auto;
     max-width: 82%;
 }
 
-/* La burbuja de SIGI empieza siempre desde la izquierda */
+/* La burbuja de ZOE empieza siempre desde la izquierda */
 .sigi-message-assistant .sigi-bubble,
 .sigi-message-assistant .sigi-result-card {
     margin-left: 0;
@@ -1272,12 +1272,12 @@
     text-align: left;
 }
 
-/* Nombre SIGI */
+/* Nombre ZOE */
 .sigi-message-assistant .sigi-message-meta {
     text-align: left;
 }
 
-/* Hora de SIGI */
+/* Hora de ZOE */
 .sigi-message-assistant .sigi-message-time {
     text-align: left;
 }
@@ -1317,7 +1317,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| CORRECCIÓN DEFINITIVA — SIGI A LA IZQUIERDA
+| CORRECCIÓN DEFINITIVA — ZOE A LA IZQUIERDA
 |--------------------------------------------------------------------------
 |
 | El problema anterior era que .sigi-message tenía:
@@ -1328,13 +1328,13 @@
 | Por eso el bloque completo se centraba antes de aplicar
 | justify-content:flex-start.
 |
-| Ahora SIGI ocupa todo el ancho disponible y su contenido
+| Ahora ZOE ocupa todo el ancho disponible y su contenido
 | comienza realmente desde el borde izquierdo del historial.
 | El usuario continúa a la derecha.
 |
 */
 
-/* SIGI: bloque completo pegado al lado izquierdo */
+/* ZOE: bloque completo pegado al lado izquierdo */
 .sigi-conversation-scroll .sigi-message.sigi-message-assistant {
     width: 100% !important;
     max-width: none !important;
@@ -1344,7 +1344,7 @@
     align-self: flex-start !important;
 }
 
-/* Contenido de SIGI: siempre comienza desde la izquierda */
+/* Contenido de ZOE: siempre comienza desde la izquierda */
 .sigi-conversation-scroll .sigi-message.sigi-message-assistant .sigi-message-content {
     width: auto !important;
     max-width: 78% !important;
@@ -1353,7 +1353,7 @@
     align-items: flex-start !important;
 }
 
-/* Meta de SIGI */
+/* Meta de ZOE */
 .sigi-conversation-scroll .sigi-message.sigi-message-assistant .sigi-message-meta {
     margin-left: 0 !important;
     margin-right: 0 !important;
@@ -1361,21 +1361,21 @@
     text-align: left !important;
 }
 
-/* Burbuja de SIGI */
+/* Burbuja de ZOE */
 .sigi-conversation-scroll .sigi-message.sigi-message-assistant .sigi-bubble {
     margin-left: 0 !important;
     margin-right: auto !important;
     text-align: left !important;
 }
 
-/* Tarjetas de resultados de SIGI */
+/* Tarjetas de resultados de ZOE */
 .sigi-conversation-scroll .sigi-message.sigi-message-assistant .sigi-result-card {
     margin-left: 0 !important;
     margin-right: auto !important;
     text-align: left !important;
 }
 
-/* Hora de SIGI */
+/* Hora de ZOE */
 .sigi-conversation-scroll .sigi-message.sigi-message-assistant .sigi-message-time {
     margin-left: 0 !important;
     margin-right: auto !important;
@@ -1438,7 +1438,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| CORRECCIÓN — NUBE DE SIGI A LA IZQUIERDA DEL ROBOT
+| CORRECCIÓN — NUBE DE ZOE A LA IZQUIERDA DEL ROBOT
 |--------------------------------------------------------------------------
 |
 | IMPORTANTE:
@@ -1849,12 +1849,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /*
      * ================================================================
-     * PERSONALIDAD DE SIGI
+     * PERSONALIDAD DE ZOE
      * ================================================================
      *
      * El robot reacciona al estado real de la conversación:
      * - el usuario escribe -> "Te estoy escuchando..."
-     * - SIGI consulta      -> "Estoy pensando..."
+     * - ZOE consulta      -> "Estoy pensando..."
      * - respuesta lista    -> "Listo, encontré la información."
      */
     const botPersonality =
@@ -1920,7 +1920,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * MENSAJE DE PERSONALIDAD SEGÚN LA CONSULTA
      * ================================================================
      *
-     * SIGI no muestra siempre "Estoy pensando...".
+     * ZOE no muestra siempre "Estoy pensando...".
      * El texto de la nube intenta explicar qué está haciendo.
      */
     function obtenerMensajeProcesando(consulta) {
@@ -2158,11 +2158,11 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="sigi-message-content">
 
                 <div class="sigi-message-author">
-                    SIGI
+                    ZOE
                 </div>
 
                 <div class="sigi-typing"
-                    aria-label="SIGI está escribiendo">
+                    aria-label="ZOE está escribiendo">
 
                     <span></span>
                     <span></span>
@@ -2217,7 +2217,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * SEGURIDAD DE PRESENTACIÓN
      * ================================================================
      *
-     * SIGI nunca debe mostrar objetos completos devueltos por Laravel.
+     * ZOE nunca debe mostrar objetos completos devueltos por Laravel.
      * Tampoco mostramos IDs internos, correos, timestamps, observaciones,
      * coordenadas, tokens u otros metadatos.
      */
@@ -2290,7 +2290,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const texto = String(valor).trim();
 
         /*
-         * SIGI recibe algunas fechas desde Laravel/Carbon con formato
+         * ZOE recibe algunas fechas desde Laravel/Carbon con formato
          * ISO, por ejemplo:
          * 2025-07-29T00:00:00.000000Z
          *
@@ -2547,7 +2547,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <i class="cil-lock-locked"></i>
                     <span>
                         La información encontrada no contiene
-                        datos que SIGI pueda mostrar en esta conversación.
+                        datos que ZOE pueda mostrar en esta conversación.
                     </span>
                 </div>
             `;
@@ -2819,7 +2819,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="sigi-safe-notice">
                     <i class="cil-lock-locked"></i>
                     <span>
-                        SIGI recibió información adicional,
+                        ZOE recibió información adicional,
                         pero no mostrará datos internos o sensibles.
                     </span>
                 </div>
@@ -2925,8 +2925,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const titulo =
             error
-                ? 'SIGI · Atención'
-                : 'SIGI';
+                ? 'ZOE · Atención'
+                : 'ZOE';
 
         const contenido =
             error
@@ -2973,7 +2973,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="sigi-message-content">
 
                 <div class="sigi-message-author">
-                    SIGI
+                    ZOE
                 </div>
 
                 ${contenido}
@@ -3107,7 +3107,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!data) {
                 throw new Error(
-                    'SIGI no devolvió una respuesta válida.'
+                    'ZOE no devolvió una respuesta válida.'
                 );
             }
 
@@ -3164,7 +3164,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             agregarRespuesta(
                 error.message ||
-                'No pude conectarme con SIGI en este momento.',
+                'No pude conectarme con ZOE en este momento.',
                 null,
                 'error',
                 true
@@ -3308,8 +3308,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="sigi-message sigi-message-assistant">
                         <div class="sigi-message-content">
                             <div class="sigi-message-meta">
-                                <span class="sigi-meta-avatar">S</span>
-                                <strong>SIGI</strong>
+                                <span class="sigi-meta-avatar">Z</span>
+                                <strong>ZOE</strong>
                                 <span>Ahora</span>
                             </div>
                             <div class="sigi-bubble sigi-bubble-assistant">
@@ -3325,7 +3325,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <button type="button" class="sigi-suggestion" data-sigi-query="¿Cuánto se recaudó este mes?"><span><i class="cil-chart-line"></i></span><div><strong>Ingresos del período</strong><small>¿Cuánto ingresamos?</small></div><i class="cil-arrow-right"></i></button>
                             <button type="button" class="sigi-suggestion" data-sigi-query="¿Cuánto se gastó este mes?"><span><i class="cil-transfer"></i></span><div><strong>Egresos del período</strong><small>¿Cuánto gastamos?</small></div><i class="cil-arrow-right"></i></button>
                             <button type="button" class="sigi-suggestion" data-sigi-query="¿Cuáles fueron los últimos movimientos?"><span><i class="cil-list"></i></span><div><strong>Últimos movimientos</strong><small>Revisa los movimientos recientes</small></div><i class="cil-arrow-right"></i></button>
-                            <button type="button" class="sigi-suggestion" data-sigi-query="¿Qué puedo consultar en SIGI?"><span><i class="cil-lightbulb"></i></span><div><strong>Qué puedes hacer</strong><small>Conoce las capacidades de SIGI</small></div><i class="cil-arrow-right"></i></button>
+                            <button type="button" class="sigi-suggestion" data-sigi-query="¿Qué puedo consultar en ZOE?"><span><i class="cil-lightbulb"></i></span><div><strong>Qué puedes hacer</strong><small>Conoce las capacidades de ZOE</small></div><i class="cil-arrow-right"></i></button>
                             <button type="button" class="sigi-suggestion sigi-suggestion-document" data-sigi-open-pdf><span><i class="cil-description"></i></span><div><strong>Estatutos del Grupo 21</strong><small>Consulta el documento oficial en PDF</small></div><i class="cil-arrow-right"></i></button>
                         </div>
                     </div>

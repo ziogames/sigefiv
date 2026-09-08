@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\ActividadService;
+use App\Services\ChatService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -56,7 +57,7 @@ class AuthenticatedSessionController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Registrar inicio de sesión
+        | Registrar inicio de sesión y agregar al Chat Vecinal
         |--------------------------------------------------------------------------
         */
 
@@ -65,6 +66,29 @@ class AuthenticatedSessionController extends Controller
             ActividadService::loginPassword(
                 $usuario
             );
+
+            app(ChatService::class)->agregarUsuario(
+                $usuario
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Primera entrada al sistema
+            |--------------------------------------------------------------------------
+            |
+            | Si el usuario todavía no ha visto la pantalla de bienvenida,
+            | la mostramos antes de llevarlo al dashboard.
+            |
+            */
+
+            if (!$usuario->bienvenida_vista) {
+
+                return redirect()->route(
+                    'bienvenida'
+                );
+
+            }
 
         }
 

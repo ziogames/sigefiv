@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Services\SigiAiService;
 use App\Services\Sigi\SigiChistesService;
 use App\Services\Sigi\SigiClimaService;
 use App\Services\Sigi\SigiEstatutosService;
@@ -11,6 +10,7 @@ use App\Services\Sigi\SigiPeriodosService;
 use App\Services\Sigi\SigiRolesService;
 use App\Services\Sigi\SigiSecurityService;
 use App\Services\Sigi\SigiUsuariosService;
+use App\Services\Zoe\ZoeQueryService;
 
 class ConsultaEjecutorService
 {
@@ -32,6 +32,9 @@ class ConsultaEjecutorService
 
     private SigiSecurityService $sigiSecurity;
 
+    private ZoeQueryService $zoeQuery;
+
+
     public function __construct(
         SigiAiService $sigiAi,
         SigiEstatutosService $sigiEstatutos,
@@ -41,36 +44,30 @@ class ConsultaEjecutorService
         SigiUsuariosService $sigiUsuarios,
         SigiRolesService $sigiRoles,
         SigiPeriodosService $sigiPeriodos,
-        SigiSecurityService $sigiSecurity
+        SigiSecurityService $sigiSecurity,
+        ZoeQueryService $zoeQuery
     ) {
+        $this->sigiAi = $sigiAi;
 
-        $this->sigiAi =
-            $sigiAi;
+        $this->sigiEstatutos = $sigiEstatutos;
 
-        $this->sigiEstatutos =
-            $sigiEstatutos;
+        $this->sigiFinanzas = $sigiFinanzas;
 
-        $this->sigiFinanzas =
-            $sigiFinanzas;
+        $this->sigiClima = $sigiClima;
 
-        $this->sigiClima =
-            $sigiClima;
+        $this->sigiChistes = $sigiChistes;
 
-        $this->sigiChistes =
-            $sigiChistes;
+        $this->sigiUsuarios = $sigiUsuarios;
 
-        $this->sigiUsuarios =
-            $sigiUsuarios;
+        $this->sigiRoles = $sigiRoles;
 
-        $this->sigiRoles =
-            $sigiRoles;
+        $this->sigiPeriodos = $sigiPeriodos;
 
-        $this->sigiPeriodos =
-            $sigiPeriodos;
+        $this->sigiSecurity = $sigiSecurity;
 
-        $this->sigiSecurity =
-            $sigiSecurity;
+        $this->zoeQuery = $zoeQuery;
     }
+
 
     public function ejecutar(
         array $interpretacion,
@@ -90,9 +87,6 @@ class ConsultaEjecutorService
         |--------------------------------------------------------------------------
         | SALUDO
         |--------------------------------------------------------------------------
-        |
-        | Los saludos no pertenecen a ninguna tabla.
-        |
         */
 
         if ($operacion === 'greeting') {
@@ -101,7 +95,6 @@ class ConsultaEjecutorService
                 $interpretacion['consulta_original']
                 ?? ''
             );
-
         }
 
 
@@ -126,7 +119,6 @@ class ConsultaEjecutorService
             return $this->sigiEstatutos->consultar(
                 (string) $consultaOriginal
             );
-
         }
 
 
@@ -155,7 +147,6 @@ class ConsultaEjecutorService
         if ($operacion === 'joke') {
 
             return $this->sigiChistes->obtener();
-
         }
 
 
@@ -170,7 +161,6 @@ class ConsultaEjecutorService
             return $this->sigiClima->obtener(
                 $interpretacion
             );
-
         }
 
 
@@ -179,17 +169,7 @@ class ConsultaEjecutorService
         | INFORMACIÓN ADMINISTRATIVA
         |--------------------------------------------------------------------------
         |
-        | Usuarios y roles contienen información administrativa.
-        |
-        | Solo pueden consultarlos:
-        |
-        | - Administrador
-        | - Secretario
-        | - Tesorero
-        |
-        | Nunca confiamos en el texto de la pregunta para determinar
-        | los permisos. Utilizamos el usuario autenticado identificado
-        | por $usuarioId.
+        | Usuarios y roles continúan utilizando sus servicios actuales.
         |
         */
 
@@ -251,25 +231,40 @@ class ConsultaEjecutorService
 
         /*
         |--------------------------------------------------------------------------
-        | EJECUCIÓN DE CONSULTAS
+        | CONSULTAS FINANCIERAS
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANTE:
+        |
+        | Movimientos y períodos utilizan exclusivamente la capa controlada
+        | de ZoeQueryService.
+        |
+        */
+
+        if ($tabla === 'movimientos') {
+
+            return $this->ejecutarConsultaMovimientosZoe(
+                $interpretacion,
+                $operacion
+            );
+        }
+
+
+        if ($tabla === 'periodos') {
+
+            return $this->ejecutarConsultaPeriodoZoe(
+                $interpretacion
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | USUARIOS / ROLES
         |--------------------------------------------------------------------------
         */
 
         return match ($tabla) {
-
-            'movimientos' =>
-                $this->sigiFinanzas
-                    ->consultarMovimientos(
-                        $interpretacion,
-                        $operacion
-                    ),
-
-            'periodos' =>
-                $this->sigiPeriodos
-                    ->consultarPeriodos(
-                        $interpretacion,
-                        $operacion
-                    ),
 
             'usuarios' =>
                 $this->sigiUsuarios
@@ -289,10 +284,1119 @@ class ConsultaEjecutorService
 
                 'success' => false,
 
+                'tipo' => 'texto',
+
+                'resultado' => null,
+
                 'mensaje' =>
                     'No pude determinar qué información deseas consultar.',
             ],
         };
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CONSULTA DE MOVIMIENTOS ZOE
+    |--------------------------------------------------------------------------
+    */
+
+    private function ejecutarConsultaMovimientosZoe(
+        array $interpretacion,
+        string $operacion
+    ): array {
+
+        $texto =
+            mb_strtolower(
+                (string) (
+                    $interpretacion['consulta_original']
+                    ?? $interpretacion['texto']
+                    ?? ''
+                )
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FECHA
+        |--------------------------------------------------------------------------
+        */
+
+        $fecha =
+            $interpretacion['fecha']
+            ?? [];
+
+        $anio =
+            isset($fecha['anio']) &&
+            is_numeric($fecha['anio'])
+                ? (int) $fecha['anio']
+                : (
+                    isset($interpretacion['anio']) &&
+                    is_numeric($interpretacion['anio'])
+                        ? (int) $interpretacion['anio']
+                        : null
+                );
+
+        $mes =
+            isset($fecha['mes']) &&
+            is_numeric($fecha['mes'])
+                ? (int) $fecha['mes']
+                : (
+                    isset($interpretacion['mes']) &&
+                    is_numeric($interpretacion['mes'])
+                        ? (int) $interpretacion['mes']
+                        : null
+                );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETECTAR MESES ESCRITOS
+        |--------------------------------------------------------------------------
+        */
+
+        $meses = [];
+
+        $nombreMeses = [
+
+            'enero'      => 1,
+            'febrero'    => 2,
+            'marzo'      => 3,
+            'abril'      => 4,
+            'mayo'       => 5,
+            'junio'      => 6,
+            'julio'      => 7,
+            'agosto'     => 8,
+            'septiembre' => 9,
+            'setiembre'  => 9,
+            'octubre'    => 10,
+            'noviembre'  => 11,
+            'diciembre'  => 12,
+
+        ];
+
+
+        foreach (
+            $nombreMeses
+            as $nombre => $numero
+        ) {
+
+            if (
+                str_contains(
+                    $texto,
+                    $nombre
+                )
+            ) {
+
+                $meses[] =
+                    $numero;
+            }
+        }
+
+
+        $meses =
+            array_values(
+                array_unique(
+                    $meses
+                )
+            );
+
+
+        sort($meses);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SI EL MES VIENE EXPLÍCITAMENTE, RESPETARLO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            empty($meses) &&
+            $mes !== null
+        ) {
+            $meses = [$mes];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONSTRUIR FILTROS CONTROLADOS
+        |--------------------------------------------------------------------------
+        */
+
+        /*
+        |--------------------------------------------------------------------------
+        | ÚLTIMOS MOVIMIENTOS DEL PERÍODO ACTIVO
+        |--------------------------------------------------------------------------
+        |
+        | Cuando el usuario pide "últimos movimientos" sin indicar año
+        | ni mes, el período correcto es el período activo de SIGEFIV.
+        | No usamos la fecha actual del servidor ni el período de una
+        | consulta anterior. Consultamos el período activo mediante la
+        | capa segura de ZoeQueryService.
+        |--------------------------------------------------------------------------
+        */
+
+        $esUltimosMovimientos =
+            preg_match(
+                '/\b(?:ultimos|últimos)\s+(?:(?:\d+)\s+)?(?:movimientos?|movs?)\b/u',
+                $texto
+            ) === 1;
+
+        $tienePeriodoExplicito =
+            preg_match('/\b20\d{2}\b/u', $texto) === 1 ||
+            preg_match(
+                '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
+                $texto
+            ) === 1;
+
+        if ($esUltimosMovimientos && !$tienePeriodoExplicito) {
+            $periodoActivo = $this->zoeQuery->periodoActual();
+
+            if ($periodoActivo) {
+                $anio = (int) $periodoActivo->anio;
+                $mes = (int) $periodoActivo->mes;
+            }
+        }
+
+        $filtros = [
+
+            'anio' =>
+                $anio,
+
+            'mes' =>
+                count($meses) === 1
+                    ? $meses[0]
+                    : $mes,
+
+            'meses' =>
+                count($meses) > 1
+                    ? $meses
+                    : [],
+
+            'tipo_movimiento' =>
+                $interpretacion['tipo_movimiento']
+                ?? null,
+
+            'categoria' =>
+                $interpretacion['categoria']
+                ?? null,
+
+            'categorias' =>
+                $interpretacion['categorias']
+                ?? [],
+
+            'concepto' =>
+                $interpretacion['concepto']
+                ?? null,
+
+            'persona' =>
+                $interpretacion['persona']
+                ?? null,
+
+            'forma_pago' =>
+                $interpretacion['forma_pago']
+                ?? null,
+
+            'fecha_desde' =>
+                $interpretacion['fecha_desde']
+                ?? null,
+
+            'fecha_hasta' =>
+                $interpretacion['fecha_hasta']
+                ?? null,
+
+            'limite' =>
+                $interpretacion['limite']
+                ?? 20,
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | REFORZAR TIPO DE MOVIMIENTO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            empty(
+                $filtros['tipo_movimiento']
+            )
+        ) {
+
+            if (
+                preg_match(
+                    '/\b(egreso|egresos|gasto|gastos|gastamos|gastó|gastó)\b/u',
+                    $texto
+                )
+            ) {
+
+                $filtros['tipo_movimiento'] =
+                    'Egreso';
+
+            } elseif (
+                preg_match(
+                    '/\b(ingreso|ingresos|ingresamos|recaudación|recaudamos|recaudacion)\b/u',
+                    $texto
+                )
+            ) {
+
+                $filtros['tipo_movimiento'] =
+                    'Ingreso';
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OPERACIÓN: SUMA
+        |--------------------------------------------------------------------------
+        |
+        | También reconocemos frases naturales como:
+        |
+        | - cuánto ingresó
+        | - cuánto ingresamos
+        | - cuánto gastamos
+        | - cuánto gastó
+        | - total de ingresos
+        | - total de egresos
+        |
+        */
+
+        if (
+            preg_match(
+                '/\b(total\s+(?:de\s+)?(?:ingresos?|egresos?)|cu[aá]nto\s+(?:ingres[oó]|ingresamos|gastamos|gast[oó]))\b/u',
+                $texto
+            )
+        ) {
+
+            $operacion = 'sum';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL DE EGRESOS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            preg_match(
+                '/\btotal\s+(?:de\s+)?egresos?\b/u',
+                $texto
+            )
+        ) {
+
+            $operacion =
+                'sum';
+
+            $filtros['tipo_movimiento'] =
+                'Egreso';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL DE INGRESOS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            preg_match(
+                '/\btotal\s+(?:de\s+)?ingresos?\b/u',
+                $texto
+            )
+        ) {
+
+            $operacion =
+                'sum';
+
+            $filtros['tipo_movimiento'] =
+                'Ingreso';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUMA
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $operacion === 'sum'
+        ) {
+
+            $resultado =
+                $this->zoeQuery
+                    ->sumarMovimientos(
+                        $filtros
+                    );
+
+
+            $tipo =
+                $filtros['tipo_movimiento']
+                ?? null;
+
+
+            if (
+                $tipo === 'Ingreso'
+            ) {
+
+                $nombre =
+                    'ingresos';
+
+            } elseif (
+                $tipo === 'Egreso'
+            ) {
+
+                $nombre =
+                    'egresos';
+
+            } else {
+
+                $nombre =
+                    'movimientos';
+            }
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    $resultado,
+
+                'mensaje' =>
+                    'El total de ' .
+                    $nombre .
+                    ' consultado es de S/ ' .
+                    number_format(
+                        $resultado,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    '.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COUNT
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $operacion === 'count'
+        ) {
+
+            $resultado =
+                $this->zoeQuery
+                    ->contarMovimientos(
+                        $filtros
+                    );
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    $resultado,
+
+                'mensaje' =>
+                    'Encontré ' .
+                    $resultado .
+                    ' movimientos.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PROMEDIO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $operacion === 'avg'
+        ) {
+
+            $resultado =
+                $this->zoeQuery
+                    ->promedioMovimientos(
+                        $filtros
+                    );
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    $resultado,
+
+                'mensaje' =>
+                    'El promedio de los movimientos consultados es de S/ ' .
+                    number_format(
+                        $resultado,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    '.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MÁXIMO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            in_array(
+                $operacion,
+                [
+                    'max',
+                    'maximo',
+                ],
+                true
+            )
+        ) {
+
+            $movimiento =
+                $this->zoeQuery
+                    ->maximoMovimiento(
+                        $filtros
+                    );
+
+
+            if (!$movimiento) {
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'numero',
+
+                    'resultado' =>
+                        0,
+
+                    'mensaje' =>
+                        'No encontré movimientos para la consulta.',
+                ];
+            }
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    (float) $movimiento->monto,
+
+                'mensaje' =>
+                    'El movimiento de mayor monto es de S/ ' .
+                    number_format(
+                        (float) $movimiento->monto,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    '.',
+
+                'detalle' =>
+                    $movimiento,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MÍNIMO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            in_array(
+                $operacion,
+                [
+                    'min',
+                    'minimo',
+                ],
+                true
+            )
+        ) {
+
+            $movimiento =
+                $this->zoeQuery
+                    ->minimoMovimiento(
+                        $filtros
+                    );
+
+
+            if (!$movimiento) {
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'numero',
+
+                    'resultado' =>
+                        0,
+
+                    'mensaje' =>
+                        'No encontré movimientos para la consulta.',
+                ];
+            }
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    (float) $movimiento->monto,
+
+                'mensaje' =>
+                    'El movimiento de menor monto es de S/ ' .
+                    number_format(
+                        (float) $movimiento->monto,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    '.',
+
+                'detalle' =>
+                    $movimiento,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LISTADO DE MOVIMIENTOS
+        |--------------------------------------------------------------------------
+        */
+
+        $resultado =
+            $this->zoeQuery
+                ->listarMovimientos(
+                    $filtros
+                );
+
+
+        return [
+
+            'success' =>
+                true,
+
+            'tipo' =>
+                'lista',
+
+            'resultado' =>
+                $resultado,
+
+            'mensaje' =>
+                'Encontré ' .
+                $resultado->count() .
+                ' movimientos.',
+        ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CONSULTA DE PERÍODOS ZOE
+    |--------------------------------------------------------------------------
+    */
+
+    private function ejecutarConsultaPeriodoZoe(
+        array $interpretacion
+    ): array {
+
+        $texto =
+            mb_strtolower(
+                (string) (
+                    $interpretacion['consulta_original']
+                    ?? $interpretacion['texto']
+                    ?? ''
+                )
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FECHA
+        |--------------------------------------------------------------------------
+        */
+
+        $fecha =
+            $interpretacion['fecha']
+            ?? [];
+
+        $anio =
+            isset($fecha['anio']) &&
+            is_numeric($fecha['anio'])
+                ? (int) $fecha['anio']
+                : (
+                    isset($interpretacion['anio']) &&
+                    is_numeric($interpretacion['anio'])
+                        ? (int) $interpretacion['anio']
+                        : null
+                );
+
+        $mes =
+            isset($fecha['mes']) &&
+            is_numeric($fecha['mes'])
+                ? (int) $fecha['mes']
+                : (
+                    isset($interpretacion['mes']) &&
+                    is_numeric($interpretacion['mes'])
+                        ? (int) $interpretacion['mes']
+                        : null
+                );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETECTAR MESES ESCRITOS
+        |--------------------------------------------------------------------------
+        */
+
+        $meses = [];
+
+        $nombreMeses = [
+
+            'enero'      => 1,
+            'febrero'    => 2,
+            'marzo'      => 3,
+            'abril'      => 4,
+            'mayo'       => 5,
+            'junio'      => 6,
+            'julio'      => 7,
+            'agosto'     => 8,
+            'septiembre' => 9,
+            'setiembre'  => 9,
+            'octubre'    => 10,
+            'noviembre'  => 11,
+            'diciembre'  => 12,
+
+        ];
+
+
+        foreach (
+            $nombreMeses
+            as $nombre => $numero
+        ) {
+
+            if (
+                str_contains(
+                    $texto,
+                    $nombre
+                )
+            ) {
+
+                $meses[] =
+                    $numero;
+            }
+        }
+
+
+        $meses =
+            array_values(
+                array_unique(
+                    $meses
+                )
+            );
+
+
+        sort($meses);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PERÍODO ACTUAL
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains($texto, 'periodo actual') ||
+            str_contains($texto, 'período actual') ||
+            str_contains($texto, 'periodo vigente') ||
+            str_contains($texto, 'período vigente')
+        ) {
+
+            $periodo =
+                $this->zoeQuery
+                    ->periodoActual();
+
+
+            if (!$periodo) {
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'lista',
+
+                    'resultado' =>
+                        collect(),
+
+                    'mensaje' =>
+                        'No encontré un período actual.',
+                ];
+            }
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'lista',
+
+                'resultado' =>
+                    collect([
+                        $periodo
+                    ]),
+
+                'mensaje' =>
+                    'El período actual es ' .
+                    $periodo->nombre .
+                    ' ' .
+                    $periodo->anio .
+                    '.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SALDO INICIAL
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains(
+                $texto,
+                'saldo inicial'
+            )
+        ) {
+
+            if (
+                $anio === null ||
+                $mes === null
+            ) {
+
+                return [
+
+                    'success' =>
+                        false,
+
+                    'tipo' =>
+                        'texto',
+
+                    'resultado' =>
+                        null,
+
+                    'mensaje' =>
+                        'Necesito saber el año y el mes para consultar el saldo inicial.',
+                ];
+            }
+
+
+            $resultado =
+                $this->zoeQuery
+                    ->saldoInicialPeriodo(
+                        $anio,
+                        $mes
+                    );
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    $resultado,
+
+                'mensaje' =>
+                    'El saldo inicial del período es de S/ ' .
+                    number_format(
+                        $resultado,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    '.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SALDO FINAL / CAJA
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains($texto, 'saldo final') ||
+            str_contains($texto, 'saldo de cierre') ||
+            str_contains($texto, 'saldo de caja') ||
+            str_contains($texto, 'saldo caja') ||
+            str_contains($texto, 'saldo en caja') ||
+            str_contains($texto, 'cuánto tenemos en caja') ||
+            str_contains($texto, 'cuanto tenemos en caja') ||
+            str_contains($texto, 'cuánto hay en caja') ||
+            str_contains($texto, 'cuanto hay en caja') ||
+            str_contains($texto, 'cuánto dinero tenemos') ||
+            str_contains($texto, 'cuanto dinero tenemos')
+        ) {
+
+            if (
+                $anio === null ||
+                $mes === null
+            ) {
+
+                return [
+
+                    'success' =>
+                        false,
+
+                    'tipo' =>
+                        'texto',
+
+                    'resultado' =>
+                        null,
+
+                    'mensaje' =>
+                        'Necesito saber el año y el mes para consultar el saldo en caja.',
+                ];
+            }
+
+
+            $resultado =
+                $this->zoeQuery
+                    ->saldoFinalPeriodo(
+                        $anio,
+                        $mes
+                    );
+
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'numero',
+
+                'resultado' =>
+                    $resultado,
+
+                'mensaje' =>
+                    'El saldo en caja es de S/ ' .
+                    number_format(
+                        $resultado,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    '.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INGRESOS DEL PERÍODO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains($texto, 'total de ingresos') ||
+            str_contains($texto, 'total ingresos') ||
+            str_contains($texto, 'ingresos de') ||
+            str_contains($texto, 'ingresos del') ||
+            str_contains($texto, 'ingreso')
+        ) {
+
+            if (
+                $anio !== null &&
+                $mes !== null
+            ) {
+
+                $resultado =
+                    $this->zoeQuery
+                        ->totalIngresosPeriodo(
+                            $anio,
+                            $mes
+                        );
+
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'numero',
+
+                    'resultado' =>
+                        $resultado,
+
+                    'mensaje' =>
+                        'Los ingresos del período son de S/ ' .
+                        number_format(
+                            $resultado,
+                            2,
+                            '.',
+                            ','
+                        ) .
+                        '.',
+                ];
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EGRESOS DEL PERÍODO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            str_contains($texto, 'total de egresos') ||
+            str_contains($texto, 'total egresos') ||
+            str_contains($texto, 'egresos de') ||
+            str_contains($texto, 'egresos del') ||
+            str_contains($texto, 'egreso') ||
+            str_contains($texto, 'gasto') ||
+            str_contains($texto, 'gastos')
+        ) {
+
+            if (
+                $anio !== null &&
+                $mes !== null
+            ) {
+
+                $resultado =
+                    $this->zoeQuery
+                        ->totalEgresosPeriodo(
+                            $anio,
+                            $mes
+                        );
+
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'numero',
+
+                    'resultado' =>
+                        $resultado,
+
+                    'mensaje' =>
+                        'Los egresos del período son de S/ ' .
+                        number_format(
+                            $resultado,
+                            2,
+                            '.',
+                            ','
+                        ) .
+                        '.',
+                ];
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LISTADO DE PERÍODOS
+        |--------------------------------------------------------------------------
+        */
+
+        $filtros = [
+
+            'anio' =>
+                $anio,
+
+            'mes' =>
+                count($meses) === 1
+                    ? $meses[0]
+                    : $mes,
+
+            'meses' =>
+                count($meses) > 1
+                    ? $meses
+                    : [],
+        ];
+
+
+        $resultado =
+            $this->zoeQuery
+                ->listarPeriodos(
+                    $filtros
+                );
+
+
+        return [
+
+            'success' =>
+                true,
+
+            'tipo' =>
+                'lista',
+
+            'resultado' =>
+                $resultado,
+
+            'mensaje' =>
+                'Encontré ' .
+                $resultado->count() .
+                ' períodos.',
+        ];
     }
 
 
@@ -339,8 +1443,8 @@ class ConsultaEjecutorService
                     null,
 
                 'mensaje' =>
-                    '🤖 ' . $respuesta,
-
+                    '🤖 ' .
+                    $respuesta,
             ];
         }
 
@@ -359,7 +1463,6 @@ class ConsultaEjecutorService
             'mensaje' =>
                 '🤖 No pude conectarme con mi asistente de conversación en este momento. '
                 . 'Puedes intentarlo nuevamente en unos segundos.',
-
         ];
     }
 
@@ -391,30 +1494,36 @@ class ConsultaEjecutorService
 
             return [
 
-                'success' => true,
+                'success' =>
+                    true,
 
-                'tipo' => 'texto',
+                'tipo' =>
+                    'texto',
 
-                'resultado' => null,
+                'resultado' =>
+                    null,
 
-                'mensaje' => '🤖 ' . $respuesta,
-
+                'mensaje' =>
+                    '🤖 ' .
+                    $respuesta,
             ];
         }
 
 
         return [
 
-            'success' => false,
+            'success' =>
+                false,
 
-            'tipo' => 'texto',
+            'tipo' =>
+                'texto',
 
-            'resultado' => null,
+            'resultado' =>
+                null,
 
             'mensaje' =>
                 '🤖 Hola ❤️. Estoy aquí para ayudarte. También puedo '
                 . 'contarte un chiste o informarte sobre el clima.',
-
         ];
     }
 }

@@ -69,7 +69,56 @@
 
 
         {{-- =========================================================
-             ASISTENTE SIGI
+             CHAT VECINAL
+        ========================================================== --}}
+
+        <li class="nav-title chat-nav-title">
+            COMUNIDAD
+        </li>
+
+        <li class="nav-item">
+
+            <a
+                class="nav-link chat-nav-link"
+                href="{{ route('chat.index') }}"
+                id="sidebarChatLink"
+            >
+
+                <span class="chat-nav-icon">
+                    <i class="cil-chat-bubble"></i>
+                </span>
+
+                <span class="chat-nav-content">
+                    <span class="chat-nav-text">
+                        Chat Vecinal
+                    </span>
+
+                    <span
+                        class="chat-nav-meta"
+                        id="sidebarChatMeta"
+                    >
+                        <span id="sidebarChatOnline">…</span>
+                        en línea
+                        <span class="chat-nav-separator">•</span>
+                        <span id="sidebarChatPeople">…</span>
+                        personas
+                    </span>
+                </span>
+
+                <span
+                    class="chat-nav-unread d-none"
+                    id="sidebarChatUnread"
+                >
+                    0
+                </span>
+
+            </a>
+
+        </li>
+
+
+        {{-- =========================================================
+             ASISTENTE ZOE
         ========================================================== --}}
 
         <li class="nav-title sigi-nav-title">
@@ -87,7 +136,7 @@
                 </span>
 
                 <span class="sigi-nav-text">
-                    SIGI
+                    ZOE
                 </span>
 
                 <span class="sigi-nav-badge">
@@ -663,6 +712,116 @@
 
 
     /* =========================================================
+       CHAT VECINAL
+    ========================================================== */
+
+    .chat-nav-link {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px;
+        min-height: 52px;
+        border: 1px solid rgba(14,165,233,.20) !important;
+        background: linear-gradient(90deg,rgba(14,165,233,.10),transparent) !important;
+        margin: 4px 8px !important;
+        width: calc(100% - 16px) !important;
+        border-radius: 11px !important;
+        transition: background-color .2s ease,border-color .2s ease,transform .2s ease;
+    }
+
+    .chat-nav-icon {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+        background: rgba(14,165,233,.17);
+        color: #0ea5e9;
+        font-size: 14px;
+        transition: transform .2s ease,background-color .2s ease;
+    }
+
+    .chat-nav-content {
+        min-width: 0;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.15;
+    }
+
+    .chat-nav-text {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .02em;
+    }
+
+    .chat-nav-meta {
+        margin-top: 4px;
+        color: #8b98a9;
+        font-size: 9px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .chat-nav-separator {
+        margin: 0 3px;
+        opacity: .7;
+    }
+
+    .chat-nav-unread {
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 900;
+        box-shadow: 0 3px 9px rgba(239,68,68,.25);
+        animation: chatSidebarPulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes chatSidebarPulse {
+        0%,100% { transform: scale(1); }
+        50% { transform: scale(1.06); }
+    }
+
+    .chat-nav-link:hover {
+        background: rgba(14,165,233,.14) !important;
+        border-color: rgba(14,165,233,.30) !important;
+        transform: translateX(2px);
+    }
+
+    .chat-nav-link:hover .chat-nav-icon {
+        transform: translateX(2px);
+        background: rgba(14,165,233,.25);
+        color: #0284c7;
+    }
+
+    .chat-nav-link.active {
+        background: rgba(14,165,233,.15) !important;
+        color: #0284c7 !important;
+        border-left: 3px solid #0284c7 !important;
+    }
+
+    .sidebar-narrow .chat-nav-content,
+    .sidebar-narrow .chat-nav-unread {
+        display: none !important;
+    }
+
+    .sidebar-narrow .chat-nav-link {
+        justify-content: center;
+        margin-left: 6px !important;
+        margin-right: 6px !important;
+        width: calc(100% - 12px) !important;
+    }
+
+
+    /* =========================================================
        ASISTENTE SIGI
     ========================================================== */
 
@@ -735,6 +894,48 @@
 
     }
 
+
+    /* =========================================================
+       ACCESO RÁPIDO AL CHAT — MÓVIL
+    ========================================================== */
+
+    .chat-mobile-access {
+        display: none;
+    }
+
+    @media (max-width: 767.98px) {
+        .chat-mobile-access {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 1035;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 48px;
+            padding: 6px 12px 6px 7px;
+            border-radius: 15px;
+            background: linear-gradient(135deg,#0284c7,#2563eb);
+            color: #fff !important;
+            text-decoration: none !important;
+            box-shadow: 0 12px 28px rgba(37,99,235,.30);
+        }
+
+        .chat-mobile-access-icon {
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255,255,255,.16);
+        }
+
+        .chat-mobile-access-text {
+            font-size: 11px;
+            font-weight: 800;
+        }
+    }
 </style>
 
 
@@ -761,3 +962,139 @@
     }
 
 </script>
+
+<script>
+(function () {
+
+    const onlineElement =
+        document.getElementById('sidebarChatOnline');
+
+    const peopleElement =
+        document.getElementById('sidebarChatPeople');
+
+    if (!onlineElement || !peopleElement) {
+        return;
+    }
+
+    const urlPresencia =
+        @json(route('chat.presencia'));
+
+    let actualizando =
+        false;
+
+    async function actualizarPresenciaSidebar() {
+
+        if (document.hidden || actualizando) {
+            return;
+        }
+
+        actualizando = true;
+
+        try {
+
+            const token =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute('content');
+
+            const respuesta =
+                await fetch(
+                    urlPresencia,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Accept':
+                                'application/json',
+
+                            'X-Requested-With':
+                                'XMLHttpRequest',
+
+                            'X-CSRF-TOKEN':
+                                token || ''
+                        },
+
+                        credentials:
+                            'same-origin',
+
+                        cache:
+                            'no-store'
+                    }
+                );
+
+            if (!respuesta.ok) {
+                return;
+            }
+
+            const data =
+                await respuesta.json();
+
+            if (!data.success) {
+                return;
+            }
+
+            if (
+                data.personas_en_linea !== undefined
+            ) {
+
+                onlineElement.textContent =
+                    data.personas_en_linea;
+
+            }
+
+            if (
+                data.personas !== undefined
+            ) {
+
+                peopleElement.textContent =
+                    data.personas;
+
+            }
+
+        } catch (error) {
+
+            console.debug(
+                'Presencia del Chat Vecinal no disponible:',
+                error
+            );
+
+        } finally {
+
+            actualizando =
+                false;
+
+        }
+
+    }
+
+    /*
+     * Primera actualización al cargar cualquier página
+     * que utilice este sidebar.
+     */
+    actualizarPresenciaSidebar();
+
+    /*
+     * Mantener actualizado el indicador.
+     */
+    setInterval(
+        actualizarPresenciaSidebar,
+        10000
+    );
+
+})();
+</script>
+
+<a
+    href="{{ route('chat.index') }}"
+    class="chat-mobile-access"
+    aria-label="Abrir Chat Vecinal"
+    title="Chat Vecinal"
+>
+    <span class="chat-mobile-access-icon">
+        <i class="cil-chat-bubble"></i>
+    </span>
+    <span class="chat-mobile-access-text">
+        Chat Vecinal
+    </span>
+</a>
+

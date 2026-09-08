@@ -1,9 +1,8 @@
-<?php
+<?php                                                                                                               
 
 namespace App\Services\Sigi;
 
-use App\Models\Periodo;
-use App\Models\Movimiento;
+use App\Models\ZoePeriodoFinanciero;
 
 class SigiPeriodosService
 {
@@ -19,7 +18,7 @@ class SigiPeriodosService
     */
 
     $consulta =
-        Periodo::query();
+        ZoePeriodoFinanciero::query();
 
 
     /*
@@ -217,6 +216,46 @@ class SigiPeriodosService
         str_contains(
             $texto,
             'saldo de cierre'
+        ) ||
+        str_contains(
+            $texto,
+            'cuánto tenemos en caja'
+        ) ||
+        str_contains(
+            $texto,
+            'cuanto tenemos en caja'
+        ) ||
+        str_contains(
+            $texto,
+            'cuánto hay en caja'
+        ) ||
+        str_contains(
+            $texto,
+            'cuanto hay en caja'
+        ) ||
+        str_contains(
+            $texto,
+            'cuánto tenemos disponible'
+        ) ||
+        str_contains(
+            $texto,
+            'cuanto tenemos disponible'
+        ) ||
+        str_contains(
+            $texto,
+            'cuánto hay disponible'
+        ) ||
+        str_contains(
+            $texto,
+            'cuanto hay disponible'
+        ) ||
+        str_contains(
+            $texto,
+            'cuánto dinero tenemos'
+        ) ||
+        str_contains(
+            $texto,
+            'cuanto dinero tenemos'
         ) ||
         str_contains(
             $texto,
@@ -619,41 +658,53 @@ class SigiPeriodosService
     */
 
     if (
-        str_contains(
-            $texto,
-            'total de egresos'
-        ) ||
-        str_contains(
-            $texto,
-            'total egresos'
-        ) ||
-        str_contains(
-            $texto,
-            'suma total de los egresos'
-        ) ||
-        str_contains(
-            $texto,
-            'suma de los egresos'
-        ) ||
-        str_contains(
-            $texto,
-            'egresos de'
-        ) ||
-        str_contains(
-            $texto,
-            'egresos del'
-        ) ||
-        str_contains(
-            $texto,
-            'egreso'
-        ) ||
-        str_contains(
-            $texto,
-            'gasto'
-        ) ||
-        str_contains(
-            $texto,
-            'gastos'
+        (
+            str_contains(
+                $texto,
+                'total de egresos'
+            ) ||
+            str_contains(
+                $texto,
+                'total egresos'
+            ) ||
+            str_contains(
+                $texto,
+                'suma total de los egresos'
+            ) ||
+            str_contains(
+                $texto,
+                'suma de los egresos'
+            ) ||
+            str_contains(
+                $texto,
+                'egresos de'
+            ) ||
+            str_contains(
+                $texto,
+                'egresos del'
+            ) ||
+            str_contains(
+                $texto,
+                'egreso'
+            ) ||
+            str_contains(
+                $texto,
+                'gasto'
+            ) ||
+            str_contains(
+                $texto,
+                'gastos'
+            )
+        ) &&
+        (
+            str_contains(
+                $texto,
+                'periodo'
+            ) ||
+            str_contains(
+                $texto,
+                'período'
+            )
         )
     ) {
 
@@ -892,7 +943,7 @@ class SigiPeriodosService
     ) {
 
         $periodoActual =
-            Periodo::query()
+            ZoePeriodoFinanciero::query()
                 ->orderByDesc('anio')
                 ->orderByDesc('mes')
                 ->first();

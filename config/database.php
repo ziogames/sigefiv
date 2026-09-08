@@ -99,6 +99,20 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // 🤖 CONEXIÓN EXCLUSIVA DE SOLO LECTURA PARA ZOE
+     'zoe' => [
+    'driver' => 'pgsql',
+    'host' => env('ZOE_DB_HOST', '127.0.0.1'),
+    'port' => env('ZOE_DB_PORT', '5432'),
+    'database' => env('ZOE_DB_DATABASE', 'sigefiv'),
+    'username' => env('ZOE_DB_USERNAME', 'sigefiv_zoe'),
+    'password' => env('ZOE_DB_PASSWORD'),
+    'charset' => 'utf8',
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'search_path' => 'public',
+    'sslmode' => 'prefer',
+],
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

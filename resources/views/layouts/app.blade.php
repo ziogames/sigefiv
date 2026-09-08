@@ -88,6 +88,41 @@ $config = \App\Models\Configuracion::first();
 
 }
 
+/*
+|--------------------------------------------------------------------------
+| SIGEFIV - Ajuste de ancho para dispositivos móviles
+|--------------------------------------------------------------------------
+|
+| Solo reduce los espacios laterales del contenedor global en pantallas
+| pequeñas. No modifica el comportamiento de tablet, laptop o escritorio.
+|
+*/
+
+@media (max-width: 767.98px) {
+
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .body {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .body > .container-fluid {
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+}
+
 </style>
 </head>
 <body>
@@ -104,7 +139,7 @@ $config = \App\Models\Configuracion::first();
 
             <div class="container-fluid px-4 py-4">
 
-                
+
 
                 @if(session('error'))
 

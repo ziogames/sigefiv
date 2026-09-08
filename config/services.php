@@ -100,6 +100,63 @@ return [
             'http://localhost:8080/auth/google/callback'
         ),
 
+        'android_client_id' => env(
+            'GOOGLE_ANDROID_CLIENT_ID'
+        ),
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIGI - Text to Speech
+    |--------------------------------------------------------------------------
+    |
+    | El motor TTS se configura mediante .env.
+    | SIGEFIV no queda atado a un motor específico, permitiendo cambiar
+    | entre Kokoro, Piper u otro servicio al migrar a Raspberry Pi 5.
+    |
+    */
+
+    'sigi_tts' => [
+
+        'url' => env('SIGI_TTS_URL'),
+
+        'api_key' => env('SIGI_TTS_API_KEY'),
+
+        'model' => env(
+            'SIGI_TTS_MODEL',
+            'kokoro'
+        ),
+
+        'voice' => env(
+            'SIGI_TTS_VOICE',
+            'es'
+        ),
+
+        'response_format' => env(
+            'SIGI_TTS_RESPONSE_FORMAT',
+            'mp3'
+        ),
+
+        'timeout' => env(
+            'SIGI_TTS_TIMEOUT',
+            60
+        ),
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GIPHY - Chat Vecinal
+    |--------------------------------------------------------------------------
+    |
+    | La API key se mantiene en .env.
+    | Nunca coloques la API key directamente aquí.
+    |
+    */
+
+    'giphy' => [
+        'key' => env('GIPHY_API_KEY'),
     ],
 
 ];
