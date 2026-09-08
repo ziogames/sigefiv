@@ -84,14 +84,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/caja', [CajaController::class, 'index']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | MOVIMIENTOS
-    |--------------------------------------------------------------------------
-    */
+   /*
+|--------------------------------------------------------------------------
+| MOVIMIENTOS
+|--------------------------------------------------------------------------
+*/
 
-    Route::get('/movimientos', [MovimientoController::class, 'index']);
-    Route::post('/movimientos', [MovimientoController::class, 'store']);
+Route::get('/movimientos', [MovimientoController::class, 'index']);
+Route::post('/movimientos', [MovimientoController::class, 'store']);
+Route::put('/movimientos/{movimiento}', [MovimientoController::class, 'update']);
+Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------
