@@ -34,19 +34,19 @@ class ChatConversation extends Model
     /**
      * Usuarios que pertenecen a la conversación.
      */
-    public function usuarios(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            User::class,
-            'chat_conversation_user',
-            'conversation_id',
-            'user_id'
-        )->withPivot([
-            'rol',
-            'ultimo_leido_at',
-        ])->withTimestamps();
-    }
-
+  public function usuarios(): BelongsToMany
+{
+    return $this->belongsToMany(
+        User::class,
+        'chat_conversation_user',
+        'conversation_id',
+        'user_id'
+    )->withPivot([
+        'rol',
+        'ultimo_leido_at',
+        'ultimo_leido_message_id',
+    ])->withTimestamps();
+}
     /**
      * Mensajes de la conversación.
      */

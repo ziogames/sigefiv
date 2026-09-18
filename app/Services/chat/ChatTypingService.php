@@ -167,7 +167,8 @@ class ChatTypingService
                     $usuario->id,
 
                 'name' =>
-                    $usuario->name,
+                    $usuario->seudonimo
+                        ?: $usuario->name,
             ];
         }
 

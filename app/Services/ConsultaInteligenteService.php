@@ -117,35 +117,36 @@ class ConsultaInteligenteService
         |--------------------------------------------------------------------------
         */
 
+        $limiteSolicitado = null;
+        $tipoMovimiento = null;
+
         if (
             preg_match(
-                '/\b(?:los\s+)?(?:ultimos|últimos)\s+(?:ingresos?|egresos?|gastos?|movimientos?|movs?)\b/u',
+                '/\b(?:los\s+)?(?:ultimo|último|ultimos|últimos)\s+(?:ingreso|ingresos|egreso|egresos|gasto|gastos|movimiento|movimientos|movs?)\b/u',
                 $texto
             )
         ) {
             $operacion = 'show';
+            $limiteSolicitado = 1;
+
+            if (preg_match('/\b(?:ultimo|último)\s+(?:ingreso|egreso|gasto|movimiento)\b/u', $texto)) {
+                if (preg_match('/\b(?:ingreso)\b/u', $texto)) {
+                    $tipoMovimiento = 'Ingreso';
+                } elseif (preg_match('/\b(?:egreso|gasto)\b/u', $texto)) {
+                    $tipoMovimiento = 'Egreso';
+                }
+            }
 
             if (
                 !preg_match('/\b20\d{2}\b/u', $texto) &&
                 !preg_match(
                     '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
                     $texto
-                ) &&
-                !str_contains($texto, 'ultimo periodo') &&
-                !str_contains($texto, 'último periodo') &&
-                !str_contains($texto, 'ultimo período') &&
-                !str_contains($texto, 'último período') &&
-                !str_contains($texto, 'periodo actual') &&
-                !str_contains($texto, 'período actual') &&
-                !str_contains($texto, 'periodo vigente') &&
-                !str_contains($texto, 'período vigente')
+                )
             ) {
                 $texto .= ' periodo actual';
             }
         }
-
-        $limiteSolicitado = null;
-        $tipoMovimiento = null;
 
         /*
         |--------------------------------------------------------------------------
@@ -215,63 +216,80 @@ class ConsultaInteligenteService
         |--------------------------------------------------------------------------
         */
 
+        // Últimos N movimientos/ingresos/egresos.
+        // El número se conserva como límite y estas consultas siempre usan
+        // el período activo cuando el usuario no indicó un mes/año.
         if (
             preg_match(
-                '/\b(?:ultimos|últimos)\s+(\d+)\s+(?:movimientos?|movs?|ingresos?|egresos?)\b/u',
+                '/\b(?:los\s+)?(?:ultimos|últimos)\s+(\d+)\s+(?:movimientos?|movs?|ingresos?|egresos?|gastos?)\b/u',
                 $texto,
                 $coincidencia
             )
         ) {
-            $limiteSolicitado = max(
-                1,
-                min(100, (int) $coincidencia[1])
-            );
-
-            if (
-                str_contains($texto, 'ingreso') ||
-                str_contains($texto, 'ingresamos') ||
-                str_contains($texto, 'ingresó') ||
-                str_contains($texto, 'ingresaron') ||
-                str_contains($texto, 'ingresaba') ||
-                str_contains($texto, 'ingresaban') ||
-                str_contains($texto, 'ingresado') ||
-                str_contains($texto, 'ingresada') ||
-                str_contains($texto, 'ingresados') ||
-                str_contains($texto, 'ingresadas')
-            ) {
-                $tipoMovimiento = 'Ingreso';
-
-            } elseif (
-                str_contains($texto, 'egreso') ||
-                str_contains($texto, 'egresos') ||
-                str_contains($texto, 'gasto') ||
-                str_contains($texto, 'gastos') ||
-                str_contains($texto, 'gastamos') ||
-                str_contains($texto, 'gastó') ||
-                str_contains($texto, 'gastaron')
-            ) {
-                $tipoMovimiento = 'Egreso';
-            }
-
+            $limiteSolicitado = max(1, min(100, (int) $coincidencia[1]));
             $operacion = 'show';
 
-            $texto = preg_replace(
-                '/\b((?:ultimos|últimos)\s+\d+)\s+(?:ingresos?|egresos?)\b/u',
-                '$1 movimientos',
-                $texto
-            );
+            if (preg_match('/\b(?:ingreso|ingresos)\b/u', $texto)) {
+                $tipoMovimiento = 'Ingreso';
+            } elseif (preg_match('/\b(?:egreso|egresos|gasto|gastos)\b/u', $texto)) {
+                $tipoMovimiento = 'Egreso';
+            }
 
             if (
                 !preg_match('/\b20\d{2}\b/u', $texto) &&
                 !preg_match(
                     '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
                     $texto
-                ) &&
-                !str_contains($texto, 'ultimo periodo') &&
-                !str_contains($texto, 'último periodo') &&
-                !str_contains($texto, 'periodo actual') &&
-                !str_contains($texto, 'período actual')
+                )
             ) {
+                $texto .= ' periodo actual';
+            }
+        }
+
+        // Consultas naturales de gasto/pago en el período actual.
+        $esConsultaGastoActual =
+            preg_match(
+                '/\b(?:en\s+que|en\s+qué)\s+(?:gastamos|gast[oó]|se\s+gast[oó]|hemos\s+gastado)\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:cuanto|cuánto)\s+(?:hemos\s+gastado|gastamos|gast[oó])\b/u',
+                $texto
+            ) === 1;
+
+        $esUltimoPago =
+            preg_match(
+                '/\b(?:ultimo|último)\s+(?:pago|pagado|gasto|egreso)\b/u',
+                $texto
+            ) === 1;
+
+        // "pago" en consultas como "¿Quién hizo el último pago?"
+        // identifica el último movimiento de tipo Egreso. No debe
+        // interpretarse como la categoría "Pago" ni como la tabla "periodos".
+
+        if ($esConsultaGastoActual) {
+            $tipoMovimiento = 'Egreso';
+            $operacion = preg_match('/\b(?:cuanto|cuánto)\b/u', $texto)
+                ? 'sum'
+                : 'show';
+
+            if (!preg_match('/\b20\d{2}\b/u', $texto) && !preg_match(
+                '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
+                $texto
+            )) {
+                $texto .= ' periodo actual';
+            }
+        }
+
+        if ($esUltimoPago) {
+            $tipoMovimiento = 'Egreso';
+            $operacion = 'show';
+            $limiteSolicitado = 1;
+
+            if (!preg_match('/\b20\d{2}\b/u', $texto) && !preg_match(
+                '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
+                $texto
+            )) {
                 $texto .= ' periodo actual';
             }
         }
@@ -405,6 +423,80 @@ class ConsultaInteligenteService
 
         /*
         |--------------------------------------------------------------------------
+        | PERÍODO ACTIVO PARA CONSULTAS FINANCIERAS NATURALES
+        |--------------------------------------------------------------------------
+        |
+        | Si el usuario no indicó un mes/año concreto, no debemos heredar
+        | accidentalmente el período de una consulta anterior. El ejecutor
+        | resolverá el período activo real de SIGEFIV.
+        */
+
+        $tienePeriodoExplicito =
+            preg_match('/\b20\d{2}\b/u', $texto) === 1 ||
+            preg_match(
+                '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
+                $texto
+            ) === 1;
+
+        $esConsultaFinancieraNatural =
+            preg_match(
+                '/\b(?:cuanto|cuánto)\s+(?:hemos\s+)?(?:gastado|gastamos|ingresado|ingresamos|recaudamos)\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:en\s+que|en\s+qué)\s+(?:gastamos|gastó|se\s+gastó|hemos\s+gastado)\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:qué|que)\s+(?:ingresos|egresos|gastos)\s+(?:tuvimos|hubo)\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:quién|quien)\s+(?:hizo|realizó|realizo|efectuó|efectuo)\s+(?:el\s+)?(?:último|ultimo)\s+pago\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:último|ultimo)\s+pago\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:este\s+mes|periodo\s+actual|período\s+actual)\b/u',
+                $texto
+            ) === 1;
+
+        if ($esConsultaFinancieraNatural && !$tienePeriodoExplicito) {
+            $interpretacionFechaActual = $fechaDetectada ?? [];
+            $interpretacionFechaActual['mes'] = null;
+            $interpretacionFechaActual['anio'] = null;
+            $interpretacionFechaActual['mes_desde'] = null;
+            $interpretacionFechaActual['mes_hasta'] = null;
+            $fechaDetectada = $interpretacionFechaActual;
+            $usarPeriodoActivo = true;
+        } else {
+            $usarPeriodoActivo = false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZACIÓN DE "ÚLTIMO PAGO"
+        |--------------------------------------------------------------------------
+        |
+        | La detección de categorías puede reconocer "pago" como la
+        | categoría Pago y el detector de tabla puede haber elegido
+        | "periodos". Para esta intención, la consulta debe ir siempre
+        | a movimientos: último egreso del período correspondiente.
+        */
+
+        if ($esUltimoPago) {
+            $tabla = 'movimientos';
+            $operacion = 'show';
+            $tipoMovimiento = 'Egreso';
+            $categoriasDetectadas = [];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | RESULTADO FINAL
         |--------------------------------------------------------------------------
         */
@@ -453,6 +545,8 @@ class ConsultaInteligenteService
             'tipo_movimiento' => $tipoMovimiento,
 
             'limite' => $limiteSolicitado,
+
+            'usar_periodo_activo' => $usarPeriodoActivo ?? false,
 
             'texto' => $texto,
         ];
@@ -598,10 +692,7 @@ class ConsultaInteligenteService
         */
 
         if (
-            (
-                $resultado['tabla'] === 'movimientos' ||
-                empty($resultado['tabla'])
-            ) &&
+            empty($resultado['tabla']) &&
             !empty($previo['tabla'])
         ) {
             $resultado['tabla'] =

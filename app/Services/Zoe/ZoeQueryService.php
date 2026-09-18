@@ -214,7 +214,10 @@ class ZoeQueryService
         |--------------------------------------------------------------------------
         */
 
-        if (!empty($filtros['categoria'])) {
+        if (
+            !empty($filtros['categoria']) &&
+            is_scalar($filtros['categoria'])
+        ) {
 
             $categoria = trim(
                 (string) $filtros['categoria']
@@ -241,15 +244,22 @@ class ZoeQueryService
             is_array($filtros['categorias'])
         ) {
 
-            $categorias = array_values(
-                array_filter(
-                    array_map(
-                        fn ($valor) => trim((string) $valor),
-                        $filtros['categorias']
-                    ),
-                    fn ($valor) => $valor !== ''
-                )
+            $categorias = [];
+
+            array_walk_recursive(
+                $filtros['categorias'],
+                function ($valor) use (&$categorias) {
+                    if (is_scalar($valor)) {
+                        $valor = trim((string) $valor);
+
+                        if ($valor !== '') {
+                            $categorias[] = $valor;
+                        }
+                    }
+                }
             );
+
+            $categorias = array_values(array_unique($categorias));
 
             if (!empty($categorias)) {
 
@@ -284,7 +294,10 @@ class ZoeQueryService
         |--------------------------------------------------------------------------
         */
 
-        if (!empty($filtros['concepto'])) {
+        if (
+            !empty($filtros['concepto']) &&
+            is_scalar($filtros['concepto'])
+        ) {
 
             $concepto = trim(
                 (string) $filtros['concepto']
@@ -306,7 +319,10 @@ class ZoeQueryService
         |--------------------------------------------------------------------------
         */
 
-        if (!empty($filtros['persona'])) {
+        if (
+            !empty($filtros['persona']) &&
+            is_scalar($filtros['persona'])
+        ) {
 
             $persona = trim(
                 (string) $filtros['persona']
@@ -328,7 +344,10 @@ class ZoeQueryService
         |--------------------------------------------------------------------------
         */
 
-        if (!empty($filtros['forma_pago'])) {
+        if (
+            !empty($filtros['forma_pago']) &&
+            is_scalar($filtros['forma_pago'])
+        ) {
 
             $formaPago = trim(
                 (string) $filtros['forma_pago']

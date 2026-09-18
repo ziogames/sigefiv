@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Periodo;
 use App\Services\PeriodoService;
 use Illuminate\Http\JsonResponse;
+use Carbon\Carbon;
 
 class PeriodoController extends Controller
 {
@@ -255,13 +256,30 @@ class PeriodoController extends Controller
         }
 
 
+        // Rango completo del mes del período: primer día hasta último día.
+        $inicioMes = Carbon::create(
+            $periodo->anio,
+            $periodo->mes,
+            1
+        )->startOfMonth();
+
+        $finMes = Carbon::create(
+            $periodo->anio,
+            $periodo->mes,
+            1
+        )->endOfMonth();
+
         $movimientos =
             $periodo
                 ->movimientos()
                 ->with('categoria')
                 ->where('estado', 'Registrado')
-                ->orderByDesc('fecha')
-                ->orderByDesc('id')
+                ->whereBetween('fecha', [
+                    $inicioMes->toDateString(),
+                    $finMes->toDateString()
+                ])
+               ->orderBy('fecha')
+                ->orderBy('id')
                 ->get();
 
 
@@ -309,7 +327,7 @@ class PeriodoController extends Controller
 
                             'fecha' =>
                                 $movimiento->fecha?->format(
-                                    'Y-m-d'
+                                    'd-m-Y'
                                 ),
 
                             'tipo' =>
@@ -347,4 +365,104 @@ class PeriodoController extends Controller
                     ->values(),
         ]);
     }
+
+    /**
+ * Cierra un período contable.
+ *
+ * Solo el Tesorero puede ejecutar esta operación.
+ */
+public function cerrar(
+    int $id
+): JsonResponse {
+
+    $usuario = request()->user();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verificar rol
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+    !$usuario ||
+    !$usuario->hasRole('Tesorero')
+) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Solo el Tesorero puede cerrar períodos.',
+        ], 403);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Buscar período
+    |--------------------------------------------------------------------------
+    */
+
+    $periodo = Periodo::find($id);
+
+    if (!$periodo) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'El período solicitado no existe.',
+            'periodo' => null,
+        ], 404);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verificar que esté abierto
+    |--------------------------------------------------------------------------
+    */
+
+    if ($periodo->estado !== 'Abierto') {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'El período ya está cerrado.',
+            'periodo' => null,
+        ], 422);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cerrar período
+    |--------------------------------------------------------------------------
+    */
+
+    PeriodoService::cerrarPeriodo($periodo);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Obtener período actualizado
+    |--------------------------------------------------------------------------
+    */
+
+    $periodo->refresh();
+
+    return response()->json([
+        'success' => true,
+        'message' =>
+            'El período ' .
+            $periodo->nombre_completo .
+            ' fue cerrado correctamente.',
+        'periodo' => [
+            'id' => $periodo->id,
+            'nombre' => $periodo->nombre,
+            'nombre_completo' => $periodo->nombre_completo,
+            'anio' => $periodo->anio,
+            'mes' => $periodo->mes,
+            'saldo_inicial' => (float) $periodo->saldo_inicial,
+            'total_ingresos' => (float) $periodo->total_ingresos,
+            'total_egresos' => (float) $periodo->total_egresos,
+            'saldo_final' => (float) $periodo->saldo_final,
+            'estado' => $periodo->estado,
+            'fecha_cierre' =>
+                $periodo->fecha_cierre?->format(
+                    'Y-m-d H:i:s'
+                ),
+        ],
+    ]);
+}
 }

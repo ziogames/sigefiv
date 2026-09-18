@@ -158,5 +158,9 @@ return [
     'giphy' => [
         'key' => env('GIPHY_API_KEY'),
     ],
+    
+    'n8n' => [
+    'zoe_webhook' => env('N8N_ZOE_WEBHOOK_URL'),
+],
 
 ];

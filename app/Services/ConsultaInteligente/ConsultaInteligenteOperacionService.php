@@ -38,15 +38,15 @@ class ConsultaInteligenteOperacionService
 
         $esSaludoNatural =
             preg_match(
-                '/^(?:hola|hey|buenas)(?:\s+(?:vecino|vecina|vecinos|vecinas|amigo|amiga|amigos|amigas))?(?:\s+(?:sigi|asistente))?\s+(?:como estas|cómo estas|cómo estás|como esta|cómo está|que tal|qué tal)$/u',
+                '/^(?:hola|hey|buenas)(?:\s+(?:vecino|vecina|vecinos|vecinas|amigo|amiga|amigos|amigas))?(?:\s+(?:sigi|zoe|asistente))?\s+(?:como estas|cómo estas|cómo estás|como esta|cómo está|que tal|qué tal)$/u',
                 $textoLimpio
             ) ||
             preg_match(
-                '/^(?:hola|hey|buenas)(?:\s+(?:vecino|vecina|vecinos|vecinas|amigo|amiga|amigos|amigas))?(?:\s+(?:sigi|asistente))?$/u',
+                '/^(?:hola|hey|buenas)(?:\s+(?:vecino|vecina|vecinos|vecinas|amigo|amiga|amigos|amigas))?(?:\s+(?:sigi|zoe|asistente))?$/u',
                 $textoLimpio
             ) ||
             preg_match(
-                '/^(?:buenos dias|buenos días|buenas tardes|buenas noches)(?:\s+(?:vecino|vecina|vecinos|vecinas|amigo|amiga|amigos|amigas))?(?:\s+(?:sigi|asistente))?$/u',
+                '/^(?:buenos dias|buenos días|buenas tardes|buenas noches)(?:\s+(?:vecino|vecina|vecinos|vecinas|amigo|amiga|amigos|amigas))?(?:\s+(?:sigi|zoe|asistente))?$/u',
                 $textoLimpio
             );
 
@@ -62,7 +62,7 @@ class ConsultaInteligenteOperacionService
 
         if (
             preg_match(
-                '/^(?:cómo estás|como estas|qué tal|que tal|qué tal sigi|que tal sigi|quiero conversar contigo|quiero conversar|solo quiero conversar|hablemos un rato|podemos conversar)$/u',
+                '/^(?:cómo estás|como estas|qué tal|que tal|qué tal sigi|que tal sigi|qué tal zoe|que tal zoe|quiero conversar contigo|quiero conversar|solo quiero conversar|hablemos un rato|podemos conversar)$/u',
                 $textoLimpio
             )
         ) {
@@ -239,6 +239,49 @@ class ConsultaInteligenteOperacionService
             )
         ) {
             return 'meses_concepto';
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONSULTAS NATURALES DE MOVIMIENTOS
+        |--------------------------------------------------------------------------
+        |
+        | Estas consultas deben resolverse como LISTADO y no como SUMA.
+        |
+        */
+
+        // ¿Quién hizo el último pago?
+        if (
+            preg_match(
+                '/\b(?:quién|quien)\b.*\b(?:último|ultimo)\s+pago\b/u',
+                $texto
+            ) === 1 ||
+            preg_match(
+                '/\b(?:último|ultimo)\s+pago\b.*\b(?:quién|quien)\b/u',
+                $texto
+            ) === 1
+        ) {
+            return 'show';
+        }
+
+        // ¿En qué gastamos?
+        if (
+            preg_match(
+                '/\b(?:en\s+qué|en\s+que)\s+(?:gastamos|gastó|se\s+gastó|hemos\s+gastado)\b/u',
+                $texto
+            ) === 1
+        ) {
+            return 'show';
+        }
+
+        // Últimos movimientos / ingresos / egresos / gastos.
+        if (
+            preg_match(
+                '/\b(?:los\s+)?(?:últimos|ultimos)\s+(?:\d+\s+)?(?:movimientos?|movs?|ingresos?|egresos?|gastos?)\b/u',
+                $texto
+            ) === 1
+        ) {
+            return 'show';
         }
 
         /*

@@ -19,17 +19,11 @@ class PeriodoService
         $fecha = Carbon::parse($fecha);
 
         $periodo = Periodo::firstOrCreate(
-
             [
-
                 'anio' => $fecha->year,
-
                 'mes' => $fecha->month,
-
             ],
-
             [
-
                 'nombre' => Periodo::nombreMes($fecha->month),
 
                 'saldo_inicial' => self::saldoInicial(
@@ -47,9 +41,7 @@ class PeriodoService
                 ),
 
                 'estado' => 'Abierto',
-
             ]
-
         );
 
         /*
@@ -71,9 +63,18 @@ class PeriodoService
 
             }
 
-            $periodoAnterior = Periodo::where('anio', $anioAnterior)
-                ->where('mes', $mesAnterior)
-                ->where('estado', 'Abierto')
+            $periodoAnterior = Periodo::where(
+                'anio',
+                $anioAnterior
+            )
+                ->where(
+                    'mes',
+                    $mesAnterior
+                )
+                ->where(
+                    'estado',
+                    'Abierto'
+                )
                 ->first();
 
             if ($periodoAnterior) {
@@ -105,8 +106,14 @@ class PeriodoService
 
         }
 
-        $periodoAnterior = Periodo::where('anio', $anioAnterior)
-            ->where('mes', $mesAnterior)
+        $periodoAnterior = Periodo::where(
+            'anio',
+            $anioAnterior
+        )
+            ->where(
+                'mes',
+                $mesAnterior
+            )
             ->first();
 
         if ($periodoAnterior) {
@@ -118,12 +125,10 @@ class PeriodoService
         $config = Configuracion::first();
 
         if (
-
             $config &&
             $config->contabilidad_iniciada &&
             $config->anio_inicio == $anio &&
             $config->mes_inicio == $mes
-
         ) {
 
             return $config->saldo_apertura;
@@ -131,7 +136,6 @@ class PeriodoService
         }
 
         return 0;
-
     }
 
     /**
@@ -142,19 +146,25 @@ class PeriodoService
     ): void {
 
         $ingresos = $periodo->movimientos()
-
-            ->where('tipo', 'Ingreso')
-
-            ->where('estado', 'Registrado')
-
+            ->where(
+                'tipo',
+                'Ingreso'
+            )
+            ->where(
+                'estado',
+                'Registrado'
+            )
             ->sum('monto');
 
         $egresos = $periodo->movimientos()
-
-            ->where('tipo', 'Egreso')
-
-            ->where('estado', 'Registrado')
-
+            ->where(
+                'tipo',
+                'Egreso'
+            )
+            ->where(
+                'estado',
+                'Registrado'
+            )
             ->sum('monto');
 
         $periodo->update([
@@ -164,15 +174,11 @@ class PeriodoService
             'total_egresos' => $egresos,
 
             'saldo_final' =>
-
                 $periodo->saldo_inicial +
-
                 $ingresos -
-
                 $egresos,
 
         ]);
-
     }
 
     /**
@@ -191,7 +197,6 @@ class PeriodoService
             'fecha_cierre' => now(),
 
         ]);
-
     }
 
     /**
@@ -208,7 +213,6 @@ class PeriodoService
             'fecha_cierre' => null,
 
         ]);
-
     }
 
     /**
@@ -219,35 +223,33 @@ class PeriodoService
     ): Periodo {
 
         return Periodo::firstOrCreate(
-
             [
+                'anio' =>
+                    $configuracion->anio_inicio,
 
-                'anio' => $configuracion->anio_inicio,
-
-                'mes' => $configuracion->mes_inicio,
-
+                'mes' =>
+                    $configuracion->mes_inicio,
             ],
-
             [
+                'nombre' =>
+                    Periodo::nombreMes(
+                        $configuracion->mes_inicio
+                    ),
 
-                'nombre' => Periodo::nombreMes(
-                    $configuracion->mes_inicio
-                ),
-
-                'saldo_inicial' => $configuracion->saldo_apertura,
+                'saldo_inicial' =>
+                    $configuracion->saldo_apertura,
 
                 'total_ingresos' => 0,
 
                 'total_egresos' => 0,
 
-                'saldo_final' => $configuracion->saldo_apertura,
+                'saldo_final' =>
+                    $configuracion->saldo_apertura,
 
                 'estado' => 'Abierto',
 
             ]
-
         );
-
     }
 
     /**
@@ -261,7 +263,8 @@ class PeriodoService
         |--------------------------------------------------------------------------
         */
 
-        $periodo = Periodo::obtenerAbierto();
+        $periodo =
+            Periodo::obtenerAbierto();
 
         /*
         |--------------------------------------------------------------------------
@@ -282,7 +285,6 @@ class PeriodoService
                 'resumen' => null,
 
             ];
-
         }
 
         /*
@@ -291,7 +293,9 @@ class PeriodoService
         |--------------------------------------------------------------------------
         */
 
-        self::actualizarTotales($periodo);
+        self::actualizarTotales(
+            $periodo
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -318,29 +322,24 @@ class PeriodoService
             'periodo' => $periodo,
 
             'siguiente_periodo' =>
-
-                Periodo::nombreMes($fecha->month)
-
+                Periodo::nombreMes(
+                    $fecha->month
+                )
                 . ' '
-
                 . $fecha->year,
 
             'resumen' => [
 
                 'saldo_inicial' =>
-
                     $periodo->saldo_inicial,
 
                 'ingresos' =>
-
                     $periodo->total_ingresos,
 
                 'egresos' =>
-
                     $periodo->total_egresos,
 
                 'saldo_final' =>
-
                     $periodo->saldo_final,
 
             ],
@@ -371,7 +370,9 @@ class PeriodoService
             |--------------------------------------------------------------------------
             */
 
-            self::actualizarTotales($periodo);
+            self::actualizarTotales(
+                $periodo
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -393,10 +394,68 @@ class PeriodoService
             |--------------------------------------------------------------------------
             */
 
-            self::crearSiguientePeriodo($periodo);
+            self::crearSiguientePeriodo(
+                $periodo
+            );
 
+            /*
+            |--------------------------------------------------------------------------
+            | Notificación de Zoe
+            |--------------------------------------------------------------------------
+            |
+            | La notificación corresponde al período que acaba
+            | de cerrarse.
+            |
+            */
+
+            $notificacionService =
+                app(
+                    \App\Services\NotificacionService::class
+                );
+
+            $notificacionService->enviarATodos(
+
+                titulo: 'Cierre de período',
+
+                mensaje:
+                    'Zoe ha cerrado el período ' .
+                    $periodo->nombre_completo .
+                    '. Saldo final: S/ ' .
+                    number_format(
+                        (float) $periodo->saldo_final,
+                        2,
+                        '.',
+                        ''
+                    ),
+
+                tipo: 'zoe',
+
+                data: [
+
+                    'periodo_id' =>
+                        (string) $periodo->id,
+
+                    'anio' =>
+                        (string) $periodo->anio,
+
+                    'mes' =>
+                        (string) $periodo->mes,
+
+                    'saldo_inicial' =>
+                        (string) $periodo->saldo_inicial,
+
+                    'total_ingresos' =>
+                        (string) $periodo->total_ingresos,
+
+                    'total_egresos' =>
+                        (string) $periodo->total_egresos,
+
+                    'saldo_final' =>
+                        (string) $periodo->saldo_final,
+
+                ],
+            );
         });
-
     }
 
     /**
@@ -431,33 +490,31 @@ class PeriodoService
         */
 
         return Periodo::firstOrCreate(
-
             [
-
                 'anio' => $anio,
 
                 'mes' => $mes,
-
             ],
-
             [
+                'nombre' =>
+                    Periodo::nombreMes(
+                        $mes
+                    ),
 
-                'nombre' => Periodo::nombreMes($mes),
-
-                'saldo_inicial' => $periodo->saldo_final,
+                'saldo_inicial' =>
+                    $periodo->saldo_final,
 
                 'total_ingresos' => 0,
 
                 'total_egresos' => 0,
 
-                'saldo_final' => $periodo->saldo_final,
+                'saldo_final' =>
+                    $periodo->saldo_final,
 
                 'estado' => 'Abierto',
 
             ]
-
         );
-
     }
 
     /**
@@ -474,6 +531,5 @@ class PeriodoService
             );
 
         }
-
     }
 }

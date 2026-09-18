@@ -20,11 +20,11 @@ class MovimientoService
         $datos['estado'] = 'Registrado';
 
         // Obtener o crear el período
-       $periodo = PeriodoService::obtenerPorFecha(
-    $datos['fecha']
-);
+        $periodo = PeriodoService::obtenerPorFecha(
+            $datos['fecha']
+        );
 
-PeriodoService::validarPeriodoAbierto($periodo);
+        PeriodoService::validarPeriodoAbierto($periodo);
 
         // Asociar período
         $datos['periodo_id'] = $periodo->id;
@@ -47,7 +47,6 @@ PeriodoService::validarPeriodoAbierto($periodo);
                     'movimientos',
                     'public'
                 );
-
         }
 
         // Guardar movimiento
@@ -57,6 +56,55 @@ PeriodoService::validarPeriodoAbierto($periodo);
         PeriodoService::actualizarTotales(
             $periodo
         );
+
+        // ============================================================
+        // NOTIFICACIÓN AUTOMÁTICA
+        // ============================================================
+
+        $tipoNotificacion = strtolower(
+            trim($movimiento->tipo)
+        );
+
+        if (
+            $tipoNotificacion === 'ingreso' ||
+            $tipoNotificacion === 'egreso'
+        ) {
+
+            $notificacionService =
+                app(NotificacionService::class);
+
+            $nombreTipo =
+                $tipoNotificacion === 'ingreso'
+                    ? 'Ingreso'
+                    : 'Egreso';
+
+            $titulo =
+                'Nuevo ' . $nombreTipo;
+
+            $mensaje =
+                'Se registró un nuevo ' .
+                strtolower($nombreTipo) .
+                ' por S/ ' .
+                number_format(
+                    (float) $movimiento->monto,
+                    2,
+                    '.',
+                    ''
+                );
+
+            $notificacionService->enviarATodos(
+                titulo: $titulo,
+                mensaje: $mensaje,
+                tipo: $tipoNotificacion,
+                data: [
+                    'movimiento_id' =>
+                        (string) $movimiento->id,
+
+                    'periodo_id' =>
+                        (string) $movimiento->periodo_id,
+                ]
+            );
+        }
 
         return $movimiento;
     }
@@ -79,12 +127,14 @@ PeriodoService::validarPeriodoAbierto($periodo);
         // Períodos
         $periodoAnterior = $movimiento->periodo;
 
-        
-
         $periodoNuevo = PeriodoService::obtenerPorFecha(
             $datos['fecha']
         );
-        PeriodoService::validarPeriodoAbierto($periodoNuevo);
+
+        PeriodoService::validarPeriodoAbierto(
+            $periodoNuevo
+        );
+
         $datos['periodo_id'] = $periodoNuevo->id;
 
         // Subir comprobante
@@ -98,7 +148,6 @@ PeriodoService::validarPeriodoAbierto($periodo);
                     'movimientos',
                     'public'
                 );
-
         }
 
         // Actualizar movimiento
@@ -110,7 +159,6 @@ PeriodoService::validarPeriodoAbierto($periodo);
             PeriodoService::actualizarTotales(
                 $periodoAnterior
             );
-
         }
 
         // Recalcular período nuevo
@@ -120,23 +168,31 @@ PeriodoService::validarPeriodoAbierto($periodo);
 
         return $movimiento->fresh();
     }
+
     /**
- * Eliminar movimiento
- */
-public static function eliminar(Movimiento $movimiento): void
-{
-    // Obtener el período del movimiento
-    $periodo = $movimiento->periodo;
+     * Eliminar movimiento
+     */
+    public static function eliminar(
+        Movimiento $movimiento
+    ): void {
 
-    // Verificar que el período esté abierto
-    PeriodoService::validarPeriodoAbierto($periodo);
+        // Obtener el período del movimiento
+        $periodo = $movimiento->periodo;
 
-    // Eliminar movimiento
-    $movimiento->delete();
+        // Verificar que el período esté abierto
+        PeriodoService::validarPeriodoAbierto(
+            $periodo
+        );
 
-    // Recalcular totales del período
-    if ($periodo) {
-        PeriodoService::actualizarTotales($periodo);
+        // Eliminar movimiento
+        $movimiento->delete();
+
+        // Recalcular totales del período
+        if ($periodo) {
+
+            PeriodoService::actualizarTotales(
+                $periodo
+            );
+        }
     }
-}
 }

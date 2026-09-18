@@ -38,21 +38,70 @@ class FcmTokenController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Registrar o recuperar el token
+            | Buscar si el token ya existe
             |--------------------------------------------------------------------------
             */
 
-            $fcmToken = FcmToken::updateOrCreate(
-                [
-                    'token' => $datos['token'],
-                ],
-                [
+            $fcmToken = FcmToken::query()
+                ->where('token', $datos['token'])
+                ->first();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Token existente
+            |--------------------------------------------------------------------------
+            |
+            | NO modificamos:
+            |
+            | - activo
+            | - ingresos
+            | - egresos
+            | - zoe
+            | - avisos
+            |
+            | De esta manera las preferencias del usuario se conservan.
+            |
+            */
+
+            if ($fcmToken) {
+
+                $fcmToken->update([
                     'user_id' => $usuario->id,
-                    'plataforma' => $datos['plataforma'] ?? 'android',
-                    'activo' => true,
+                    'plataforma' =>
+                        $datos['plataforma'] ?? $fcmToken->plataforma,
                     'ultimo_acceso' => now(),
-                ]
-            );
+                ]);
+
+            } else {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Token nuevo
+                |--------------------------------------------------------------------------
+                |
+                | Un dispositivo nuevo comienza:
+                |
+                | activo     = true
+                | ingresos   = true
+                | egresos    = true
+                | zoe        = true
+                | avisos     = true
+                |
+                */
+
+                $fcmToken = FcmToken::create([
+                    'user_id' => $usuario->id,
+                    'token' => $datos['token'],
+                    'plataforma' =>
+                        $datos['plataforma'] ?? 'android',
+                    'activo' => true,
+                    'ingresos' => true,
+                    'egresos' => true,
+                    'zoe' => true,
+                    'avisos' => true,
+                    'ultimo_acceso' => now(),
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -61,6 +110,10 @@ class FcmTokenController extends Controller
                     'id' => $fcmToken->id,
                     'plataforma' => $fcmToken->plataforma,
                     'activo' => $fcmToken->activo,
+                    'ingresos' => $fcmToken->ingresos,
+                    'egresos' => $fcmToken->egresos,
+                    'zoe' => $fcmToken->zoe,
+                    'avisos' => $fcmToken->avisos,
                     'ultimo_acceso' => $fcmToken->ultimo_acceso,
                 ],
             ]);

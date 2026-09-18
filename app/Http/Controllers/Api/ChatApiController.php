@@ -51,11 +51,37 @@ class ChatApiController extends Controller
 
             $mensajes = $chat->mensajes()
                 ->with(['usuario', 'replyTo.usuario']) // 💬 Cargamos la relación del mensaje citado
-                ->latest()
+                ->orderByDesc('id')
                 ->limit(100)
                 ->get()
                 ->reverse()
                 ->values();
+                // 📖 Estado de lectura del usuario
+$usuarioChat = $chat->usuarios()
+    ->where('users.id', $usuario->id)
+    ->first();
+
+$ultimoLeidoMessageId =
+    $usuarioChat?->pivot?->ultimo_leido_message_id;
+
+// 🔔 Primer mensaje no leído
+$primerNoLeidoId = null;
+$mensajesNoLeidos = 0;
+
+if ($ultimoLeidoMessageId !== null) {
+    $primerNoLeido = $chat->mensajes()
+        ->where('id', '>', $ultimoLeidoMessageId)
+        ->orderBy('id')
+        ->first();
+
+    if ($primerNoLeido) {
+        $primerNoLeidoId = $primerNoLeido->id;
+
+        $mensajesNoLeidos = $chat->mensajes()
+            ->where('id', '>', $ultimoLeidoMessageId)
+            ->count();
+    }
+}
 
             $resumen =
                 $chatService->obtenerResumenPresencia();
@@ -78,6 +104,9 @@ class ChatApiController extends Controller
                     $chatResponseService->mensajes(
                         $mensajes
                     ),
+                    'ultimo_leido_message_id' => $ultimoLeidoMessageId,
+                    'primer_no_leido_id' => $primerNoLeidoId,
+                    'mensajes_no_leidos' => $mensajesNoLeidos,
 
                 'usuarios_escribiendo' =>
                     $chatTypingService->obtenerUsuariosEscribiendo(
@@ -616,6 +645,40 @@ class ChatApiController extends Controller
                     $chat
                 );
 
+            /*
+             * 📖 Estado de lectura actual del usuario.
+             *
+             * El servidor es la fuente de verdad del contador.
+             * Esto evita que Android dependa únicamente de los
+             * mensajes que tenga actualmente cargados en memoria.
+             */
+            $usuarioChat = $chat->usuarios()
+                ->where('users.id', $usuario->id)
+                ->first();
+
+            $ultimoLeidoMessageId =
+                $usuarioChat?->pivot?->ultimo_leido_message_id;
+
+            $primerNoLeidoId = null;
+            $mensajesNoLeidos = 0;
+
+            if ($ultimoLeidoMessageId !== null) {
+               $primerNoLeido = $chat->mensajes()
+    ->where('id', '>', $ultimoLeidoMessageId)
+    ->where('user_id', '!=', $usuario->id)
+    ->orderBy('id')
+    ->first();
+
+if ($primerNoLeido) {
+    $primerNoLeidoId = $primerNoLeido->id;
+
+    $mensajesNoLeidos = $chat->mensajes()
+        ->where('id', '>', $ultimoLeidoMessageId)
+        ->where('user_id', '!=', $usuario->id)
+        ->count();
+}
+            }
+
             return response()->json([
                 'success' => true,
 
@@ -626,6 +689,16 @@ class ChatApiController extends Controller
                     $chatResponseService->mensajes(
                         $mensajes
                     ),
+
+                // 📖 Estado de lectura
+                'ultimo_leido_message_id' =>
+                    $ultimoLeidoMessageId,
+
+                'primer_no_leido_id' =>
+                    $primerNoLeidoId,
+
+                'mensajes_no_leidos' =>
+                    $mensajesNoLeidos,
 
                 'usuarios_escribiendo' =>
                     $chatTypingService->obtenerUsuariosEscribiendo(
@@ -654,6 +727,97 @@ class ChatApiController extends Controller
  * Si no la tiene:
  *      → se agrega.
  */
+/**
+ * 📖 Marcar hasta qué mensaje ha leído el usuario.
+ */
+public function marcarLeido(
+    Request $request,
+    ChatService $chatService
+): JsonResponse {
+    try {
+        $request->validate([
+            'mensaje_id' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
+        ]);
+
+        $usuario = $request->user();
+
+        $chat = $chatService->obtenerChatVecinal();
+
+        /*
+         * Verificar que el usuario pertenece al Chat Vecinal.
+         */
+        if (!$chatService->usuarioPerteneceAlChat($usuario)) {
+            $chatService->agregarUsuario($usuario);
+        }
+
+        /*
+         * Verificar que el mensaje pertenece al Chat Vecinal.
+         */
+        $mensaje = ChatMessage::query()
+            ->where('id', $request->integer('mensaje_id'))
+            ->where('conversation_id', $chat->id)
+            ->first();
+
+        if (!$mensaje) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El mensaje no existe en el Chat Vecinal.',
+            ], 404);
+        }
+
+        /*
+         * No permitir que la posición de lectura retroceda.
+         */
+        $usuarioChat = $chat->usuarios()
+            ->where('users.id', $usuario->id)
+            ->first();
+
+        $ultimoLeidoActual =
+            $usuarioChat?->pivot?->ultimo_leido_message_id;
+
+        if (
+            $ultimoLeidoActual !== null &&
+            $mensaje->id <= (int) $ultimoLeidoActual
+        ) {
+            return response()->json([
+                'success' => true,
+                'mensaje_id' => (int) $ultimoLeidoActual,
+                'message' => 'La posición de lectura ya estaba más adelante.',
+            ]);
+        }
+
+        /*
+         * Guardar la nueva posición de lectura.
+         */
+        $chat->usuarios()->updateExistingPivot(
+            $usuario->id,
+            [
+                'ultimo_leido_message_id' => $mensaje->id,
+                'ultimo_leido_at' => $mensaje->created_at,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'mensaje_id' => $mensaje->id,
+            'message' => 'Mensaje marcado como leído.',
+        ]);
+
+    } catch (Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No se pudo actualizar el estado de lectura.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
 public function reaccion(
     Request $request,
     ChatService $chatService

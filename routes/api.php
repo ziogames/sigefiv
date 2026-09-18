@@ -15,6 +15,10 @@ use App\Http\Controllers\Api\ChatApiController;
 use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\CajaController;
 use App\Http\Controllers\Api\RolController;
+use App\Http\Controllers\Api\NotificacionController;
+use App\Http\Controllers\Api\FcmPreferenciaController;
+use App\Http\Controllers\Api\ZoeController;
+use App\Http\Controllers\Api\ActividadController;
 
 /*
 |--------------------------------------------------------------------------
@@ -48,8 +52,34 @@ Route::middleware('throttle:10,1')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
 
+    /*
+    |--------------------------------------------------------------------------
+    | USUARIO AUTENTICADO
+    |--------------------------------------------------------------------------
+    */
+
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | MI CUENTA — PERFIL DEL USUARIO AUTENTICADO
+    |--------------------------------------------------------------------------
+    |
+    | Estas rutas solo permiten modificar al usuario que posee
+    | el token de autenticación.
+    |
+    */
+
+    Route::put('/mi-cuenta', [
+        AuthController::class,
+        'actualizarPerfil',
+    ]);
+
+    Route::post('/mi-cuenta/foto', [
+        AuthController::class,
+        'actualizarFoto',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -59,12 +89,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/usuario/marcar-bienvenida', function (Request $request) {
         $user = $request->user();
+
         $user->bienvenida_vista = true;
         $user->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Bienvenida registrada correctamente.'
+            'message' => 'Bienvenida registrada correctamente.',
         ]);
     });
 
@@ -74,7 +105,10 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/dashboard', [
+        DashboardController::class,
+        'index',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -82,18 +116,40 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/caja', [CajaController::class, 'index']);
+    Route::get('/caja', [
+        CajaController::class,
+        'index',
+    ]);
 
-   /*
-|--------------------------------------------------------------------------
-| MOVIMIENTOS
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | MOVIMIENTOS
+    |--------------------------------------------------------------------------
+    */
 
-Route::get('/movimientos', [MovimientoController::class, 'index']);
-Route::post('/movimientos', [MovimientoController::class, 'store']);
-Route::put('/movimientos/{movimiento}', [MovimientoController::class, 'update']);
-Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destroy']);
+    Route::get('/movimientos', [
+        MovimientoController::class,
+        'index',
+    ]);
+    Route::get('/movimientos/{movimiento}', [
+    MovimientoController::class,
+    'show',
+]);
+    Route::post('/movimientos', [
+        MovimientoController::class,
+        'store',
+    ]);
+
+    Route::put('/movimientos/{movimiento}', [
+        MovimientoController::class,
+        'update',
+    ]);
+
+    Route::delete('/movimientos/{movimiento}', [
+        MovimientoController::class,
+        'destroy',
+    ]);
+    
 
     /*
     |--------------------------------------------------------------------------
@@ -101,7 +157,10 @@ Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destro
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/categorias', [CategoriaController::class, 'index']);
+    Route::get('/categorias', [
+        CategoriaController::class,
+        'index',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -109,18 +168,39 @@ Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destro
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/periodo/abierto', [PeriodoController::class, 'abierto']);
-    Route::get('/periodos', [PeriodoController::class, 'index']);
-    Route::get('/periodos/{id}', [PeriodoController::class, 'show']);
-    Route::get('/periodos/{id}/movimientos', [PeriodoController::class, 'movimientos']);
+    Route::get('/periodo/abierto', [
+        PeriodoController::class,
+        'abierto',
+    ]);
 
+    Route::get('/periodos', [
+        PeriodoController::class,
+        'index',
+    ]);
+
+    Route::get('/periodos/{id}', [
+        PeriodoController::class,
+        'show',
+    ]);
+
+    Route::get('/periodos/{id}/movimientos', [
+        PeriodoController::class,
+        'movimientos',
+    ]);
+Route::post('/periodos/{id}/cerrar', [
+    PeriodoController::class,
+    'cerrar',
+]);
     /*
     |--------------------------------------------------------------------------
     | ZOE — ASISTENTE INTELIGENTE
     |--------------------------------------------------------------------------
     */
 
-    Route::post('/consulta-inteligente', [ConsultaInteligenteController::class, 'consultar']);
+    Route::post('/consulta-inteligente', [
+        ConsultaInteligenteController::class,
+        'consultar',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -128,7 +208,10 @@ Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destro
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/chat-devices/{device}/estado', [ChatDeviceController::class, 'estado']);
+    Route::get('/chat-devices/{device}/estado', [
+        ChatDeviceController::class,
+        'estado',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -136,10 +219,25 @@ Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destro
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/usuarios', [UsuarioController::class, 'index']);
-    Route::patch('/usuarios/{usuario}/estado', [UsuarioController::class, 'cambiarEstado']);
-    Route::patch('/usuarios/{usuario}/rol', [UsuarioController::class, 'cambiarRol']);
-    Route::delete('/usuarios/{usuario}', [UsuarioController::class, 'eliminar']);
+    Route::get('/usuarios', [
+        UsuarioController::class,
+        'index',
+    ]);
+
+    Route::patch('/usuarios/{usuario}/estado', [
+        UsuarioController::class,
+        'cambiarEstado',
+    ]);
+
+    Route::patch('/usuarios/{usuario}/rol', [
+        UsuarioController::class,
+        'cambiarRol',
+    ]);
+
+    Route::delete('/usuarios/{usuario}', [
+        UsuarioController::class,
+        'eliminar',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -147,11 +245,30 @@ Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destro
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/roles', [RolController::class, 'index']);
-    Route::get('/roles/{id}', [RolController::class, 'show']);
-    Route::post('/roles', [RolController::class, 'store']);
-    Route::put('/roles/{id}', [RolController::class, 'update']);
-    Route::delete('/roles/{id}', [RolController::class, 'destroy']);
+    Route::get('/roles', [
+        RolController::class,
+        'index',
+    ]);
+
+    Route::get('/roles/{id}', [
+        RolController::class,
+        'show',
+    ]);
+
+    Route::post('/roles', [
+        RolController::class,
+        'store',
+    ]);
+
+    Route::put('/roles/{id}', [
+        RolController::class,
+        'update',
+    ]);
+
+    Route::delete('/roles/{id}', [
+        RolController::class,
+        'destroy',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -159,13 +276,44 @@ Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destro
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/chat', [ChatApiController::class, 'index']);
-    Route::post('/chat', [ChatApiController::class, 'store']);
-    Route::post('/chat/presencia', [ChatApiController::class, 'presencia']);
-    Route::post('/chat/escribiendo', [ChatApiController::class, 'escribiendo']);
-    Route::get('/chat/nuevos', [ChatApiController::class, 'nuevos']);
-    Route::post('/chat/{chatMessage}/reaccion', [ChatApiController::class, 'reaccion']);
-Route::get('/chat/{chatMessage}/reacciones', [ChatApiController::class, 'reacciones']);
+    Route::get('/chat', [
+        ChatApiController::class,
+        'index',
+    ]);
+
+    Route::post('/chat', [
+        ChatApiController::class,
+        'store',
+    ]);
+
+    Route::post('/chat/presencia', [
+        ChatApiController::class,
+        'presencia',
+    ]);
+
+    Route::post('/chat/escribiendo', [
+        ChatApiController::class,
+        'escribiendo',
+    ]);
+
+    Route::get('/chat/nuevos', [
+        ChatApiController::class,
+        'nuevos',
+    ]);
+    Route::post('/chat/leido', [
+    ChatApiController::class,
+    'marcarLeido',
+]);
+
+    Route::post('/chat/{chatMessage}/reaccion', [
+        ChatApiController::class,
+        'reaccion',
+    ]);
+
+    Route::get('/chat/{chatMessage}/reacciones', [
+        ChatApiController::class,
+        'reacciones',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -173,12 +321,35 @@ Route::get('/chat/{chatMessage}/reacciones', [ChatApiController::class, 'reaccio
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/asambleas', [AsambleaController::class, 'index']);
-    Route::post('/asambleas', [AsambleaController::class, 'store']);
-    Route::get('/asambleas/{asamblea}', [AsambleaController::class, 'show']);
-    Route::put('/asambleas/{asamblea}', [AsambleaController::class, 'update']);
-    Route::delete('/asambleas/{asamblea}', [AsambleaController::class, 'destroy']);
-    Route::post('/asambleas/{asamblea}/publicar', [AsambleaController::class, 'publicar']);
+    Route::get('/asambleas', [
+        AsambleaController::class,
+        'index',
+    ]);
+
+    Route::post('/asambleas', [
+        AsambleaController::class,
+        'store',
+    ]);
+
+    Route::get('/asambleas/{asamblea}', [
+        AsambleaController::class,
+        'show',
+    ]);
+
+    Route::put('/asambleas/{asamblea}', [
+        AsambleaController::class,
+        'update',
+    ]);
+
+    Route::delete('/asambleas/{asamblea}', [
+        AsambleaController::class,
+        'destroy',
+    ]);
+
+    Route::post('/asambleas/{asamblea}/publicar', [
+        AsambleaController::class,
+        'publicar',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
@@ -186,8 +357,83 @@ Route::get('/chat/{chatMessage}/reacciones', [ChatApiController::class, 'reaccio
     |--------------------------------------------------------------------------
     */
 
-    Route::post('/fcm/token', [FcmTokenController::class, 'registrar']);
-    Route::post('/fcm/token/desactivar', [FcmTokenController::class, 'desactivar']);
+    Route::post('/fcm/token', [
+        FcmTokenController::class,
+        'registrar',
+    ]);
+
+    Route::post('/fcm/token/desactivar', [
+        FcmTokenController::class,
+        'desactivar',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOTIFICACIONES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/notificaciones', [
+        NotificacionController::class,
+        'index',
+    ]);
+
+    Route::get('/notificaciones/no-leidas', [
+        NotificacionController::class,
+        'noLeidas',
+    ]);
+
+    Route::post('/notificaciones/{id}/leer', [
+        NotificacionController::class,
+        'marcarLeida',
+    ]);
+
+    Route::post('/notificaciones/leer-todas', [
+        NotificacionController::class,
+        'marcarTodasLeidas',
+    ]);
+
+ /*
+|--------------------------------------------------------------------------
+| PREFERENCIA FCM
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/fcm/preferencia', [
+    FcmPreferenciaController::class,
+    'obtener',
+]);
+
+Route::post('/fcm/preferencia', [
+    FcmPreferenciaController::class,
+    'actualizar',
+]);
+    /*
+    |--------------------------------------------------------------------------
+    | ZOE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/zoe', [
+        ZoeController::class,
+        'consultar',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | ENVÍO DE NOTIFICACIONES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/notificaciones/enviar', [
+        NotificacionController::class,
+        'enviar',
+    ]);
+
+    Route::get('/actividad', [
+    ActividadController::class,
+    'index',
+]);
 });
 
 /*
@@ -196,5 +442,12 @@ Route::get('/chat/{chatMessage}/reacciones', [ChatApiController::class, 'reaccio
 |--------------------------------------------------------------------------
 */
 
-Route::get('/chat-devices/{device}/estado-device', [ChatDeviceController::class, 'estadoPorToken']);
-Route::post('/chat-devices/{device}/control', [ChatDeviceController::class, 'controlarPorToken']);
+Route::get('/chat-devices/{device}/estado-device', [
+    ChatDeviceController::class,
+    'estadoPorToken',
+]);
+
+Route::post('/chat-devices/{device}/control', [
+    ChatDeviceController::class,
+    'controlarPorToken',
+]);

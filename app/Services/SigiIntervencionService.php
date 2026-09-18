@@ -7,7 +7,7 @@ use App\Models\SigiEvento;
 class SigiIntervencionService
 {
     /**
-     * Evalúa si SIGI debe intervenir ante un evento.
+     * Evalúa si ZOE debe intervenir ante un evento.
      *
      * La decisión se basa en:
      *
@@ -16,7 +16,7 @@ class SigiIntervencionService
      * - intención del último mensaje
      * - información acumulada
      *
-     * SIGI no responde simplemente porque existan
+     * ZOE no responde simplemente porque existan
      * muchos reportes.
      */
     public function evaluar(
@@ -94,7 +94,7 @@ class SigiIntervencionService
                 'debe_intervenir' => false,
                 'tipo' => 'acumulando',
                 'motivo' =>
-                    'Se acumularon múltiples reportes; SIGI continuará observando el evento.',
+                    'Se acumularon múltiples reportes; ZOE continuará observando el evento.',
             ];
         }
 
@@ -109,7 +109,7 @@ class SigiIntervencionService
                 'debe_intervenir' => false,
                 'tipo' => 'acumulando',
                 'motivo' =>
-                    'Existen diferentes tipos de reportes; SIGI continuará acumulando información.',
+                    'Existen diferentes tipos de reportes; ZOE continuará acumulando información.',
             ];
         }
 
@@ -123,7 +123,7 @@ class SigiIntervencionService
             'debe_intervenir' => false,
             'tipo' => 'silencio',
             'motivo' =>
-                'No existe una razón suficiente para que SIGI intervenga.',
+                'No existe una razón suficiente para que ZOE intervenga.',
         ];
     }
 
@@ -607,7 +607,7 @@ class SigiIntervencionService
         }
 
         return sprintf(
-            'ℹ️ SIGI todavía no cuenta con suficientes reportes para confirmar si el servicio de %s volvió para todos.',
+            'ℹ️ ZOE todavía no cuenta con suficientes reportes para confirmar si el servicio de %s volvió para todos.',
             $categoria
         );
     }
@@ -760,7 +760,7 @@ class SigiIntervencionService
         array $resumen
     ): string {
         return sprintf(
-            '📊 SIGI tiene registrados %d reportes relacionados con el problema de %s.',
+            '📊 ZOE tiene registrados %d reportes relacionados con el problema de %s.',
             $resumen['total'],
             $this->nombreCategoria(
                 $evento->categoria
@@ -829,7 +829,7 @@ class SigiIntervencionService
         }
 
         return sprintf(
-            'ℹ️ SIGI continúa recopilando información sobre el problema de %s.',
+            'ℹ️ ZOE continúa recopilando información sobre el problema de %s.',
             $this->nombreCategoria(
                 $evento->categoria
             )
@@ -1053,7 +1053,7 @@ class SigiIntervencionService
         }
 
         return sprintf(
-            'ℹ️ Vecinos, SIGI continúa recopilando información sobre el problema de %s.',
+            'ℹ️ Vecinos, ZOE continúa recopilando información sobre el problema de %s.',
             $this->nombreCategoria(
                 $evento->categoria
             )
@@ -1089,7 +1089,7 @@ class SigiIntervencionService
     }
 
     /**
-     * Determina si SIGI debe mantenerse en silencio.
+     * Determina si ZOE debe mantenerse en silencio.
      */
     public function debeGuardarSilencio(
         SigiEvento $evento,

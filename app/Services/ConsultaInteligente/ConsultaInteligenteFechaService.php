@@ -11,24 +11,13 @@ class ConsultaInteligenteFechaService
         | NORMALIZACIÓN
         |--------------------------------------------------------------------------
         */
-
         $texto = mb_strtolower(trim($texto), 'UTF-8');
 
         /*
         |--------------------------------------------------------------------------
         | MESES
         |--------------------------------------------------------------------------
-        |
-        | IMPORTANTE:
-        | Los meses se buscan como palabras completas.
-        |
-        | Esto evita errores como:
-        |
-        | "mayores" -> NO debe detectar "mayo"
-        | "mayor"   -> NO debe detectar "mayo"
-        |
         */
-
         $meses = [
             'enero'      => 1,
             'febrero'    => 2,
@@ -54,7 +43,6 @@ class ConsultaInteligenteFechaService
         | SEMESTRES
         |--------------------------------------------------------------------------
         */
-
         if (
             str_contains($texto, 'primer semestre') ||
             str_contains($texto, '1er semestre') ||
@@ -62,9 +50,7 @@ class ConsultaInteligenteFechaService
         ) {
             $mesDesde = 1;
             $mesHasta = 6;
-        }
-
-        elseif (
+        } elseif (
             str_contains($texto, 'segundo semestre') ||
             str_contains($texto, '2do semestre') ||
             str_contains($texto, '2 semestre')
@@ -78,7 +64,6 @@ class ConsultaInteligenteFechaService
         | TRIMESTRES
         |--------------------------------------------------------------------------
         */
-
         elseif (
             str_contains($texto, 'primer trimestre') ||
             str_contains($texto, '1er trimestre') ||
@@ -86,27 +71,21 @@ class ConsultaInteligenteFechaService
         ) {
             $mesDesde = 1;
             $mesHasta = 3;
-        }
-
-        elseif (
+        } elseif (
             str_contains($texto, 'segundo trimestre') ||
             str_contains($texto, '2do trimestre') ||
             str_contains($texto, '2 trimestre')
         ) {
             $mesDesde = 4;
             $mesHasta = 6;
-        }
-
-        elseif (
+        } elseif (
             str_contains($texto, 'tercer trimestre') ||
             str_contains($texto, '3er trimestre') ||
             str_contains($texto, '3 trimestre')
         ) {
             $mesDesde = 7;
             $mesHasta = 9;
-        }
-
-        elseif (
+        } elseif (
             str_contains($texto, 'cuarto trimestre') ||
             str_contains($texto, '4to trimestre') ||
             str_contains($texto, '4 trimestre')
@@ -117,40 +96,18 @@ class ConsultaInteligenteFechaService
 
         /*
         |--------------------------------------------------------------------------
-        | RANGO NATURAL
+        | RANGO NATURAL / MES
         |--------------------------------------------------------------------------
         */
-
         else {
             $mesEncontrados = [];
 
             foreach ($meses as $nombre => $numero) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | IMPORTANTE:
-                | Usamos límites de palabra para que:
-                |
-                | "mayo"     -> detecte mayo
-                | "mayores"  -> NO detecte mayo
-                | "mayor"    -> NO detecte mayo
-                |
-                */
-
                 $patron = '/(?<![\p{L}\p{N}_])'
                     . preg_quote($nombre, '/')
                     . '(?![\p{L}\p{N}_])/iu';
 
                 if (preg_match($patron, $texto, $coincidencia, PREG_OFFSET_CAPTURE)) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | PREG_OFFSET_CAPTURE devuelve el offset en bytes.
-                    | Lo convertimos a posición aproximada para ordenar
-                    | correctamente los meses encontrados.
-                    |--------------------------------------------------------------------------
-                    */
-
                     $posicion = $coincidencia[0][1];
 
                     $mesEncontrados[] = [
@@ -159,12 +116,6 @@ class ConsultaInteligenteFechaService
                     ];
                 }
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | ORDENAR POR POSICIÓN EN EL TEXTO
-            |--------------------------------------------------------------------------
-            */
 
             usort(
                 $mesEncontrados,
@@ -178,9 +129,7 @@ class ConsultaInteligenteFechaService
             | RANGO ENTRE DOS MESES
             |--------------------------------------------------------------------------
             */
-
             if (count($mesEncontrados) >= 2) {
-
                 $mesPrimero = $mesEncontrados[0]['mes'];
                 $mesSegundo = $mesEncontrados[1]['mes'];
 
@@ -192,16 +141,8 @@ class ConsultaInteligenteFechaService
                     str_contains($texto, ' al ');
 
                 if ($esRango) {
-
-                    $mesDesde = min(
-                        $mesPrimero,
-                        $mesSegundo
-                    );
-
-                    $mesHasta = max(
-                        $mesPrimero,
-                        $mesSegundo
-                    );
+                    $mesDesde = min($mesPrimero, $mesSegundo);
+                    $mesHasta = max($mesPrimero, $mesSegundo);
                 }
             }
 
@@ -210,7 +151,6 @@ class ConsultaInteligenteFechaService
             | UN SOLO MES
             |--------------------------------------------------------------------------
             */
-
             if (
                 $mesDesde === null &&
                 !empty($mesEncontrados)
@@ -224,7 +164,6 @@ class ConsultaInteligenteFechaService
         | AÑO
         |--------------------------------------------------------------------------
         */
-
         $anio = null;
         $anioExplicito = false;
 
@@ -243,56 +182,43 @@ class ConsultaInteligenteFechaService
         |--------------------------------------------------------------------------
         | ESTE MES
         |--------------------------------------------------------------------------
+        | El ejecutor puede sustituir esta fecha por el período activo de SIGEFIV
+        | cuando corresponda. Aquí solamente reconocemos la expresión temporal.
         */
-
-        if (
-            str_contains($texto, 'este mes')
-        ) {
+        if (str_contains($texto, 'este mes')) {
             $fechaActual = now();
-
             $mes = $fechaActual->month;
             $anio = $fechaActual->year;
         }
-
         /*
         |--------------------------------------------------------------------------
         | MES PASADO
         |--------------------------------------------------------------------------
         */
-
         elseif (
             str_contains($texto, 'mes pasado') ||
             str_contains($texto, 'el mes pasado')
         ) {
             $fechaAnterior = now()->subMonth();
-
             $mes = $fechaAnterior->month;
             $anio = $fechaAnterior->year;
         }
-
         /*
         |--------------------------------------------------------------------------
         | ESTE AÑO
         |--------------------------------------------------------------------------
         */
-
         elseif (
             str_contains($texto, 'este año') ||
             str_contains($texto, 'este ano')
         ) {
             $anio = now()->year;
         }
-
         /*
         |--------------------------------------------------------------------------
         | AÑO ACTUAL POR DEFECTO
         |--------------------------------------------------------------------------
-        |
-        | Si el usuario indicó un mes pero no indicó año,
-        | usamos el año actual.
-        |
         */
-
         elseif (
             !$anioExplicito &&
             (
@@ -303,12 +229,6 @@ class ConsultaInteligenteFechaService
         ) {
             $anio = now()->year;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESULTADO
-        |--------------------------------------------------------------------------
-        */
 
         return [
             'mes' => $mes,

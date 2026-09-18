@@ -438,26 +438,28 @@ class ConsultaEjecutorService
         |--------------------------------------------------------------------------
         */
 
-        $esUltimosMovimientos =
-            preg_match(
-                '/\b(?:ultimos|últimos)\s+(?:(?:\d+)\s+)?(?:movimientos?|movs?)\b/u',
-                $texto
-            ) === 1;
+        $esUltimosMovimientos = preg_match('/\b(?:ultimo|último|ultimos|últimos)\s+(?:(?:\d+)\s+)?(?:ingreso|ingresos|egreso|egresos|gasto|gastos|movimiento|movimientos|movs?)\b/u', $texto) === 1 || preg_match('/\b(?:mu[eé]strame|muestrame|dame|lista|mostrar)\b.*\b(?:ultimos|últimos)\s+\d+\s+(?:movimientos?|movs?)\b/u', $texto) === 1;
 
-        $tienePeriodoExplicito =
-            preg_match('/\b20\d{2}\b/u', $texto) === 1 ||
-            preg_match(
-                '/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u',
-                $texto
-            ) === 1;
+        $tienePeriodoExplicito = preg_match('/\b20\d{2}\b/u', $texto) === 1 || preg_match('/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u', $texto) === 1;
 
-        if ($esUltimosMovimientos && !$tienePeriodoExplicito) {
-            $periodoActivo = $this->zoeQuery->periodoActual();
+        $esGastoActual = preg_match('/\b(?:en\s+que|en\s+qué)\s+(?:gastamos|gast[oó]|se\s+gast[oó]|hemos\s+gastado)\b/u', $texto) === 1 || preg_match('/\b(?:cuanto|cuánto)\s+(?:hemos\s+gastado|gastamos|gast[oó])\b/u', $texto) === 1 || preg_match('/\b(?:que|qué)\s+(?:gastamos|hemos\s+gastado|se\s+gast[oó])\b/u', $texto) === 1;
 
-            if ($periodoActivo) {
-                $anio = (int) $periodoActivo->anio;
-                $mes = (int) $periodoActivo->mes;
-            }
+        $esUltimoPago = preg_match('/\b(?:ultimo|último)\s+(?:pago|pagado|gasto|egreso)\b/u', $texto) === 1;
+
+        $usarPeriodoActivo = ($interpretacion['usar_periodo_activo'] ?? false) === true;
+
+        if ($usarPeriodoActivo && !$tienePeriodoExplicito) { $periodoActivo=$this->zoeQuery->periodoActual(); if($periodoActivo){$anio=(int)$periodoActivo->anio; $mes=(int)$periodoActivo->mes;} } elseif (($esUltimosMovimientos || $esGastoActual || $esUltimoPago) && !$tienePeriodoExplicito) { $periodoActivo=$this->zoeQuery->periodoActual(); if($periodoActivo){$anio=(int)$periodoActivo->anio; $mes=(int)$periodoActivo->mes;} }
+
+        if ($esGastoActual) {
+            $filtrosTipo = 'Egreso';
+        } else {
+            $filtrosTipo = $interpretacion['tipo_movimiento'] ?? null;
+        }
+
+        if ($esUltimoPago) {
+            $filtrosTipo = 'Egreso';
+            $interpretacion['limite'] = 1;
+            $operacion = 'show';
         }
 
         $filtros = [
@@ -476,8 +478,7 @@ class ConsultaEjecutorService
                     : [],
 
             'tipo_movimiento' =>
-                $interpretacion['tipo_movimiento']
-                ?? null,
+                $filtrosTipo,
 
             'categoria' =>
                 $interpretacion['categoria']
@@ -547,6 +548,10 @@ class ConsultaEjecutorService
             }
         }
 
+
+        if ($esGastoActual && !preg_match('/\b(?:en\s+que|en\s+qué)\b/u', $texto)) {
+            $operacion = 'sum';
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -916,6 +921,177 @@ class ConsultaEjecutorService
                 );
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | ÚLTIMO PAGO: RESPUESTA DIRECTA
+        |--------------------------------------------------------------------------
+        |
+        | "¿Quién hizo el último pago?" no debe terminar como una consulta
+        | genérica ni depender de la interpretación del modelo. La consulta
+        | ya está limitada al último egreso del período activo.
+        |
+        */
+
+        if ($esUltimoPago) {
+
+            if ($resultado->isEmpty()) {
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'texto',
+
+                    'resultado' =>
+                        null,
+
+                    'mensaje' =>
+                        'No encontré ningún pago en el período consultado.',
+                ];
+            }
+
+            $ultimoPago =
+                $resultado->first();
+
+            $persona =
+                $ultimoPago->persona
+                ?? null;
+
+            $fechaPago =
+                $ultimoPago->fecha
+                ?? null;
+
+            $montoPago =
+                isset($ultimoPago->monto)
+                    ? (float) $ultimoPago->monto
+                    : 0;
+
+            $conceptoPago =
+                $ultimoPago->concepto
+                ?? null;
+
+            if (empty($persona)) {
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'texto',
+
+                    'resultado' =>
+                        $ultimoPago,
+
+                    'mensaje' =>
+                        'Encontré el último pago por S/ ' .
+                        number_format(
+                            $montoPago,
+                            2,
+                            '.',
+                            ','
+                        ) .
+                        (
+                            $fechaPago
+                                ? ' con fecha ' . $fechaPago
+                                : ''
+                        ) .
+                        (
+                            $conceptoPago
+                                ? ', concepto: ' . $conceptoPago
+                                : ''
+                        ) .
+                        ', pero SIGEFIV no tiene registrada la persona que realizó el pago.',
+                ];
+            }
+
+            return [
+
+                'success' =>
+                    true,
+
+                'tipo' =>
+                    'texto',
+
+                'resultado' =>
+                    $ultimoPago,
+
+                'mensaje' =>
+                    'El último pago fue realizado por ' .
+                    $persona .
+                    ' por S/ ' .
+                    number_format(
+                        $montoPago,
+                        2,
+                        '.',
+                        ','
+                    ) .
+                    (
+                        $fechaPago
+                            ? ' el ' . $fechaPago
+                            : ''
+                    ) .
+                    (
+                        $conceptoPago
+                            ? ', por concepto de ' . $conceptoPago
+                            : ''
+                    ) .
+                    '.',
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ÚLTIMOS MOVIMIENTOS: INFORMAR SI HAY MENOS RESULTADOS QUE LOS PEDIDOS
+        |--------------------------------------------------------------------------
+        */
+
+        if ($esUltimosMovimientos) {
+
+            preg_match(
+                '/(?:ultimo|último|ultimos|últimos)\s+(\d+)\s+(?:ingreso|ingresos|egreso|egresos|gasto|gastos|movimiento|movimientos|movs?)/u',
+                $texto,
+                $coincidenciaLimite
+            );
+
+            $limiteSolicitado =
+                isset($coincidenciaLimite[1])
+                    ? (int) $coincidenciaLimite[1]
+                    : null;
+
+            $cantidadEncontrada =
+                $resultado->count();
+
+            if (
+                $limiteSolicitado !== null &&
+                $cantidadEncontrada < $limiteSolicitado
+            ) {
+
+                return [
+
+                    'success' =>
+                        true,
+
+                    'tipo' =>
+                        'lista',
+
+                    'resultado' =>
+                        $resultado,
+
+                    'mensaje' =>
+                        'Solicitaste ' .
+                        $limiteSolicitado .
+                        ' movimientos, pero solo encontré ' .
+                        $cantidadEncontrada .
+                        ' en el período consultado.',
+                ];
+            }
+        }
+
+
         return [
 
             'success' =>
@@ -1046,63 +1222,28 @@ class ConsultaEjecutorService
 
         /*
         |--------------------------------------------------------------------------
-        | PERÍODO ACTUAL
+        | RESOLVER PERÍODO ACTIVO PARA CONSULTAS SIN FECHA
         |--------------------------------------------------------------------------
         */
 
-        if (
-            str_contains($texto, 'periodo actual') ||
-            str_contains($texto, 'período actual') ||
-            str_contains($texto, 'periodo vigente') ||
-            str_contains($texto, 'período vigente')
-        ) {
+        $usarPeriodoActivo = ($interpretacion['usar_periodo_activo'] ?? false) === true;
+        $tienePeriodoExplicito = preg_match('/\b20\d{2}\b/u', $texto) === 1 || preg_match('/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/u', $texto) === 1;
+        $esUltimosMovimientos = preg_match('/\b(?:ultimo|último|ultimos|últimos)\s+(?:(?:\d+)\s+)?(?:ingreso|ingresos|egreso|egresos|gasto|gastos|movimiento|movimientos|movs?)\b/u', $texto) === 1;
+        $esGastoActual = preg_match('/\b(?:en\s+que|en\s+qué)\s+(?:gastamos|gast[oó]|se\s+gast[oó]|hemos\s+gastado)\b/u', $texto) === 1 || preg_match('/\b(?:cuanto|cuánto)\s+(?:hemos\s+gastado|gastamos|gast[oó])\b/u', $texto) === 1;
+        $esIngresoActual = preg_match('/\b(?:qué|que)\s+(?:ingresos?|recaudamos|recaudación)\b/u', $texto) === 1 || preg_match('/\b(?:cuanto|cuánto)\s+(?:hemos\s+ingresado|ingresamos|se\s+recaud[oó]|recaudamos)\b/u', $texto) === 1;
+        $esUltimoPago = preg_match('/\b(?:ultimo|último)\s+(?:pago|pagado|gasto|egreso)\b/u', $texto) === 1;
 
-            $periodo =
-                $this->zoeQuery
-                    ->periodoActual();
+        $esConsultaSinPeriodo = !$tienePeriodoExplicito && ($usarPeriodoActivo || $esUltimosMovimientos || $esGastoActual || $esUltimoPago || $esIngresoActual || str_contains($texto, 'cuánto dinero tenemos') || str_contains($texto, 'cuanto dinero tenemos') || str_contains($texto, 'cuánto tenemos') || str_contains($texto, 'cuanto tenemos') || str_contains($texto, 'en caja') || str_contains($texto, 'saldo final') || str_contains($texto, 'saldo de cierre'));
 
+        if ($esConsultaSinPeriodo) {
+            $periodoActivo = $this->zoeQuery->periodoActual();
 
-            if (!$periodo) {
-
-                return [
-
-                    'success' =>
-                        true,
-
-                    'tipo' =>
-                        'lista',
-
-                    'resultado' =>
-                        collect(),
-
-                    'mensaje' =>
-                        'No encontré un período actual.',
-                ];
+            if ($periodoActivo) {
+                $anio = (int) $periodoActivo->anio;
+                $mes = (int) $periodoActivo->mes;
+                $meses = [$mes];
             }
-
-
-            return [
-
-                'success' =>
-                    true,
-
-                'tipo' =>
-                    'lista',
-
-                'resultado' =>
-                    collect([
-                        $periodo
-                    ]),
-
-                'mensaje' =>
-                    'El período actual es ' .
-                    $periodo->nombre .
-                    ' ' .
-                    $periodo->anio .
-                    '.',
-            ];
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -1256,7 +1397,14 @@ class ConsultaEjecutorService
             str_contains($texto, 'total ingresos') ||
             str_contains($texto, 'ingresos de') ||
             str_contains($texto, 'ingresos del') ||
-            str_contains($texto, 'ingreso')
+            str_contains($texto, 'ingreso') ||
+            str_contains($texto, 'ingresamos') ||
+            str_contains($texto, 'recaudamos') ||
+            str_contains($texto, 'recaudación') ||
+            str_contains($texto, 'recaudacion') ||
+            str_contains($texto, 'recaudo') ||
+            str_contains($texto, 'recaudó') ||
+            str_contains($texto, 'recaudaron')
         ) {
 
             if (
@@ -1310,7 +1458,10 @@ class ConsultaEjecutorService
             str_contains($texto, 'egresos del') ||
             str_contains($texto, 'egreso') ||
             str_contains($texto, 'gasto') ||
-            str_contains($texto, 'gastos')
+            str_contains($texto, 'gastos') ||
+            str_contains($texto, 'gastamos') ||
+            str_contains($texto, 'gastó') ||
+            str_contains($texto, 'hemos gastado')
         ) {
 
             if (
@@ -1402,7 +1553,7 @@ class ConsultaEjecutorService
 
     /*
     |--------------------------------------------------------------------------
-    | CONVERSACIÓN GENERAL CON SIGI
+    | CONVERSACIÓN GENERAL CON ZOE
     |--------------------------------------------------------------------------
     */
 
@@ -1415,7 +1566,7 @@ class ConsultaEjecutorService
             $this->sigiAi->responder(
                 $consulta,
 
-                'Eres Sigi, el asistente virtual de SIGEFIV. '
+                'Eres ZOE, la asistente virtual de SIGEFIV. '
                 . 'Responde siempre en español, de forma natural, amable y cercana. '
                 . 'Puedes conversar sobre temas generales y ayudar al usuario. '
                 . 'No inventes datos financieros de SIGEFIV. '
@@ -1469,7 +1620,7 @@ class ConsultaEjecutorService
 
     /*
     |--------------------------------------------------------------------------
-    | SALUDO DE SIGI
+    | SALUDO DE ZOE
     |--------------------------------------------------------------------------
     */
 
@@ -1481,7 +1632,7 @@ class ConsultaEjecutorService
             $this->sigiAi->responder(
                 $consulta,
 
-                'Eres Sigi, el asistente virtual de SIGEFIV. '
+                'Eres ZOE, la asistente virtual de SIGEFIV. '
                 . 'Responde en español, de forma muy amable, cercana y afectiva. '
                 . 'Cuando el usuario salude, devuélvele un saludo cálido. '
                 . 'Menciona de forma natural que también puedes ayudar con consultas '

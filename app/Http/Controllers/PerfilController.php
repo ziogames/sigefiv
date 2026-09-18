@@ -43,6 +43,11 @@ class PerfilController extends Controller
                 'string',
                 'max:255',
             ],
+            'seudonimo' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
 
             'telefono' => [
                 'nullable',
@@ -71,18 +76,19 @@ class PerfilController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $datos = [
+       $datos = [
 
-            'name' => $request->name,
+    'name' => $request->name,
 
-            'telefono' => $request->telefono,
+    'seudonimo' => $request->seudonimo,
 
-            'dni' => $request->dni,
+    'telefono' => $request->telefono,
 
-            'direccion' => $request->direccion,
+    'dni' => $request->dni,
 
-        ];
+    'direccion' => $request->direccion,
 
+];
 
         /*
         |--------------------------------------------------------------------------

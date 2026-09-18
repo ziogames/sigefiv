@@ -90,8 +90,13 @@ class ChatResponseService
                         'id' =>
                             $usuario->id,
 
+                        /*
+                         * Si existe seudónimo se muestra el seudónimo.
+                         * Si no existe, se muestra el nombre real.
+                         */
                         'name' =>
-                            $usuario->name,
+                            $usuario->seudonimo
+                                ?: $usuario->name,
 
                         'avatar' =>
                             $usuario->avatar,
@@ -114,8 +119,13 @@ class ChatResponseService
                                     'id' =>
                                         $mensajePadre->usuario->id,
 
+                                    /*
+                                     * Si existe seudónimo se muestra
+                                     * el seudónimo en la respuesta.
+                                     */
                                     'name' =>
-                                        $mensajePadre->usuario->name,
+                                        $mensajePadre->usuario->seudonimo
+                                            ?: $mensajePadre->usuario->name,
                                 ]
                                 : null,
                     ]
@@ -176,8 +186,13 @@ class ChatResponseService
             'id' =>
                 $usuario->id,
 
+            /*
+             * Si existe seudónimo se muestra el seudónimo.
+             * Si no existe, se muestra el nombre real.
+             */
             'name' =>
-                $usuario->name,
+                $usuario->seudonimo
+                    ?: $usuario->name,
 
             'avatar' =>
                 $usuario->avatar,

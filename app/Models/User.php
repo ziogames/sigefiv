@@ -15,6 +15,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
     'name',
+    'seudonimo',
     'email',
     'password',
     'google_id',
@@ -140,6 +141,17 @@ class User extends Authenticatable
     {
         return $this->hasMany(
             ChatMessage::class,
+            'user_id'
+        );
+    }
+
+    /**
+     * Tokens FCM registrados en los dispositivos del usuario.
+     */
+    public function fcmTokens(): HasMany
+    {
+        return $this->hasMany(
+            FcmToken::class,
             'user_id'
         );
     }

@@ -6,36 +6,33 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class FcmToken extends Model
+class Notificacion extends Model
 {
     use HasFactory;
 
+    protected $table = 'notificaciones';
+
     protected $fillable = [
         'user_id',
-        'token',
-        'plataforma',
-        'activo',
-        'ingresos',
-        'egresos',
-        'zoe',
-        'avisos',
-        'ultimo_acceso',
+        'titulo',
+        'mensaje',
+        'tipo',
+        'data',
+        'leida',
+        'fecha_lectura',
     ];
 
     protected function casts(): array
     {
         return [
-            'activo' => 'boolean',
-            'ingresos' => 'boolean',
-            'egresos' => 'boolean',
-            'zoe' => 'boolean',
-            'avisos' => 'boolean',
-            'ultimo_acceso' => 'datetime',
+            'data' => 'array',
+            'leida' => 'boolean',
+            'fecha_lectura' => 'datetime',
         ];
     }
 
     /**
-     * Usuario propietario del token.
+     * Usuario que recibe la notificación.
      */
     public function user(): BelongsTo
     {
