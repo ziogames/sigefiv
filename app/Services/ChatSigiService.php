@@ -1062,150 +1062,246 @@ Cache::forget(
      * como texto en ChatMessage. Por eso aquí incorporamos el detalle
      * de los movimientos al mensaje que verá el grupo.
      */
-    private function agregarDetalleMovimientos(
-        string $mensaje,
-        array $respuesta
-    ): string {
-        $tipo =
-            $respuesta['tipo'] ?? null;
+    
+private function agregarDetalleMovimientos(
+    string $mensaje,
+    array $respuesta
+): string {
+    $tipo =
+        $respuesta['tipo'] ?? null;
 
-        $resultado =
-            $respuesta['resultado'] ?? null;
+    $resultado =
+        $respuesta['resultado'] ?? null;
 
-        if (
-            $tipo !== 'lista' ||
-            ! is_iterable($resultado)
-        ) {
-            return $mensaje;
+    if (
+        $tipo !== 'lista' ||
+        ! is_iterable($resultado)
+    ) {
+        return $mensaje;
+    }
+
+    $movimientos =
+        is_object($resultado) &&
+        method_exists($resultado, 'values')
+            ? $resultado->values()
+            : $resultado;
+
+    $filas = [];
+
+    $cantidadMovimientos = 0;
+    $cantidadIngresos = 0;
+    $cantidadEgresos = 0;
+
+    $totalIngresos = 0.0;
+    $totalEgresos = 0.0;
+
+    foreach ($movimientos as $movimiento) {
+
+        if (is_array($movimiento)) {
+
+            $fecha = $movimiento['fecha'] ?? null;
+
+            $movimientoTipo =
+                $movimiento['tipo'] ?? null;
+
+            $concepto =
+                $movimiento['concepto'] ?? null;
+
+            $monto =
+                $movimiento['monto'] ?? null;
+
+            $categoria =
+                $movimiento['categoria']['nombre']
+                ?? $movimiento['categoria']['name']
+                ?? null;
+
+        } else {
+
+            $fecha =
+                $movimiento->fecha ?? null;
+
+            $movimientoTipo =
+                $movimiento->tipo ?? null;
+
+            $concepto =
+                $movimiento->concepto ?? null;
+
+            $monto =
+                $movimiento->monto ?? null;
+
+            $categoria =
+                $movimiento->categoria?->nombre
+                ?? $movimiento->categoria?->name
+                ?? null;
         }
 
-        $movimientos =
-            is_object($resultado) &&
-            method_exists($resultado, 'values')
-                ? $resultado->values()
-                : $resultado;
+        if ($fecha instanceof \DateTimeInterface) {
 
-        $filas = [];
+            $fechaTexto =
+                $fecha->format('d/m/Y');
 
-        foreach ($movimientos as $movimiento) {
-            if (is_array($movimiento)) {
-                $fecha = $movimiento['fecha'] ?? null;
-                $movimientoTipo =
-                    $movimiento['tipo'] ?? null;
-                $concepto =
-                    $movimiento['concepto'] ?? null;
-                $monto =
-                    $movimiento['monto'] ?? null;
-                $categoria =
-                    $movimiento['categoria']['nombre']
-                    ?? $movimiento['categoria']['name']
-                    ?? null;
-            } else {
-                $fecha =
-                    $movimiento->fecha ?? null;
-                $movimientoTipo =
-                    $movimiento->tipo ?? null;
-                $concepto =
-                    $movimiento->concepto ?? null;
-                $monto =
-                    $movimiento->monto ?? null;
-                $categoria =
-                    $movimiento->categoria?->nombre
-                    ?? $movimiento->categoria?->name
-                    ?? null;
-            }
+        } elseif ($fecha) {
 
-            if ($fecha instanceof \DateTimeInterface) {
-                $fechaTexto =
-                    $fecha->format('d/m/Y');
-            } elseif ($fecha) {
-                $fechaTexto =
-                    (string) $fecha;
-            } else {
-                $fechaTexto = '—';
-            }
+            $fechaTexto =
+                (string) $fecha;
 
-            $montoTexto =
-                $monto !== null
-                    ? 'S/ '.number_format(
-                        (float) $monto,
+        } else {
+
+            $fechaTexto = '—';
+        }
+
+        $montoNumerico =
+            is_numeric($monto)
+                ? (float) $monto
+                : null;
+
+        $montoTexto =
+            $montoNumerico !== null
+                ? 'S/ '.
+                    number_format(
+                        abs($montoNumerico),
                         2,
                         '.',
                         ','
                     )
-                    : '—';
-
-            $filas[] =
-                '• '.
-                $fechaTexto.
-                ' | '.
-                ($movimientoTipo ?: '—').
-                ' | '.
-                ($concepto ?: 'Sin concepto').
-                ' | '.
-                ($categoria ?: 'Sin categoría').
-                ' | '.
-                $montoTexto;
-        }
-
-        if (empty($filas)) {
-            return $mensaje;
-        }
+                : '—';
 
         /*
         |--------------------------------------------------------------------------
-        | TOTAL DE LA CONSULTA
+        | CLASIFICACIÓN Y RESUMEN FINANCIERO
         |--------------------------------------------------------------------------
-        |
-        | El total se agrega como una fila adicional al final del detalle.
-        | De esta manera, cuando el Chat Vecinal convierte estas filas en
-        | una tabla, el total queda dentro de la columna "Monto" y no en
-        | el mensaje superior.
-        |
         */
 
-        $total =
-            $movimientos instanceof Collection
-                ? (float) $movimientos->sum(
-                    fn ($movimiento) => is_array($movimiento)
-                            ? ($movimiento['monto'] ?? 0)
-                            : ($movimiento->monto ?? 0)
-                )
-                : collect($movimientos)->sum(
-                    fn ($movimiento) => is_array($movimiento)
-                            ? ($movimiento['monto'] ?? 0)
-                            : ($movimiento->monto ?? 0)
-                );
-
-        $totalTexto =
-            'S/ '.
-            number_format(
-                $total,
-                2,
-                '.',
-                ','
+        $tipoNormalizado =
+            mb_strtolower(
+                trim((string) $movimientoTipo),
+                'UTF-8'
             );
 
-        /*
-        | Fila especial para que el renderizador del Chat Vecinal
-        | la coloque al final de la tabla, con el total en la columna Monto.
-        */
+        $esEgreso =
+            str_contains($tipoNormalizado, 'egreso') ||
+            str_contains($tipoNormalizado, 'salida') ||
+            ($montoNumerico !== null && $montoNumerico < 0);
+
+        if ($montoNumerico !== null) {
+
+            $cantidadMovimientos++;
+
+            $importe =
+                abs($montoNumerico);
+
+            if ($esEgreso) {
+
+                $cantidadEgresos++;
+
+                $totalEgresos += $importe;
+
+            } else {
+
+                $cantidadIngresos++;
+
+                $totalIngresos += $importe;
+            }
+        }
 
         $filas[] =
             '• '.
+            $fechaTexto.
             ' | '.
+            ($movimientoTipo ?: '—').
             ' | '.
+            ($concepto ?: 'Sin concepto').
             ' | '.
-            ' | **Total** | **'.
-            $totalTexto.
-            '**';
-
-        return
-            $mensaje.
-            "\n\n".
-            implode("\n", $filas);
+            ($categoria ?: 'Sin categoría').
+            ' | '.
+            $montoTexto;
     }
 
+    if (empty($filas)) {
+        return $mensaje;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOTAL DE LA CONSULTA
+    |--------------------------------------------------------------------------
+    */
+
+    $balance =
+        $totalIngresos - $totalEgresos;
+
+    $total =
+        $movimientos instanceof Collection
+            ? (float) $movimientos->sum(
+                fn ($movimiento) => is_array($movimiento)
+                    ? ($movimiento['monto'] ?? 0)
+                    : ($movimiento->monto ?? 0)
+            )
+            : collect($movimientos)->sum(
+                fn ($movimiento) => is_array($movimiento)
+                    ? ($movimiento['monto'] ?? 0)
+                    : ($movimiento->monto ?? 0)
+            );
+
+    $totalTexto =
+        'S/ '.
+        number_format(
+            $total,
+            2,
+            '.',
+            ','
+        );
+
+    $filas[] =
+        '• '.
+        ' | '.
+        ' | '.
+        ' | '.
+        ' | **Total** | **'.
+        $totalTexto.
+        '**';
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESUMEN EXPLICATIVO DE ZOE
+    |--------------------------------------------------------------------------
+    */
+
+    $resumen =
+        "📊 **Resumen financiero**\n\n".
+        "Se encontraron **{$cantidadMovimientos} movimientos**.\n\n".
+        "💰 Ingresos: **S/ ".
+        number_format(
+            $totalIngresos,
+            2,
+            '.',
+            ','
+        ).
+        "** ({$cantidadIngresos} movimientos).\n\n".
+        "💸 Egresos: **S/ ".
+        number_format(
+            $totalEgresos,
+            2,
+            '.',
+            ','
+        ).
+        "** ({$cantidadEgresos} movimientos).\n\n".
+        "📈 Balance: **S/ ".
+        number_format(
+            $balance,
+            2,
+            '.',
+            ','
+        ).
+        "**.";
+
+    return
+        $mensaje.
+        "\n\n".
+        implode("\n", $filas).
+        "\n\n".
+        $resumen;
+}
     /**
      * Crea un mensaje de SIGI dentro de la conversación.
      */

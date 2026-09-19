@@ -813,50 +813,56 @@ class SigiService
     }
 
     /**
-     * Detecta preguntas.
-     */
-    protected function esPregunta(
-        string $texto
-    ): bool {
-        /*
-        |--------------------------------------------------------------------------
-        | Signo de interrogación
-        |--------------------------------------------------------------------------
-        */
+ * Detecta preguntas.
+ *
+ * Evita considerar cualquier palabra interrogativa
+ * aislada como una pregunta.
+ */
+protected function esPregunta(
+    string $texto
+): bool {
 
-        if (str_contains($texto, '?')) {
-            return true;
-        }
+    /*
+    |--------------------------------------------------------------------------
+    | Signo de interrogación
+    |--------------------------------------------------------------------------
+    */
 
-        /*
-        |--------------------------------------------------------------------------
-        | Frases interrogativas
-        |--------------------------------------------------------------------------
-        */
-
-        return $this->contieneAlguno($texto, [
-            'alguien sabe',
-            'saben si',
-            'saben cuando',
-            'saben donde',
-            'saben por que',
-            'saben porque',
-            'alguien conoce',
-            'alguien sabe cuando',
-            'alguien sabe donde',
-            'alguien sabe porque',
-            'donde',
-            'cuando',
-            'como',
-            'porque',
-            'hay agua',
-            'hay luz',
-            'tienen agua',
-            'tienen luz',
-            'todos tienen agua',
-            'todos tienen luz',
-        ]);
+    if (str_contains($texto, '?')) {
+        return true;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Frases interrogativas claras
+    |--------------------------------------------------------------------------
+    */
+
+    return $this->contieneAlguno($texto, [
+        'alguien sabe',
+        'saben si',
+        'saben cuando',
+        'saben donde',
+        'saben por que',
+        'saben porque',
+        'alguien conoce',
+        'alguien sabe cuando',
+        'alguien sabe donde',
+        'alguien sabe porque',
+
+        'hay agua',
+        'hay luz',
+        'tienen agua',
+        'tienen luz',
+
+        'donde esta',
+        'donde estan',
+        'cuando llega',
+        'cuando vuelve',
+        'por que no hay',
+        'porque no hay',
+    ]);
+}
 
     /**
      * Detecta reportes de problemas.

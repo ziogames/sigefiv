@@ -11,6 +11,7 @@ use App\Services\Sigi\SigiRolesService;
 use App\Services\Sigi\SigiSecurityService;
 use App\Services\Sigi\SigiUsuariosService;
 use App\Services\Zoe\ZoeQueryService;
+use App\Services\Zoe\ZoePeriodoConsultaService;
 
 class ConsultaEjecutorService
 {
@@ -33,6 +34,7 @@ class ConsultaEjecutorService
     private SigiSecurityService $sigiSecurity;
 
     private ZoeQueryService $zoeQuery;
+ private ZoePeriodoConsultaService $zoePeriodoConsulta;
 
 
     public function __construct(
@@ -45,8 +47,9 @@ class ConsultaEjecutorService
         SigiRolesService $sigiRoles,
         SigiPeriodosService $sigiPeriodos,
         SigiSecurityService $sigiSecurity,
-        ZoeQueryService $zoeQuery
-    ) {
+       ZoeQueryService $zoeQuery,
+ZoePeriodoConsultaService $zoePeriodoConsulta
+) {
         $this->sigiAi = $sigiAi;
 
         $this->sigiEstatutos = $sigiEstatutos;
@@ -66,6 +69,7 @@ class ConsultaEjecutorService
         $this->sigiSecurity = $sigiSecurity;
 
         $this->zoeQuery = $zoeQuery;
+        $this->zoePeriodoConsulta = $zoePeriodoConsulta;
     }
 
 
@@ -448,7 +452,23 @@ class ConsultaEjecutorService
 
         $usarPeriodoActivo = ($interpretacion['usar_periodo_activo'] ?? false) === true;
 
-        if ($usarPeriodoActivo && !$tienePeriodoExplicito) { $periodoActivo=$this->zoeQuery->periodoActual(); if($periodoActivo){$anio=(int)$periodoActivo->anio; $mes=(int)$periodoActivo->mes;} } elseif (($esUltimosMovimientos || $esGastoActual || $esUltimoPago) && !$tienePeriodoExplicito) { $periodoActivo=$this->zoeQuery->periodoActual(); if($periodoActivo){$anio=(int)$periodoActivo->anio; $mes=(int)$periodoActivo->mes;} }
+if (
+    !$tienePeriodoExplicito
+    && (
+        $usarPeriodoActivo
+        || $esUltimosMovimientos
+        || $esGastoActual
+        || $esUltimoPago
+    )
+) {
+    $periodoResuelto = $this->zoePeriodoConsulta
+        ->resolverPeriodo($interpretacion);
+
+    if ($periodoResuelto['periodo_activo_encontrado']) {
+        $anio = $periodoResuelto['anio'];
+        $mes = $periodoResuelto['mes'];
+    }
+}
 
         if ($esGastoActual) {
             $filtrosTipo = 'Egreso';
@@ -914,12 +934,22 @@ class ConsultaEjecutorService
         |--------------------------------------------------------------------------
         */
 
-        $resultado =
-            $this->zoeQuery
-                ->listarMovimientos(
-                    $filtros
-                );
-
+      if (
+    $esUltimosMovimientos
+    && empty($filtros['tipo_movimiento'])
+) {
+    $resultado =
+        $this->zoeQuery
+            ->listarUltimosMovimientosPorTipo(
+                $filtros
+            );
+} else {
+    $resultado =
+        $this->zoeQuery
+            ->listarMovimientos(
+                $filtros
+            );
+}
 
         /*
         |--------------------------------------------------------------------------
@@ -1235,15 +1265,16 @@ class ConsultaEjecutorService
 
         $esConsultaSinPeriodo = !$tienePeriodoExplicito && ($usarPeriodoActivo || $esUltimosMovimientos || $esGastoActual || $esUltimoPago || $esIngresoActual || str_contains($texto, 'cuánto dinero tenemos') || str_contains($texto, 'cuanto dinero tenemos') || str_contains($texto, 'cuánto tenemos') || str_contains($texto, 'cuanto tenemos') || str_contains($texto, 'en caja') || str_contains($texto, 'saldo final') || str_contains($texto, 'saldo de cierre'));
 
-        if ($esConsultaSinPeriodo) {
-            $periodoActivo = $this->zoeQuery->periodoActual();
+       if ($esConsultaSinPeriodo) {
+    $periodoResuelto = $this->zoePeriodoConsulta
+        ->resolverPeriodo($interpretacion);
 
-            if ($periodoActivo) {
-                $anio = (int) $periodoActivo->anio;
-                $mes = (int) $periodoActivo->mes;
-                $meses = [$mes];
-            }
-        }
+    if ($periodoResuelto['periodo_activo_encontrado']) {
+        $anio = $periodoResuelto['anio'];
+        $mes = $periodoResuelto['mes'];
+        $meses = $periodoResuelto['meses'];
+    }
+}
 
         /*
         |--------------------------------------------------------------------------

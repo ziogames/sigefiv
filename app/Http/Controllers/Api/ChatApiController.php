@@ -11,12 +11,14 @@ use App\Services\chat\ChatResponseService;
 use App\Services\chat\ChatSigiInterventionService;
 use App\Services\chat\ChatTypingService;
 use App\Services\ChatSigiService;
+use App\Services\ZoeN8nService;
 use App\Services\ZoeModeracionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
 use App\Models\ChatMessage;
 use App\Models\ChatMessageReaction;
+
 
 class ChatApiController extends Controller
 {
@@ -147,7 +149,8 @@ if ($ultimoLeidoMessageId !== null) {
         ChatMessageService $chatMessageService,
         ChatSigiInterventionService $chatSigiInterventionService,
         ChatResponseService $chatResponseService,
-        ZoeModeracionService $zoeService
+        ZoeModeracionService $zoeService,
+        ZoeN8nService $zoeN8nService
     ): JsonResponse {
         try {
             $request->validate([
@@ -316,15 +319,92 @@ if ($ultimoLeidoMessageId !== null) {
             /*
              * @zoe — consulta explícita.
              */
-            if ($mencionaSigi) {
-                $mensajeSigi =
-                    $chatSigiService->procesar(
-                        $chat,
-                        $mensaje->mensaje,
-                        $usuario
-                    );
+           if ($mencionaSigi) {
 
-            } else {
+    /*
+     * ZOE IA — consulta mediante n8n y Ollama.
+     *
+     * Se activa únicamente con:
+     * @zoe ia ...
+     */
+
+    $esConsultaIa =
+        preg_match(
+            '/(^|\s)@?zoe\s+ia\b/i',
+            $textoMensaje
+        ) === 1;
+
+    if ($esConsultaIa) {
+
+        $consultaIa =
+            preg_replace(
+                '/(^|\s)@?zoe\s+ia\b/i',
+                ' ',
+                $textoMensaje
+            );
+
+        $consultaIa =
+            trim(
+                preg_replace(
+                    '/\s+/u',
+                    ' ',
+                    (string) $consultaIa
+                )
+            );
+
+      $respuestaIa =
+    $zoeN8nService->consultar(
+        $consultaIa,
+        (int) $usuario->id,
+        $usuario->name
+    );
+
+        if ($respuestaIa !== null) {
+
+            $mensajeSigi =
+                $chatSigiService->crearMensajeSigi(
+                    $chat,
+                    [
+                        'success' => true,
+                        'tipo' => 'texto',
+                        'resultado' => null,
+                        'mensaje' => '🤖 '.$respuestaIa,
+                    ]
+                );
+
+        } else {
+
+            $mensajeSigi =
+                $chatSigiService->crearMensajeSigi(
+                    $chat,
+                    [
+                        'success' => false,
+                        'tipo' => 'texto',
+                        'resultado' => null,
+                        'mensaje' =>
+                            '🤖 No pude comunicarme con el servicio de inteligencia artificial.',
+                    ]
+                );
+        }
+
+    } else {
+
+        /*
+         * ZOE / SIGI existente.
+         *
+         * Se mantienen las consultas financieras,
+         * dispositivos y demás funciones.
+         */
+
+        $mensajeSigi =
+            $chatSigiService->procesar(
+                $chat,
+                $mensaje->mensaje,
+                $usuario
+            );
+    }
+
+} else {
 
                 /*
                  * SIGI — intervención contextual automática.

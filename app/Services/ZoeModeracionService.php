@@ -49,6 +49,16 @@ class ZoeModeracionService
     ];
     public function procesarMensaje(int $conversationId, User $user, string $mensajeTexto): array
     {
+// 🔒 Verificar si el usuario ya está bloqueado permanentemente.
+if ($user->estado === 'bloqueado') {
+    return [
+        'bloquear_mensaje' => true,
+        'accion' => 'bloqueo',
+        'message' => '🚫 Tu cuenta está bloqueada permanentemente de este chat vecinal.',
+        'motivo' => 'El usuario ya tiene una suspensión permanente.'
+    ];
+}
+
         if ($this->contienePalabraProhibida($mensajeTexto)) {
 
             // Obtenemos el número actual de advertencias asegurando que sea entero

@@ -451,3 +451,4 @@ Route::post('/chat-devices/{device}/control', [
     ChatDeviceController::class,
     'controlarPorToken',
 ]);
+

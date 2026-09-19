@@ -67,6 +67,61 @@ class ZoeQueryService
     }
 
     /**
+ * Obtiene el último ingreso y el último egreso
+ * aplicando los filtros del período activo.
+ */
+public function listarUltimosMovimientosPorTipo(
+    array $filtros = []
+): Collection {
+
+    $resultados = collect();
+
+    /*
+    |--------------------------------------------------------------------------
+    | ÚLTIMO INGRESO
+    |--------------------------------------------------------------------------
+    */
+
+    $filtrosIngreso = $filtros;
+    $filtrosIngreso['tipo_movimiento'] = 'Ingreso';
+    $filtrosIngreso['limite'] = 1;
+
+    $ingreso = $this->listarMovimientos($filtrosIngreso)->first();
+
+    if ($ingreso) {
+        $resultados->push($ingreso);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ÚLTIMO EGRESO
+    |--------------------------------------------------------------------------
+    */
+
+    $filtrosEgreso = $filtros;
+    $filtrosEgreso['tipo_movimiento'] = 'Egreso';
+    $filtrosEgreso['limite'] = 1;
+
+    $egreso = $this->listarMovimientos($filtrosEgreso)->first();
+
+    if ($egreso) {
+        $resultados->push($egreso);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ORDENAR POR FECHA MÁS RECIENTE
+    |--------------------------------------------------------------------------
+    */
+
+    return $resultados
+        ->sortByDesc(function ($movimiento) {
+            return $movimiento->fecha . '-' . $movimiento->id;
+        })
+        ->values();
+}
+
+    /**
      * Cuenta movimientos.
      */
     public function contarMovimientos(array $filtros = []): int
@@ -596,11 +651,12 @@ class ZoeQueryService
     /**
      * Devuelve el último período registrado.
      */
-    public function periodoActual(): ?object
-    {
-        return $this->periodosQuery()
-            ->orderByDesc('anio')
-            ->orderByDesc('mes')
-            ->first();
-    }
+   public function periodoActual(): ?object
+{
+    return $this->periodosQuery()
+        ->where('estado', 'Abierto')
+        ->orderByDesc('anio')
+        ->orderByDesc('mes')
+        ->first();
+}
 }
