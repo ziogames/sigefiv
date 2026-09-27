@@ -23,13 +23,14 @@ class ChatSigiService
      */
     private ?ChatConversation $chatContextoActual = null;
 
-    public function __construct(
-        protected ConsultaInteligenteService $consultaInteligente,
-        protected ConsultaEjecutorService $consultaEjecutor,
-        protected ChatDeviceCommandService $chatDeviceCommandService,
-        protected ChatDeviceAuthorizationService $chatDeviceAuthorizationService,
-        protected ChatDeviceService $chatDeviceService,
-    ) {}
+ public function __construct(
+    protected ConsultaInteligenteService $consultaInteligente,
+    protected ConsultaEjecutorService $consultaEjecutor,
+    protected ZoeN8nService $zoeN8nService,
+    protected ChatDeviceCommandService $chatDeviceCommandService,
+    protected ChatDeviceAuthorizationService $chatDeviceAuthorizationService,
+    protected ChatDeviceService $chatDeviceService,
+) {}
 
     /**
      * Determina si un mensaje está dirigido a SIGI.
@@ -655,76 +656,242 @@ Cache::forget(
 }
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | CONSULTA INTELIGENTE NORMAL
-        |--------------------------------------------------------------------------
-        */
 
-        $interpretacion =
-            $this->consultaInteligente
-                ->interpretar($consulta);
+
 
         /*
-        |--------------------------------------------------------------------------
-        | CONTEXTO FINANCIERO DEL CHAT VECINAL
-        |--------------------------------------------------------------------------
-        */
+|--------------------------------------------------------------------------
+| CONSULTAS FINANCIERAS → LARAVEL
+|--------------------------------------------------------------------------
+|
+| Las consultas financieras de SIGEFIV no deben pasar por
+| n8n/Ollama para obtener datos contables.
+|
+*/
 
-        if (
-            isset($this->chatContextoActual) &&
-            $this->chatContextoActual instanceof ChatConversation
-        ) {
-            $interpretacion =
-                $this->aplicarContextoFinanciero(
-                    $this->chatContextoActual,
-                    $mensaje,
-                    $interpretacion
-                );
-        }
+$interpretacion = $this->consultaInteligente
+    ->interpretar($consulta);
 
-        $respuesta =
-            $this->consultaEjecutor
-                ->ejecutar(
-                    $interpretacion,
-                    $usuario->id
-                );
+/*
+|--------------------------------------------------------------------------
+| Aplicar contexto financiero del Chat Vecinal
+|--------------------------------------------------------------------------
+*/
 
-        if (! is_array($respuesta)) {
-            return [
-                'success' => false,
-                'tipo' => 'texto',
-                'resultado' => null,
-                'mensaje' => '🤖 No pude procesar tu consulta en este momento.',
-            ];
-        }
+if (
+    $this->chatContextoActual instanceof ChatConversation
+) {
+    $interpretacion = $this->aplicarContextoFinanciero(
+        $this->chatContextoActual,
+        $consulta,
+        $interpretacion
+    );
+}
 
-        if (
-            ! isset($respuesta['mensaje']) ||
-            trim((string) $respuesta['mensaje']) === ''
-        ) {
-            $respuesta['mensaje'] =
-                '🤖 No encontré una respuesta para esa consulta.';
-        }
+/*
+|--------------------------------------------------------------------------
+| Detectar consulta financiera
+|--------------------------------------------------------------------------
+*/
 
-        $mensajeRespuesta =
-            trim(
-                (string) $respuesta['mensaje']
-            );
+$textoFinanciero = mb_strtolower(
+    $consulta,
+    'UTF-8'
+);
 
-        if (
-            ! str_starts_with(
-                $mensajeRespuesta,
-                '🤖'
-            )
-        ) {
-            $respuesta['mensaje'] =
-                '🤖 '.$mensajeRespuesta;
-        }
+$esConsultaFinanciera =
+    str_contains($textoFinanciero, 'resumen') ||
+    str_contains($textoFinanciero, 'ingreso') ||
+    str_contains($textoFinanciero, 'ingresos') ||
+    str_contains($textoFinanciero, 'egreso') ||
+    str_contains($textoFinanciero, 'egresos') ||
+    str_contains($textoFinanciero, 'gasto') ||
+    str_contains($textoFinanciero, 'gastos') ||
+    str_contains($textoFinanciero, 'saldo') ||
+    str_contains($textoFinanciero, 'caja') ||
+    str_contains($textoFinanciero, 'movimiento') ||
+    str_contains($textoFinanciero, 'movimientos');
 
-        return $respuesta;
+/*
+|--------------------------------------------------------------------------
+| Ejecutar consulta financiera en Laravel
+|--------------------------------------------------------------------------
+*/
+
+if ($esConsultaFinanciera) {
+
+    $respuestaLaravel =
+        $this->consultaEjecutor->ejecutar(
+            $interpretacion,
+            $usuario->id
+        );
+
+    if (
+        ($respuestaLaravel['success'] ?? false) === true
+    ) {
+        return $respuestaLaravel;
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| CONSULTA INTELIGENTE NORMAL → n8n + Ollama
+|--------------------------------------------------------------------------
+*/
+
+$respuestaN8n = $this->zoeN8nService->consultar(
+    $consulta,
+    $usuario->id,
+    $usuario->name
+);
+
+if ($respuestaN8n === null || trim($respuestaN8n) === '') {
+    return [
+        'success' => false,
+        'tipo' => 'texto',
+        'resultado' => null,
+        'mensaje' => '🤖 No pude comunicarme con ZOE en este momento.',
+    ];
+}
+
+$mensajeRespuesta = trim($respuestaN8n);
+
+/*
+|--------------------------------------------------------------------------
+| Convertir lista de movimientos enviada por n8n
+| a resultado estructurado para el Chat Vecinal
+|--------------------------------------------------------------------------
+*/
+
+$movimientos = [];
+
+$lineas = preg_split(
+    '/\R/u',
+    $mensajeRespuesta
+);
+
+foreach ($lineas as $linea) {
+
+    $linea = trim($linea);
+
+    if ($linea === '') {
+        continue;
     }
 
+    // Quitar viñeta inicial
+    $linea = preg_replace('/^[•\-]\s*/u', '', $linea);
+
+    // Separar:
+    // fecha — monto — concepto — usuario/categoría — medio de pago
+    $partes = preg_split(
+        '/\s*—\s*/u',
+        $linea
+    );
+
+    if (count($partes) < 2) {
+        continue;
+    }
+
+    $fecha = trim($partes[0] ?? '');
+    $montoTexto = trim($partes[1] ?? '');
+    $concepto = trim($partes[2] ?? 'Sin concepto');
+    $categoria = trim($partes[3] ?? 'Sin categoría');
+    $medioPago = trim($partes[4] ?? '');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Extraer monto
+    |--------------------------------------------------------------------------
+    */
+
+    $montoTextoLimpio = preg_replace(
+        '/[^\d.,-]/u',
+        '',
+        $montoTexto
+    );
+
+    $montoTextoLimpio = str_replace(
+        ',',
+        '',
+        $montoTextoLimpio
+    );
+
+    $monto = is_numeric($montoTextoLimpio)
+        ? (float) $montoTextoLimpio
+        : null;
+
+    if ($monto === null) {
+        continue;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Determinar tipo según la consulta
+    |--------------------------------------------------------------------------
+    */
+
+    $consultaNormalizada = mb_strtolower(
+        $consulta,
+        'UTF-8'
+    );
+
+    $esEgreso =
+        str_contains($consultaNormalizada, 'egreso') ||
+        str_contains($consultaNormalizada, 'egresos') ||
+        str_contains($consultaNormalizada, 'gasto') ||
+        str_contains($consultaNormalizada, 'gastos');
+
+    $tipoMovimiento = $esEgreso
+        ? 'Egreso'
+        : 'Ingreso';
+
+    $movimientos[] = [
+        'fecha' => $fecha,
+        'tipo' => $tipoMovimiento,
+        'concepto' => $concepto,
+        'categoria' => [
+            'nombre' => $categoria,
+        ],
+        'monto' => $esEgreso
+            ? -abs($monto)
+            : abs($monto),
+        'medio_pago' => $medioPago,
+    ];
+}
+
+/*
+|--------------------------------------------------------------------------
+| Si n8n devolvió una lista, entregarla estructurada
+|--------------------------------------------------------------------------
+*/
+
+if (!empty($movimientos)) {
+
+    return [
+        'success' => true,
+        'tipo' => 'lista',
+        'resultado' => collect($movimientos),
+        'mensaje' => '🤖 Aquí tienes los movimientos solicitados:',
+    ];
+}
+
+/*
+|--------------------------------------------------------------------------
+| Respuesta normal de ZOE
+|--------------------------------------------------------------------------
+*/
+
+if (!str_starts_with($mensajeRespuesta, '🤖')) {
+    $mensajeRespuesta = '🤖 ' . $mensajeRespuesta;
+}
+
+return [
+    'success' => true,
+    'tipo' => 'texto',
+    'resultado' => null,
+    'mensaje' => $mensajeRespuesta,
+];
+    }
     /**
      * Obtiene la duración de la respuesta a una orden pendiente.
      */

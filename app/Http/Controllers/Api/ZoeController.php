@@ -16,9 +16,14 @@ class ZoeController extends Controller
         ]);
 
         try {
+            $usuario = $request->user();
+
             $response = Http::timeout(120)
                 ->post(config('services.n8n.zoe_webhook'), [
                     'mensaje' => $request->mensaje,
+
+                    // Nombre del usuario autenticado
+                    'nombre_usuario' => $usuario?->name ?? 'vecino',
                 ]);
 
             Log::info('ZOE respuesta n8n', [
@@ -46,6 +51,10 @@ class ZoeController extends Controller
             ]);
 
         } catch (\Throwable $e) {
+            Log::error('Error al comunicarse con ZOE', [
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al comunicarse con ZOE.',

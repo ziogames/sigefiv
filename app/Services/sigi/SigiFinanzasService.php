@@ -275,10 +275,20 @@ class SigiFinanzasService
                 $texto
             ) === 1;
 
+         // =========================================================================
+// DETECTAR SI LA CONSULTA TIENE UN PERÍODO EXPLÍCITO
+// =========================================================================
+$tieneFechaExplicita =
+    $mes !== null ||
+    $mesDesde !== null ||
+    $mesHasta !== null ||
+    $anio !== null ||
+    count($meses) > 0;   
+
         // =========================================================================
         // ESCENARIO 1: LÍMITES DINÁMICOS (ej: "últimos 5 movimientos") -> FILTRADO POR FECHA DEL PERÍODO ABIERTO
         // =========================================================================
-        if ($limiteSolicitado !== null) {
+        if ($limiteSolicitado !== null && !$tieneFechaExplicita) {
             $periodoAbierto = Periodo::obtenerAbierto() ?? Periodo::query()
                 ->orderByDesc('anio')
                 ->orderByDesc('mes')
@@ -316,7 +326,10 @@ class SigiFinanzasService
         // =========================================================================
         // ESCENARIO 2: "ÚLTIMOS MOVIMIENTOS" (sin número) -> FILTRADO POR FECHA DEL PERÍODO ABIERTO
         // =========================================================================
-        if ($esUltimoPeriodo || $esUltimoMovimientoPorTipo || $esUltimosMovimientos) {
+       if (
+    !$tieneFechaExplicita &&
+    ($esUltimoPeriodo || $esUltimoMovimientoPorTipo || $esUltimosMovimientos)
+) {
             $periodoAbierto = Periodo::obtenerAbierto() ?? Periodo::query()
                 ->orderByDesc('anio')
                 ->orderByDesc('mes')

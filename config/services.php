@@ -159,14 +159,18 @@ return [
         'key' => env('GIPHY_API_KEY'),
     ],
 
-    'n8n' => [
-        'zoe_webhook' => env('N8N_ZOE_WEBHOOK_URL'),
-    ],
 'n8n' => [
-    'zoe_webhook_url' => env(
+
+    'zoe_webhook' => env(
         'N8N_ZOE_WEBHOOK_URL',
+        'http://host.docker.internal:5678/webhook/zoe'
+    ),
+
+    'zoe_webhook_url' => env(
+        'N8N_ZOE_CHAT_WEBHOOK_URL',
         'http://host.docker.internal:5678/webhook/zoe-chat-vecinal'
     ),
+
 ],
 
 ];

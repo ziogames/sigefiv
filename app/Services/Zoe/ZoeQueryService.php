@@ -60,10 +60,10 @@ class ZoeQueryService
             : 20;
 
         return $query
-            ->orderByDesc('fecha')
-            ->orderByDesc('id')
-            ->limit($limite)
-            ->get();
+    ->orderBy('fecha')
+    ->orderBy('id')
+    ->limit($limite)
+    ->get();
     }
 
     /**
