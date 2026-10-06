@@ -23,6 +23,7 @@ use App\Services\Zoe\ZoeQueryService;
 use App\Services\Zoe\ZoePeriodoConsultaService;
 
 use App\Models\Periodo;
+use Illuminate\Support\Facades\Log;
 
 class ConsultaEjecutorService
 
@@ -179,7 +180,9 @@ ZoePeriodoConsultaService $zoePeriodoConsulta
             );
 
         }
-
+Log::info('ZOE INTERPRETACION RESUMEN', [
+    'interpretacion' => $interpretacion,
+]);
 $textoResumen = mb_strtolower(
 
     (string) (
@@ -584,6 +587,25 @@ if (
                         : null
 
                 );
+
+
+           // Las consultas que indican explícitamente "período actual"
+// nunca deben heredar el mes o año de una consulta anterior.
+$esPeriodoActual =
+    str_contains($texto, 'periodo actual') ||
+    str_contains($texto, 'período actual') ||
+    str_contains($texto, 'periodo vigente') ||
+    str_contains($texto, 'período vigente');
+
+if ($esPeriodoActual) {
+    $interpretacion['fecha'] = [];
+    $interpretacion['mes'] = null;
+    $interpretacion['anio'] = null;
+
+    $fecha = [];
+    $anio = null;
+    $mes = null;
+}     
 
         /*
 
@@ -1907,6 +1929,23 @@ $filtros = [
                         : null
 
                 );
+                // "Período actual" nunca debe heredar
+// el mes o año de una consulta anterior.
+$esPeriodoActual =
+    str_contains($texto, 'periodo actual') ||
+    str_contains($texto, 'período actual') ||
+    str_contains($texto, 'periodo vigente') ||
+    str_contains($texto, 'período vigente');
+
+if ($esPeriodoActual) {
+    $interpretacion['fecha'] = [];
+    $interpretacion['mes'] = null;
+    $interpretacion['anio'] = null;
+
+    $fecha = [];
+    $anio = null;
+    $mes = null;
+}
 
         /*
 
@@ -2125,7 +2164,6 @@ if (
 */
 
 if (
-
     (
         str_contains($texto, 'periodo actual') ||
         str_contains($texto, 'período actual') ||
@@ -2138,6 +2176,8 @@ if (
     && !str_contains($texto, 'saldo caja')
     && !str_contains($texto, 'saldo final')
     && !str_contains($texto, 'saldo de cierre')
+    && !str_contains($texto, 'saldo inicial')
+    && !str_contains($texto, 'saldo anterior')
 
 ) {
 
@@ -2206,47 +2246,36 @@ if (
 
         */
 
-        if (
+      if (
+    str_contains($texto, 'saldo inicial') ||
+    str_contains($texto, 'saldo anterior')
+) {
 
-            str_contains(
+ if ($mes === null) {
+    return [
+        'success' => false,
+        'tipo' => 'texto',
+        'resultado' => null,
+        'mensaje' =>
+            'Necesito saber qué mes deseas consultar.',
+    ];
+}
 
-                $texto,
+if ($anio === null) {
+    $periodoActual = $this->zoeQuery->periodoActual();
 
-                'saldo inicial'
-
-            )
-
-        ) {
-
-            if (
-
-                $anio === null ||
-
-                $mes === null
-
-            ) {
-
-                return [
-
-                    'success' =>
-
-                        false,
-
-                    'tipo' =>
-
-                        'texto',
-
-                    'resultado' =>
-
-                        null,
-
-                    'mensaje' =>
-
-                        'Necesito saber el año y el mes para consultar el saldo inicial.',
-
-                ];
-
-            }
+    if ($periodoActual) {
+        $anio = (int) $periodoActual->anio;
+    } else {
+        return [
+            'success' => false,
+            'tipo' => 'texto',
+            'resultado' => null,
+            'mensaje' =>
+                'No pude determinar el año del período.',
+        ];
+    }
+}
 
             $resultado =
 
@@ -2320,22 +2349,32 @@ if (
     str_contains($texto, 'cuanto dinero tenemos')
 ) {
 
+   if ($anio !== null && $mes !== null) {
+
+    $periodo = \App\Models\Periodo::where('anio', $anio)
+        ->where('mes', $mes)
+        ->first();
+
+} else {
+
     $periodo = $this->zoeQuery->periodoActual();
 
-    if (!$periodo) {
+}
 
-        return [
-            'success' => false,
+if (!$periodo) {
 
-            'tipo' => 'texto',
+    return [
+        'success' => false,
 
-            'resultado' => null,
+        'tipo' => 'texto',
 
-            'mensaje' =>
-                'No encontré un período activo.',
-        ];
+        'resultado' => null,
 
-    }
+        'mensaje' =>
+            'No encontré el período solicitado.',
+    ];
+
+}
 
    $saldoInicial =
     (float) $periodo->saldo_inicial;
@@ -2693,58 +2732,38 @@ return [
     ): array {
 
         $respuesta =
+    $this->sigiAi->responder(
+        $consulta,
+        'Eres ZOE, la asistente virtual de SIGEFIV. '
+        . 'Tu nombre es exclusivamente ZOE. '
+        . 'Nunca te identifiques como SIGI ni como Sigi. '
+        . 'Si el usuario menciona SIGI, continúa utilizando el nombre ZOE. '
+        . 'Responde siempre en español, de forma natural, amable y cercana. '
+        . 'Puedes conversar sobre temas generales y ayudar al usuario. '
+        . 'No inventes datos financieros de SIGEFIV. '
+        . 'Las consultas sobre ingresos, egresos, movimientos, periodos, '
+        . 'usuarios, roles y demás información del sistema son atendidas '
+        . 'localmente por SIGEFIV. '
+        . 'Si el usuario quiere conversar, responde como un asistente '
+        . 'amigable y conciso.',
+        $usuarioId
+    );
 
-            $this->sigiAi->responder(
+       if ($respuesta !== null) {
 
-                $consulta,
+    $respuesta = preg_replace(
+        '/\bSIGI\b/iu',
+        'ZOE',
+        $respuesta
+    );
 
-                'Eres ZOE, la asistente virtual de SIGEFIV. '
-
-                . 'Responde siempre en español, de forma natural, amable y cercana. '
-
-                . 'Puedes conversar sobre temas generales y ayudar al usuario. '
-
-                . 'No inventes datos financieros de SIGEFIV. '
-
-                . 'Las consultas sobre ingresos, egresos, movimientos, periodos, '
-
-                . 'usuarios, roles y demás información del sistema son atendidas '
-
-                . 'localmente por SIGEFIV. '
-
-                . 'Si el usuario quiere conversar, responde como un asistente '
-
-                . 'amigable y conciso.',
-
-                $usuarioId
-
-            );
-
-        if ($respuesta !== null) {
-
-            return [
-
-                'success' =>
-
-                    true,
-
-                'tipo' =>
-
-                    'texto',
-
-                'resultado' =>
-
-                    null,
-
-                'mensaje' =>
-
-                    '🤖 ' .
-
-                    $respuesta,
-
-            ];
-
-        }
+    return [
+        'success' => true,
+        'tipo' => 'texto',
+        'resultado' => null,
+        'mensaje' => '🤖 ' . $respuesta,
+    ];
+}
 
         return [
 
@@ -2806,31 +2825,21 @@ return [
 
             );
 
-        if ($respuesta !== null) {
+      if ($respuesta !== null) {
 
-            return [
+    $respuesta = preg_replace(
+        '/\bSIGI\b/iu',
+        'ZOE',
+        $respuesta
+    );
 
-                'success' =>
-
-                    true,
-
-                'tipo' =>
-
-                    'texto',
-
-                'resultado' =>
-
-                    null,
-
-                'mensaje' =>
-
-                    '🤖 ' .
-
-                    $respuesta,
-
-            ];
-
-        }
+    return [
+        'success' => true,
+        'tipo' => 'texto',
+        'resultado' => null,
+        'mensaje' => '🤖 ' . $respuesta,
+    ];
+}
 
         return [
 
@@ -2856,208 +2865,169 @@ return [
 
     }
 
-    /**
-
- * --------------------------------------------------------------------------
-
- * RESUMEN DE UN PERÍODO
-
- * --------------------------------------------------------------------------
-
- *
-
- * Consulta exclusivamente datos de Laravel.
-
- *
-
- * Ejemplos:
-
- *   resumen de junio
-
- *   resumen de junio 2026
-
- *   resumen del mes de junio
-
- *
-
- * El año de una consulta que solo indica mes se toma
-
- * del período activo de SIGEFIV.
-
- */
-
-private function ejecutarResumenPeriodoZoe(
-
+    private function ejecutarResumenPeriodoZoe(
     array $interpretacion
-
 ): array {
 
     $texto = mb_strtolower(
-
         (string) (
-
             $interpretacion['consulta_original']
-
             ?? $interpretacion['texto']
-
             ?? ''
-
         ),
-
         'UTF-8'
-
     );
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Detectar mes
-
+    | PERÍODO ACTUAL
     |--------------------------------------------------------------------------
-
+    |
+    | Si ZOE indica usar_periodo_activo, o la consulta dice
+    | "mes actual", "período actual" o "período vigente",
+    | SIEMPRE usamos el período abierto de SIGEFIV.
+    |
     */
 
+    $usarPeriodoActivo =
+        ($interpretacion['usar_periodo_activo'] ?? false) === true;
+
+    $esPeriodoActual =
+        $usarPeriodoActivo ||
+        str_contains($texto, 'mes actual') ||
+        str_contains($texto, 'periodo actual') ||
+        str_contains($texto, 'período actual') ||
+        str_contains($texto, 'periodo vigente') ||
+        str_contains($texto, 'período vigente');
+
+    /*
+    |--------------------------------------------------------------------------
+    | FECHA INTERPRETADA
+    |--------------------------------------------------------------------------
+    */
+
+    $fecha = $interpretacion['fecha'] ?? [];
+
+    $anio = null;
     $mes = null;
 
+    if (
+        isset($fecha['anio']) &&
+        is_numeric($fecha['anio'])
+    ) {
+        $anio = (int) $fecha['anio'];
+    }
+
+    if (
+        isset($interpretacion['anio']) &&
+        is_numeric($interpretacion['anio'])
+    ) {
+        $anio = (int) $interpretacion['anio'];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DETECTAR MES ESCRITO
+    |--------------------------------------------------------------------------
+    */
+
     $nombreMeses = [
-
         'enero'      => 1,
-
         'febrero'    => 2,
-
         'marzo'      => 3,
-
         'abril'      => 4,
-
         'mayo'       => 5,
-
         'junio'      => 6,
-
         'julio'      => 7,
-
         'agosto'     => 8,
-
         'septiembre' => 9,
-
         'setiembre'  => 9,
-
         'octubre'    => 10,
-
         'noviembre'  => 11,
-
         'diciembre'  => 12,
-
     ];
 
     foreach ($nombreMeses as $nombre => $numero) {
 
         if (str_contains($texto, $nombre)) {
-
             $mes = $numero;
-
             break;
-
         }
-
     }
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | También aceptar mes numérico desde la interpretación
-
+    | MES NUMÉRICO DESDE LA INTERPRETACIÓN
     |--------------------------------------------------------------------------
-
     */
 
-    $fecha = $interpretacion['fecha'] ?? [];
-
     if (
-
         $mes === null &&
-
         isset($fecha['mes']) &&
-
         is_numeric($fecha['mes'])
-
     ) {
-
         $mes = (int) $fecha['mes'];
-
     }
 
     if (
-
         $mes === null &&
-
         isset($interpretacion['mes']) &&
-
         is_numeric($interpretacion['mes'])
-
     ) {
-
         $mes = (int) $interpretacion['mes'];
-
     }
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Detectar año
-
+    | SI ES EL PERÍODO ACTUAL
     |--------------------------------------------------------------------------
-
+    |
+    | Aquí está la corrección importante.
+    |
+    | NO usamos la fecha anterior.
+    | NO usamos mayo.
+    | NO usamos la fecha del servidor.
+    |
+    | Usamos el período abierto de SIGEFIV mediante
+    | ZoePeriodoConsultaService.
+    |
     */
 
-    $anio = null;
+    if ($esPeriodoActual) {
 
-    if (
+        $periodoResuelto =
+            $this->zoePeriodoConsulta
+                ->resolverPeriodo($interpretacion);
 
-        isset($fecha['anio']) &&
+        if (
+            $periodoResuelto['periodo_activo_encontrado']
+        ) {
 
-        is_numeric($fecha['anio'])
+            $anio = (int) $periodoResuelto['anio'];
+            $mes = (int) $periodoResuelto['mes'];
 
-    ) {
+        } else {
 
-        $anio = (int) $fecha['anio'];
-
-    }
-
-    if (
-
-        $anio === null &&
-
-        isset($interpretacion['anio']) &&
-
-        is_numeric($interpretacion['anio'])
-
-    ) {
-
-        $anio = (int) $interpretacion['anio'];
-
+            return [
+                'success' => false,
+                'tipo' => 'texto',
+                'resultado' => null,
+                'mensaje' =>
+                    '🤖 No encontré un período activo en SIGEFIV.',
+            ];
+        }
     }
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Si no se indicó año, usamos el año del período activo
-
+    | SI SOLO SE INDICÓ EL MES
     |--------------------------------------------------------------------------
-
     |
-
-    | Esta es la regla que ya estamos utilizando en ZOE:
-
+    | Ejemplo:
+    | "resumen de mayo"
     |
-
-    | "junio" → junio del año del período activo.
-
+    | El año será el año del período activo.
     |
-
     */
 
     if ($anio === null) {
@@ -3069,176 +3039,106 @@ private function ejecutarResumenPeriodoZoe(
             $anio = (int) $periodoActivo->anio;
 
         }
-
     }
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Validación
-
+    | VALIDACIÓN
     |--------------------------------------------------------------------------
-
     */
-
-    // Si la consulta pide el resumen del período actual,
-    // resolver directamente el período activo.
-    if (
-        $mes === null &&
-        (
-            str_contains($texto, 'periodo actual') ||
-            str_contains($texto, 'período actual') ||
-            str_contains($texto, 'periodo vigente') ||
-            str_contains($texto, 'período vigente')
-        )
-    ) {
-
-        $periodoActual =
-            $this->zoeQuery->periodoActual();
-
-        if ($periodoActual) {
-            $mes = (int) $periodoActual->mes;
-            $anio = (int) $periodoActual->anio;
-        }
-    }
 
     if ($mes === null) {
 
         return [
-
             'success' => false,
-
             'tipo' => 'texto',
-
             'resultado' => null,
-
             'mensaje' =>
-
                 '🤖 Necesito saber qué mes deseas consultar.',
-
         ];
-
     }
 
     if ($anio === null) {
 
         return [
-
             'success' => false,
-
             'tipo' => 'texto',
-
             'resultado' => null,
-
             'mensaje' =>
-
                 '🤖 No pude determinar el año del período que deseas consultar.',
-
         ];
-
     }
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Buscar período exacto
-
+    | BUSCAR PERÍODO EXACTO
     |--------------------------------------------------------------------------
-
     */
 
     $periodo = Periodo::where('anio', $anio)
-
         ->where('mes', $mes)
-
         ->first();
 
     if (!$periodo) {
 
         return [
-
             'success' => true,
-
             'tipo' => 'texto',
-
             'resultado' => null,
-
             'mensaje' =>
-
                 "🤖 No existe un período registrado para {$mes}/{$anio}.",
-
         ];
-
     }
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Calcular valores desde los movimientos reales (solo lectura)
-
+    | CALCULAR VALORES DESDE LOS MOVIMIENTOS REALES
     |--------------------------------------------------------------------------
-
-    |
-
-    | Esta consulta NO crea ni modifica movimientos ni períodos.
-
-    | Los totales se calculan directamente desde los movimientos registrados.
-
-    |
-
     */
 
     $saldoInicial = (float) $periodo->saldo_inicial;
 
     $movimientos = $periodo->movimientos()
-
         ->where('estado', 'Registrado')
-
         ->get();
 
     $ingresos = (float) $movimientos
-
         ->where('tipo', 'Ingreso')
-
         ->sum('monto');
 
     $egresos = (float) $movimientos
-
         ->where('tipo', 'Egreso')
-
         ->sum('monto');
 
-    $saldoFinal = $saldoInicial + $ingresos - $egresos;
+    $saldoFinal =
+        $saldoInicial +
+        $ingresos -
+        $egresos;
 
-    $saldoDisponible = $saldoInicial + $ingresos;
+    $saldoDisponible =
+        $saldoInicial +
+        $ingresos;
+
+    /*
+    |--------------------------------------------------------------------------
+    | FORMATEAR MONTOS
+    |--------------------------------------------------------------------------
+    */
 
     $formatear = function (float $monto): string {
 
         return 'S/ ' . number_format(
-
             $monto,
-
             2,
-
             '.',
-
             ','
-
         );
-
     };
 
     /*
-
     |--------------------------------------------------------------------------
-
-    | Respuesta estructurada
-
+    | RESPUESTA
     |--------------------------------------------------------------------------
-
     */
 
     return [
@@ -3250,41 +3150,31 @@ private function ejecutarResumenPeriodoZoe(
         'resultado' => [
 
             'periodo_id' =>
-
                 $periodo->id,
 
             'anio' =>
-
                 $anio,
 
             'mes' =>
-
                 $mes,
 
             'periodo' =>
-
                 $periodo->nombre_completo,
 
             'saldo_inicial' =>
-
                 $saldoInicial,
 
             'ingresos' =>
-
                 $ingresos,
 
             'egresos' =>
-
                 $egresos,
 
             'saldo_disponible' =>
-
                 $saldoDisponible,
 
             'saldo_final' =>
-
                 $saldoFinal,
-
         ],
 
         'mensaje' =>
@@ -3292,41 +3182,33 @@ private function ejecutarResumenPeriodoZoe(
             "📊 RESUMEN DEL PERÍODO\n\n" .
 
             "📅 Período: " .
-
             $periodo->nombre_completo .
 
             "\n\n" .
 
             "💰 Saldo Anterior: " .
-
             $formatear($saldoInicial) .
 
             "\n\n" .
 
             "📈 Ingresos: " .
-
             $formatear($ingresos) .
 
             "\n\n" .
 
             "📉 Egresos: " .
-
             $formatear($egresos) .
 
             "\n\n" .
 
             "💵 Disponible: " .
-
             $formatear($saldoDisponible) .
 
             "\n\n" .
 
             "💵 Saldo final: " .
-
             $formatear($saldoFinal),
-
     ];
-
 }
 
 }

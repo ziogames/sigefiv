@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+numpy
+soundfile
+faster-whisper
+supertonic
+ollama
+onnxruntime-gpu

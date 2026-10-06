@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\ZoeN8nService;
+use App\Services\FcmService;
+
 
 class ZoeController extends Controller
 {
@@ -40,15 +43,18 @@ class ZoeController extends Controller
                 ], 502);
             }
 
-            $respuesta =
-                $response->json('respuesta')
-                ?? $response->json('mensaje')
-                ?? $response->json('text');
+          $respuesta =
+    $response->json('respuesta')
+    ?? $response->json('mensaje')
+    ?? $response->json('text');
 
-            return response()->json([
-                'success' => true,
-                'respuesta' => $respuesta,
-            ]);
+$estadistica = $response->json('estadistica');
+
+return response()->json([
+    'success' => true,
+    'respuesta' => $respuesta,
+    'estadistica' => $estadistica,
+]);
 
         } catch (\Throwable $e) {
             Log::error('Error al comunicarse con ZOE', [
@@ -59,6 +65,69 @@ class ZoeController extends Controller
                 'success' => false,
                 'message' => 'Error al comunicarse con ZOE.',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+     /**
+     * Genera un mensaje inteligente para la mascota ZOE
+     * y lo distribuye mediante FCM.
+     */
+    public function mensajeMascota(
+        Request $request,
+        ZoeN8nService $zoeN8nService,
+        FcmService $fcmService
+    ) {
+        $request->validate([
+            'evento' => 'required|string|max:100',
+            'contexto' => 'nullable|array',
+        ]);
+
+        try {
+
+            $usuario = $request->user();
+
+            $resultado = $zoeN8nService->mensajeMascota(
+                evento: $request->evento,
+                usuarioId: $usuario?->id ?? 0,
+                nombreUsuario: $usuario?->name,
+                contexto: $request->contexto ?? []
+            );
+
+            if ($resultado === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo obtener el mensaje de ZOE.',
+                ], 502);
+            }
+
+            $enviados = $fcmService->enviarMensajeZoe(
+                titulo: $resultado['titulo'],
+                mensaje: $resultado['mensaje'],
+                icono: $resultado['icono'],
+                estado: $resultado['estado']
+            );
+
+            return response()->json([
+                'success' => true,
+                'titulo' => $resultado['titulo'],
+                'mensaje' => $resultado['mensaje'],
+                'icono' => $resultado['icono'],
+                'estado' => $resultado['estado'],
+                'dispositivos_enviados' => $enviados,
+            ]);
+
+        } catch (\Throwable $e) {
+
+            Log::error(
+                'Error generando mensaje de ZOE MASCOTA',
+                [
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el mensaje de ZOE.',
             ], 500);
         }
     }

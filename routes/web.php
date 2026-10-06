@@ -136,34 +136,44 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-    Route::get(
-        '/chat',
-        [ChatController::class, 'index']
-    )->name('chat.index');
+  Route::get(
+    '/chat',
+    [ChatController::class, 'index']
+)
+    ->name('chat.index')
+    ->middleware('permission:chat.index');
 
 
     Route::post(
         '/chat',
         [ChatController::class, 'store']
-    )->name('chat.store');
+    )
+        ->name('chat.store')
+        ->middleware('permission:chat.index');
 
 
     Route::get(
         '/chat/nuevos',
         [ChatController::class, 'nuevos']
-    )->name('chat.nuevos');
+    )
+        ->name('chat.nuevos')
+        ->middleware('permission:chat.index');
 
 
     Route::post(
         '/chat/presencia',
         [ChatController::class, 'presencia']
-    )->name('chat.presencia');
+    )
+        ->name('chat.presencia')
+        ->middleware('permission:chat.index');
 
 
     Route::post(
         '/chat/escribiendo',
         [ChatController::class, 'escribiendo']
-    )->name('chat.escribiendo');
+    )
+        ->name('chat.escribiendo')
+        ->middleware('permission:chat.index');
 
 
     /*
@@ -345,12 +355,12 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-    Route::post(
-        '/periodos/{periodo}/cerrar',
-        [PeriodoController::class, 'cerrar']
-    )
-        ->name('periodos.cerrar')
-        ->middleware('permission:dashboard');
+  Route::post(
+    '/periodos/{periodo}/cerrar',
+    [PeriodoController::class, 'cerrar']
+)
+    ->name('periodos.cerrar')
+    ->middleware('permission:periodos.cerrar');
 
 
     /*

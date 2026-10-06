@@ -172,5 +172,9 @@ return [
     ),
 
 ],
+'zoe_voz_webhook' => env(
+    'ZOE_VOZ_WEBHOOK_URL'
+),
+
 
 ];

@@ -47,6 +47,16 @@ class PermissionSeeder extends Seeder
             'asambleas.destroy',
             'asambleas.enviar',
             'asambleas.imprimir',
+
+            // Chat Vecinal
+            'chat.index',
+
+            // Notificaciones
+            'notificaciones.index',
+
+            // Períodos
+            'periodos.index',
+            'periodos.cerrar',
         ];
 
 

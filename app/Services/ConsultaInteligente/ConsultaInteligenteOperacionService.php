@@ -764,6 +764,19 @@ class ConsultaInteligenteOperacionService
         return 'saldo';
     }
 
+    /*
+|--------------------------------------------------------------------------
+| SALDO INICIAL / SALDO ANTERIOR
+|--------------------------------------------------------------------------
+*/
+
+if (
+    str_contains($texto, 'saldo inicial') ||
+    str_contains($texto, 'saldo anterior')
+) {
+    return 'show';
+}
+
 /*
 
         |--------------------------------------------------------------------------

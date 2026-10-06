@@ -213,6 +213,43 @@ class PeriodoService
             'fecha_cierre' => null,
 
         ]);
+
+        // ============================================================
+        // NOTIFICACIÓN DE APERTURA PARA ZOE
+        // ============================================================
+
+        $notificacionService =
+            app(
+                \App\Services\NotificacionService::class
+            );
+
+        $notificacionService->enviarATodos(
+
+            titulo: 'Período abierto',
+
+            mensaje:
+                'Zoe ha abierto el período ' .
+                $periodo->nombre_completo .
+                '.',
+
+            tipo: 'periodo_abierto',
+
+            data: [
+
+                'periodo_id' =>
+                    (string) $periodo->id,
+
+                'anio' =>
+                    (string) $periodo->anio,
+
+                'mes' =>
+                    (string) $periodo->mes,
+
+                'evento' =>
+                    'periodo_abierto',
+
+            ],
+        );
     }
 
     /**
@@ -428,7 +465,7 @@ class PeriodoService
                         ''
                     ),
 
-                tipo: 'zoe',
+                tipo: 'periodo_cerrado',
 
                 data: [
 
@@ -452,6 +489,9 @@ class PeriodoService
 
                     'saldo_final' =>
                         (string) $periodo->saldo_final,
+
+                    'evento' =>
+                        'periodo_cerrado',
 
                 ],
             );

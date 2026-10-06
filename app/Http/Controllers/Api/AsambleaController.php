@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Throwable;
 
 class AsambleaController extends Controller
@@ -76,6 +77,241 @@ class AsambleaController extends Controller
         }
     }
 
+    public function showPublicada(Asamblea $asamblea): JsonResponse
+{
+    try {
+
+        // Solo asambleas publicadas
+        if (strtolower((string) $asamblea->estado) !== 'publicada') {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay asambleas programadas por el momento.',
+                'asamblea' => null,
+            ], 404);
+        }
+
+        // Debe tener fecha y hora
+        if (!$asamblea->fecha || !$asamblea->hora) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay asambleas programadas por el momento.',
+                'asamblea' => null,
+            ], 404);
+        }
+
+        // Fecha + hora de inicio de la asamblea
+        $fechaHoraAsamblea = \Carbon\Carbon::parse(
+            $asamblea->fecha->format('Y-m-d') . ' ' .
+            $asamblea->hora->format('H:i:s')
+        );
+
+        // Si ya comenzó, deja de considerarse próxima
+        if ($fechaHoraAsamblea->lessThanOrEqualTo(now())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay asambleas programadas por el momento.',
+                'asamblea' => null,
+            ], 404);
+        }
+
+        $asamblea->load([
+            'creador',
+            'agendas',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'asamblea' => $this->formatearAsamblea($asamblea),
+        ]);
+
+    } catch (Throwable $e) {
+
+        Log::error('Error al consultar asamblea pública', [
+            'asamblea_id' => $asamblea->id ?? null,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al consultar la asamblea.',
+            'asamblea' => null,
+        ], 500);
+    }
+}
+
+/**
+ * Obtener la próxima asamblea publicada.
+ *
+ * GET /api/asambleas/convocatoria/proxima
+ */
+public function proxima(): JsonResponse
+{
+    try {
+        $ahora = now();
+
+        $asamblea = Asamblea::query()
+            ->where('estado', 'publicada')
+            ->whereNotNull('fecha')
+            ->whereNotNull('hora')
+            ->where(function ($query) use ($ahora) {
+
+                $query->whereDate(
+                    'fecha',
+                    '>',
+                    $ahora->toDateString()
+                )
+
+                ->orWhere(function ($query) use ($ahora) {
+
+                    $query->whereDate(
+                        'fecha',
+                        '=',
+                        $ahora->toDateString()
+                    )
+                    ->whereTime(
+                        'hora',
+                        '>',
+                        $ahora->format('H:i:s')
+                    );
+                });
+            })
+            ->orderBy('fecha')
+            ->orderBy('hora')
+            ->with([
+                'creador',
+                'agendas',
+            ])
+            ->first();
+
+        if (!$asamblea) {
+            return response()->json([
+                'success' => false,
+                'message' =>
+                    'No hay asambleas programadas por el momento.',
+                'asamblea' => null,
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'asamblea' =>
+                $this->formatearAsamblea($asamblea),
+        ]);
+
+    } catch (Throwable $e) {
+
+        Log::error(
+            'Error al consultar próxima asamblea',
+            [
+                'error' => $e->getMessage(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' =>
+                'Error al consultar la próxima asamblea.',
+            'asamblea' => null,
+        ], 500);
+    }
+}
+
+
+/**
+ * Generar mensaje personalizado cuando no hay asambleas.
+ *
+ * GET /api/asambleas/aviso-sin-asamblea
+ */
+/**
+ * Generar mensaje personalizado de ZOE cuando no hay asambleas.
+ *
+ * GET /api/asambleas/aviso-sin-asamblea
+ */
+public function avisoSinAsamblea(Request $request): JsonResponse
+{
+    try {
+
+        $usuario = $request->user();
+
+        $nombre = $usuario?->name ?? 'vecino';
+
+        $mensaje = <<<PROMPT
+Genera un mensaje breve y amable para un vecino de SIGEFIV.
+
+Nombre del vecino: {$nombre}
+
+Situación:
+Actualmente no hay ninguna asamblea programada.
+
+Reglas:
+- Saluda al vecino usando su nombre.
+- Indica claramente que actualmente no hay asambleas programadas.
+- Indica que se le mantendrá informado cuando se programe una nueva.
+- Puedes variar la redacción para que suene natural y amigable.
+- Puedes utilizar uno o dos emojis.
+- NO inventes fechas.
+- NO inventes asambleas.
+- NO inventes actividades.
+- NO agregues información que no esté indicada.
+- No menciones que eres una inteligencia artificial.
+- El mensaje debe ser corto porque aparecerá dentro de un cuadro de diálogo de la aplicación.
+
+Devuelve únicamente el mensaje que verá el vecino.
+PROMPT;
+
+        $response = Http::timeout(120)
+            ->post(config('services.n8n.zoe_webhook'), [
+                'mensaje' => $mensaje,
+                'nombre_usuario' => $nombre,
+            ]);
+
+        Log::info('ZOE aviso sin asamblea', [
+            'status' => $response->status(),
+            'body' => $response->body(),
+            'json' => $response->json(),
+        ]);
+
+        if ($response->failed()) {
+
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'No hay asambleas programadas por el momento.',
+            ], 502);
+        }
+
+        $respuesta =
+            $response->json('respuesta')
+            ?? $response->json('mensaje')
+            ?? $response->json('text');
+
+        if (empty($respuesta)) {
+
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'No hay asambleas programadas por el momento.',
+            ], 502);
+        }
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => $respuesta,
+        ]);
+
+    } catch (Throwable $e) {
+
+        Log::error(
+            'Error al generar aviso de ZOE sin asamblea',
+            [
+                'error' => $e->getMessage(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'mensaje' => 'No hay asambleas programadas por el momento.',
+        ], 500);
+    }
+}
     /**
      * Crear una asamblea.
      *

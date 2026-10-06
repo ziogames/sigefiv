@@ -6,6 +6,7 @@ use App\Models\Categoria;
 use App\Models\Movimiento;
 use Illuminate\Http\UploadedFile;
 
+
 class MovimientoService
 {
     /**

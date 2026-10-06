@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMovimientoRequest;
 use App\Http\Requests\UpdateMovimientoRequest;
+use App\Models\Categoria;
 use App\Models\Movimiento;
 use App\Models\Periodo;
 use App\Services\FcmService;
@@ -61,6 +62,16 @@ class MovimientoController extends Controller
     }
 
     /**
+ * Categorías disponibles para registrar movimientos.
+ */
+public function categorias(): JsonResponse
+{
+    return response()->json([
+        'success' => true,
+        'categorias' => Categoria::orderBy('nombre')->get(),
+    ]);
+}
+    /**
      * El detalle se puede consultar aunque el período esté cerrado.
      */
     public function show(Movimiento $movimiento): JsonResponse
@@ -109,10 +120,12 @@ class MovimientoController extends Controller
              * Notificamos silenciosamente a los dispositivos
              * para que actualicen sus datos en tiempo real.
              */
-            $this->fcmService->enviarEventoAUsuarios([
-                'tipo' => 'movimiento_actualizado',
-                'movimiento_id' => $movimiento->id,
-            ]);
+          $this->fcmService->enviarEventoAUsuarios([
+    'tipo' => 'movimiento_actualizado',
+    'movimiento_id' => $movimiento->id,
+]);
+
+
 
             return response()->json([
                 'success' => true,

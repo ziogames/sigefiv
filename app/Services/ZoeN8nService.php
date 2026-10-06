@@ -146,4 +146,104 @@ class ZoeN8nService
             return null;
         }
     }
+        /**
+     * Envía un evento a ZOE para generar un mensaje de la mascota.
+     *
+     * No modifica el método consultar(), para mantener
+     * compatibilidad con todo el flujo actual de ZOE.
+     */
+    public function mensajeMascota(
+        string $evento,
+        int $usuarioId,
+        ?string $nombreUsuario = null,
+        array $contexto = []
+    ): ?array {
+        try {
+
+            $webhookMascota = (string) config(
+    'services.n8n.zoe_webhook',
+    'http://host.docker.internal:5678/webhook/zoe'
+);
+
+if (trim($webhookMascota) === '') {
+    Log::error('ZOE MASCOTA: webhook de n8n no configurado.');
+
+    return null;
+}
+
+$response = Http::timeout(30)
+    ->connectTimeout(10)
+    ->acceptJson()
+    ->asJson()
+    ->post($webhookMascota, [
+                    'tipo' => 'mascota',
+                    'evento' => $evento,
+                    'usuario_id' => $usuarioId,
+                    'nombre_usuario' => $nombreUsuario,
+                    'contexto' => $contexto,
+                ]);
+
+            Log::info('ZOE MASCOTA respuesta de n8n', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning(
+                    'n8n devolvió un error para ZOE MASCOTA.',
+                    [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]
+                );
+
+                return null;
+            }
+
+            $datos = $response->json();
+
+            if (!is_array($datos)) {
+                return null;
+            }
+
+            $mensaje =
+                $datos['mensaje']
+                ?? $datos['respuesta']
+                ?? $datos['text']
+                ?? $datos['output']
+                ?? null;
+
+            if (!is_string($mensaje) || trim($mensaje) === '') {
+                return null;
+            }
+
+            return [
+                'titulo' => is_string($datos['titulo'] ?? null)
+                    ? $datos['titulo']
+                    : 'ZOE',
+
+                'mensaje' => trim($mensaje),
+
+                'icono' => is_string($datos['icono'] ?? null)
+                    ? $datos['icono']
+                    : '🤖',
+
+                'estado' => is_string($datos['estado'] ?? null)
+                    ? $datos['estado']
+                    : 'FELIZ',
+            ];
+
+        } catch (Throwable $e) {
+
+            Log::error('Error conectando ZOE MASCOTA con n8n.', [
+                'url' => $this->webhookUrl,
+                'evento' => $evento,
+                'mensaje' => $e->getMessage(),
+                'archivo' => $e->getFile(),
+                'linea' => $e->getLine(),
+            ]);
+
+            return null;
+        }
+    }
 }

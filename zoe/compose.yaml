@@ -1,0 +1,27 @@
+services:
+  zoe-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: zoe-gateway
+
+    restart: unless-stopped
+
+    ports:
+      - "8001:8000"
+
+    environment:
+      OLLAMA_HOST: "http://host.docker.internal:11434"
+      HF_HOME: "/root/.cache/huggingface"
+
+    volumes:
+      - zoe-model-cache:/root/.cache/huggingface
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    gpus: all
+
+volumes:
+  zoe-model-cache:

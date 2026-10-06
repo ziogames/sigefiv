@@ -229,4 +229,28 @@ public function enviarEventoAUsuarios(
 
     return $enviados;
 }
+    /**
+     * Envía un mensaje inteligente de ZOE a todos los dispositivos.
+     *
+     * La aplicación Android recibirá los datos mediante FCM
+     * y mostrará el mensaje utilizando la mascota global.
+     */
+    public function enviarMensajeZoe(
+        string $titulo,
+        string $mensaje,
+        string $icono = '🤖',
+        string $estado = 'FELIZ'
+    ): int {
+        return $this->enviarAUsuarios(
+            titulo: $titulo,
+            mensaje: $mensaje,
+            data: [
+                'tipo' => 'zoe_mascota',
+                'titulo' => $titulo,
+                'mensaje' => $mensaje,
+                'icono' => $icono,
+                'estado' => $estado,
+            ]
+        );
+    }
 }

@@ -147,6 +147,61 @@ class ConsultaInteligenteController extends Controller
         | administrativas sobre usuarios y roles.
         |
         */
+        /*
+|--------------------------------------------------------------------------
+| PERÍODO ACTUAL DE SIGEFIV
+|--------------------------------------------------------------------------
+|
+| Si el usuario solicita explícitamente el período/mes actual,
+| usamos directamente el período abierto de SIGEFIV.
+|
+*/
+
+/*
+|--------------------------------------------------------------------------
+| PERÍODO ACTUAL DE SIGEFIV
+|--------------------------------------------------------------------------
+|
+| "mes actual", "período actual" y "periodo actual"
+| deben utilizar siempre el período abierto de SIGEFIV.
+|
+*/
+
+$textoConsulta = mb_strtolower(
+    trim($consulta),
+    'UTF-8'
+);
+
+$esPeriodoActualConsulta =
+    str_contains($textoConsulta, 'mes actual') ||
+    str_contains($textoConsulta, 'periodo actual') ||
+    str_contains($textoConsulta, 'período actual');
+
+if ($esPeriodoActualConsulta) {
+
+    $periodoActual =
+        \App\Models\Periodo::obtenerAbierto();
+
+    if ($periodoActual) {
+
+        $interpretacion['fecha'] = [
+            'anio' => (int) $periodoActual->anio,
+            'mes' => (int) $periodoActual->mes,
+        ];
+
+        \Log::info(
+            'ZOE PERIODO ACTUAL FORZADO',
+            [
+                'consulta' => $consulta,
+                'periodo_id' => $periodoActual->id,
+                'anio' => $periodoActual->anio,
+                'mes' => $periodoActual->mes,
+                'nombre' => $periodoActual->nombre,
+            ]
+        );
+    }
+}
+
 
         $resultado =
             $ejecutor->ejecutar(
@@ -414,33 +469,70 @@ class ConsultaInteligenteController extends Controller
         | realmente no contiene información temporal.
         |
         */
+$fechaNueva =
+    $interpretacion['fecha']
+    ?? [];
 
-        $fechaNueva =
-            $interpretacion['fecha']
-            ?? [];
+$fechaAnterior =
+    $contexto['fecha']
+    ?? [];
 
-        $fechaAnterior =
-            $contexto['fecha']
-            ?? [];
+/*
+|--------------------------------------------------------------------------
+| DETECTAR PERÍODO ACTUAL
+|--------------------------------------------------------------------------
+|
+| Si el usuario dice "período actual" o "mes actual",
+| NO debemos heredar el período anterior.
+|
+*/
 
+$esPeriodoActual =
+    str_contains($texto, 'periodo actual') ||
+    str_contains($texto, 'período actual') ||
+    str_contains($texto, 'mes actual');
 
-        $tieneFechaNueva =
-            ($fechaNueva['anio'] ?? null) !== null ||
-            ($fechaNueva['mes'] ?? null) !== null ||
-            !empty($fechaNueva['meses'] ?? []) ||
-            ($fechaNueva['mes_desde'] ?? null) !== null ||
-            ($fechaNueva['mes_hasta'] ?? null) !== null;
+/*
+|--------------------------------------------------------------------------
+| FECHA EXPLÍCITA EN LA CONSULTA
+|--------------------------------------------------------------------------
+*/
 
+$tieneFechaNueva =
+    ($fechaNueva['anio'] ?? null) !== null ||
+    ($fechaNueva['mes'] ?? null) !== null ||
+    !empty($fechaNueva['meses'] ?? []) ||
+    ($fechaNueva['mes_desde'] ?? null) !== null ||
+    ($fechaNueva['mes_hasta'] ?? null) !== null;
 
-        if (
-            !$tieneFechaNueva &&
-            !empty($fechaAnterior)
-        ) {
+/*
+|--------------------------------------------------------------------------
+| PERÍODO ACTUAL TIENE PRIORIDAD
+|--------------------------------------------------------------------------
+|
+| Nunca heredamos Mayo, Junio, etc. cuando el usuario
+| solicita explícitamente el período/mes actual.
+|
+*/
 
-            $interpretacion['fecha'] =
-                $fechaAnterior;
-        }
+if ($esPeriodoActual) {
 
+    $interpretacion['fecha'] = [];
+
+} elseif (
+    !$tieneFechaNueva &&
+    !empty($fechaAnterior)
+) {
+
+    /*
+     * Solo heredamos el período anterior cuando la
+     * nueva consulta realmente no especifica ningún
+     * período.
+     */
+
+    $interpretacion['fecha'] =
+        $fechaAnterior;
+}
 
         /*
         |--------------------------------------------------------------------------
