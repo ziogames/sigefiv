@@ -10,7 +10,7 @@ return [
     | This file is for storing the credentials for third party services such
     | as Mailgun, Postmark, AWS and more. This file provides the de facto
     | location for this type of information, allowing packages to have a
-    | conventional file to locate the various service credentials.
+    | conventional file name for this type of information.
     |
     */
 
@@ -46,10 +46,6 @@ return [
     |--------------------------------------------------------------------------
     | OpenRouter - Sigi
     |--------------------------------------------------------------------------
-    |
-    | La clave se mantiene en el archivo .env.
-    | Nunca coloques la API key directamente aquí.
-    |
     */
 
     'openrouter' => [
@@ -79,10 +75,6 @@ return [
     |--------------------------------------------------------------------------
     | Google OAuth
     |--------------------------------------------------------------------------
-    |
-    | Credenciales utilizadas por Laravel Socialite para
-    | iniciar sesión mediante una cuenta de Google.
-    |
     */
 
     'google' => [
@@ -110,11 +102,6 @@ return [
     |--------------------------------------------------------------------------
     | SIGI - Text to Speech
     |--------------------------------------------------------------------------
-    |
-    | El motor TTS se configura mediante .env.
-    | SIGEFIV no queda atado a un motor específico, permitiendo cambiar
-    | entre Kokoro, Piper u otro servicio al migrar a Raspberry Pi 5.
-    |
     */
 
     'sigi_tts' => [
@@ -149,32 +136,40 @@ return [
     |--------------------------------------------------------------------------
     | GIPHY - Chat Vecinal
     |--------------------------------------------------------------------------
-    |
-    | La API key se mantiene en .env.
-    | Nunca coloques la API key directamente aquí.
-    |
     */
 
     'giphy' => [
         'key' => env('GIPHY_API_KEY'),
     ],
 
-'n8n' => [
+    /*
+    |--------------------------------------------------------------------------
+    | n8n - ZOE
+    |--------------------------------------------------------------------------
+    */
 
-    'zoe_webhook' => env(
-        'N8N_ZOE_WEBHOOK_URL',
-        'http://host.docker.internal:5678/webhook/zoe'
+    'n8n' => [
+
+        // ZOE IA / SIGEFIV
+        'zoe_webhook_url' => env(
+            'N8N_ZOE_WEBHOOK_URL',
+            'http://host.docker.internal:5678/webhook/zoe-sigefiv-v2'
+        ),
+
+        // ZOE Chat Vecinal
+        'zoe_webhook' => env(
+            'N8N_ZOE_CHAT_WEBHOOK_URL',
+            'http://host.docker.internal:5678/webhook/zoe-chat-vecinal'
+        ),
+
+    ],
+
+    'zoe_voz_webhook' => env(
+        'ZOE_VOZ_WEBHOOK_URL'
     ),
 
-    'zoe_webhook_url' => env(
-        'N8N_ZOE_CHAT_WEBHOOK_URL',
-        'http://host.docker.internal:5678/webhook/zoe-chat-vecinal'
-    ),
-
-],
-'zoe_voz_webhook' => env(
-    'ZOE_VOZ_WEBHOOK_URL'
-),
-
+    'zoe_ai' => [
+        'key' => env('ZOE_AI_KEY'),
+    ],
 
 ];

@@ -22,8 +22,10 @@ use App\Http\Controllers\Api\ActividadController;
 use App\Http\Controllers\Api\ZoeEstadisticasController;
 use App\Http\Controllers\Api\ZoeEstadisticasBridgeController;
 use App\Http\Controllers\Api\ZoeVozController;
-
-
+use App\Http\Controllers\Api\ZoeAiController;
+use App\Http\Controllers\Api\ClimaController;
+use App\Http\Controllers\Api\ZoeEstatutosController;
+use App\Http\Controllers\Api\EmprendimientoController;
 /*
 |--------------------------------------------------------------------------
 | PRUEBA DE LA API
@@ -142,25 +144,29 @@ Route::middleware('auth:sanctum')->group(function () {
 ])->middleware('permission:movimientos.index');
 
 
-    Route::get('/movimientos/{movimiento}', [
+// Ver detalle
+Route::get('/movimientos/{movimiento}', [
     MovimientoController::class,
     'show',
-])->middleware('permission:movimientos.index');
+])->middleware('permission:movimientos.show');
 
-    Route::post('/movimientos', [
-        MovimientoController::class,
-        'store',
-    ])->middleware('permission:movimientos.index');
+// Crear movimiento
+Route::post('/movimientos', [
+    MovimientoController::class,
+    'store',
+])->middleware('permission:movimientos.create');
 
-    Route::put('/movimientos/{movimiento}', [
-        MovimientoController::class,
-        'update',
-    ])->middleware('permission:movimientos.index');
+// Editar movimiento
+Route::put('/movimientos/{movimiento}', [
+    MovimientoController::class,
+    'update',
+])->middleware('permission:movimientos.edit');
 
-    Route::delete('/movimientos/{movimiento}', [
-        MovimientoController::class,
-        'destroy',
-    ])->middleware('permission:movimientos.index');
+// Eliminar movimiento
+Route::delete('/movimientos/{movimiento}', [
+    MovimientoController::class,
+    'destroy',
+])->middleware('permission:movimientos.delete');
     
 
 
@@ -204,6 +210,35 @@ Route::post('/periodos/{id}/cerrar', [
     PeriodoController::class,
     'cerrar',
 ])->middleware('permission:periodos.cerrar');
+
+/*
+|--------------------------------------------------------------------------
+| ZOE AI — NUEVO CEREBRO
+|--------------------------------------------------------------------------
+*/
+
+
+
+Route::post('/zoe-ai/chat', [
+    \App\Http\Controllers\Api\ZoeAiController::class,
+    'chat',
+]);
+
+/*
+|--------------------------------------------------------------------------
+| ZOE
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/zoe', [
+    ZoeController::class,
+    'consultar',
+]);
+
+Route::post('/zoe/mascota', [
+    ZoeController::class,
+    'mensajeMascota',
+]);
     /*
     |--------------------------------------------------------------------------
     | ZOE — ASISTENTE INTELIGENTE
@@ -465,6 +500,7 @@ Route::post('/fcm/preferencia', [
     ActividadController::class,
     'index',
 ])->middleware('permission:actividad.index');
+
 Route::get('/estadisticas/ingresos-egresos', [
     ZoeEstadisticasController::class,
     'ingresosVsEgresos'
@@ -483,18 +519,67 @@ Route::get(
     '/estadisticas/resumen-financiero',
     [ZoeEstadisticasController::class, 'resumenFinanciero']
 );
-Route::post(
-    '/zoe-estadisticas',
-    [ZoeEstadisticasBridgeController::class, 'consultar']
-);
+
 
 Route::post('/zoe-voz', [
     ZoeVozController::class,
     'transcribir'
 ]);
 
+// Cambia esto:
+// Route::get('/categorias', [EmprendimientoController::class, 'categorias']);
+
+// Por esto (con una ruta única):
+Route::get('/emprendimientos/categorias', [EmprendimientoController::class, 'categorias']);
+Route::put('/emprendimientos/{id}/status', [EmprendimientoController::class, 'updateStatus']);
+Route::get('/user/emprendimientos', [EmprendimientoController::class, 'index']);
+Route::post('/emprendimientos', [EmprendimientoController::class, 'store']);
+Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
+
+
 });
 
+
+Route::post(
+    '/zoe-estadisticas',
+    [ZoeEstadisticasBridgeController::class, 'consultar']
+)->middleware('zoe.ai');
+
+Route::post(
+    '/zoe-estatutos',
+    [ZoeEstatutosController::class, 'consultar']
+)->middleware('zoe.ai');
+
+Route::post('/zoe-ai/resumen-periodo', [
+    ZoeAiController::class,
+    'resumenPeriodo',
+])->middleware('zoe.ai');
+
+Route::post('/zoe-ai/resumen-periodo-activo', [
+    ZoeAiController::class,
+    'resumenPeriodoActivo',
+])->middleware('zoe.ai');
+
+Route::post('/zoe-ai/saldo-caja-activo', [
+    ZoeAiController::class,
+    'saldoCajaActivo',
+])->middleware('zoe.ai');
+
+
+Route::post('/zoe-ai/movimientos', [
+    ZoeAiController::class,
+    'movimientos',
+])->middleware('zoe.ai');
+
+Route::post('/zoe-ai/contexto', [
+    ZoeAiController::class,
+    'obtenerContexto',
+])->middleware('zoe.ai');
+
+Route::post('/zoe-ai/contexto/actualizar', [
+    ZoeAiController::class,
+    'actualizarContexto',
+])->middleware('zoe.ai');
 /*
 |--------------------------------------------------------------------------
 | CHAT DEVICES — ACCESO POR TOKEN
@@ -510,4 +595,9 @@ Route::post('/chat-devices/{device}/control', [
     ChatDeviceController::class,
     'controlarPorToken',
 ]);
+Route::get('/clima', [ClimaController::class, 'obtener']);
 
+Route::get(
+    '/emprendimientos/buscar',
+    [EmprendimientoController::class, 'buscarPublicados']
+)->middleware('throttle:30,1');

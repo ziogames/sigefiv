@@ -22,15 +22,26 @@ return Application::configure(basePath: dirname(__DIR__))
                 Request::HEADER_X_FORWARDED_PROTO
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Alias de Middleware
+        |--------------------------------------------------------------------------
+        */
+
         $middleware->alias([
 
+            // Spatie Laravel Permission
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
 
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
 
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
 
+            // Estado del usuario
             'estado.usuario' => \App\Http\Middleware\VerificarEstadoUsuario::class,
+
+            // ZOE AI - comunicación interna Python/FastAPI
+            'zoe.ai' => \App\Http\Middleware\ZoeAiInternalAuth::class,
 
         ]);
 

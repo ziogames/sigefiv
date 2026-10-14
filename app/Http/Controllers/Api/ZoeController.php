@@ -21,13 +21,16 @@ class ZoeController extends Controller
         try {
             $usuario = $request->user();
 
-            $response = Http::timeout(120)
-                ->post(config('services.n8n.zoe_webhook'), [
-                    'mensaje' => $request->mensaje,
+           $response = Http::timeout(120)
+    ->post(config('services.n8n.zoe_webhook_url'), [
+        'mensaje' => $request->mensaje,
 
-                    // Nombre del usuario autenticado
-                    'nombre_usuario' => $usuario?->name ?? 'vecino',
-                ]);
+        // Usuario autenticado
+        'usuario_id' => $usuario?->id,
+
+        // Nombre del usuario autenticado
+        'nombre_usuario' => $usuario?->name ?? 'vecino',
+    ]);
 
             Log::info('ZOE respuesta n8n', [
                 'status' => $response->status(),

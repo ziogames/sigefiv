@@ -16,18 +16,18 @@ class DatabaseSeeder extends Seeder
         // Roles
         $this->call(RolesSeeder::class);
 
+        // Categorías para el módulo de Emprendimientos
+        $this->call(EmprendimientoCategoriaSeeder::class);
+
         // Crear o actualizar administrador
         $admin = User::updateOrCreate(
-
             [
                 'email' => 'admin@sigefiv.com',
             ],
-
             [
                 'name' => 'Administrador',
                 'password' => Hash::make('12345678'),
             ]
-
         );
 
         // Asignar rol

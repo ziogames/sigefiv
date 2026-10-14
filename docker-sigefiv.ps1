@@ -117,6 +117,21 @@ docker exec $container composer dump-autoload -o
 if ($LASTEXITCODE -ne 0) {
     throw "Composer dump-autoload fallo dentro del contenedor."
 }
+# ------------------------------------------------------------
+# Verificar y ejecutar migraciones Laravel
+# ------------------------------------------------------------
+
+Write-Host ""
+Write-Host "Verificando migraciones Laravel..." -ForegroundColor Yellow
+
+docker exec $container php artisan migrate --force
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Las migraciones de Laravel fallaron."
+}
+
+Write-Host ""
+Write-Host "Migraciones aplicadas correctamente." -ForegroundColor Green
 
 # ------------------------------------------------------------
 # Verificar Firebase
