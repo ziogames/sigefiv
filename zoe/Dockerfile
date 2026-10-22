@@ -20,7 +20,7 @@ RUN python3 -m pip install --upgrade pip \
 
 COPY zoe_gateway.py .
 
-RUN mkdir -p /root/.cache/huggingface
+RUN mkdir -p /root/.cache
 
 EXPOSE 8000
 

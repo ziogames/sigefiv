@@ -28,6 +28,7 @@ use Spatie\Permission\Traits\HasRoles;
     'ultimo_acceso',
     'ultima_ip',
     'bienvenida_vista',
+    'cargo_id',
 ])]
 #[Hidden([
     'password',
@@ -155,4 +156,8 @@ class User extends Authenticatable
             'user_id'
         );
     }
+    public function cargo()
+{
+    return $this->belongsTo(Cargo::class);
+}
 }

@@ -42,30 +42,49 @@
 
     </div>
 
+   <!-- Selector de Cargo en la Directiva / Rol Vecino -->
+<div class="col-md-6">
+
+    @php
+        // Buscamos si existe el cargo "Vecino" en la colección para usarlo como valor por defecto
+        $cargoVecinoId = $cargos->firstWhere('nombre', 'Vecino')?->id;
+    @endphp
+
+    <x-select
+        label="Cargo / Tipo de Residente"
+        name="cargo_id"
+        :options="$cargos->pluck('nombre', 'id')"
+        :selected="old(
+            'cargo_id', 
+            isset($usuario) ? $usuario->cargo_id : $cargoVecinoId
+        )" />
+
+</div>
+
 </div>
 
 <hr>
 
 <div class="row">
 
-   <div class="col-md-6">
+    <div class="col-md-6">
 
-    <x-input
-        label="Contraseña"
-        name="password"
-        type="password"
-        :placeholder="isset($usuario) ? 'Dejar vacío para conservar la actual' : ''" />
+        <x-input
+            label="Contraseña"
+            name="password"
+            type="password"
+            :placeholder="isset($usuario) ? 'Dejar vacío para conservar la actual' : ''" />
 
-</div>
+    </div>
 
-<div class="col-md-6">
+    <div class="col-md-6">
 
-    <x-input
-        label="Confirmar contraseña"
-        name="password_confirmation"
-        type="password" />
+        <x-input
+            label="Confirmar contraseña"
+            name="password_confirmation"
+            type="password" />
 
-</div>
+    </div>
 
 </div>
 

@@ -34,6 +34,9 @@ class UpdateUsuarioRequest extends FormRequest
 
             'password' => 'nullable|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
+            
+            // <-- Agregamos esta línea para validar el cargo de la directiva -->
+            'cargo_id' => 'nullable|exists:cargos,id',
         ];
     }
 
@@ -49,7 +52,9 @@ class UpdateUsuarioRequest extends FormRequest
             'email.unique' => 'Ese correo ya existe.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
+            
+            // Opcional: puedes agregar un mensaje personalizado para el cargo si gustas
+            'cargo_id.exists' => 'El cargo seleccionado no es válido.',
         ];
     }
-    
 }

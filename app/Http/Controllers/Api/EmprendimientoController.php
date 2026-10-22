@@ -7,6 +7,8 @@ use App\Models\Emprendimiento;
 use App\Models\EmprendimientoCategoria;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class EmprendimientoController extends Controller
 {
@@ -62,43 +64,85 @@ public function updateStatus(Request $request, $id)
 
     // Crear un nuevo emprendimiento
 public function store(Request $request)
-    {
-        $validated = $request->validate([
-            // 👈 Cambiar 'categorias' por 'emprendimiento_categorias' aquí:
-            'categoria_id' => 'required|exists:emprendimiento_categorias,id',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'phone' => 'required|string|max:50',
-            'show_whatsapp' => 'boolean',
-            'modality' => 'required|string',
-            'attention_zone' => 'nullable|string|max:255',
-            'schedule' => 'nullable|string|max:255',
-            'status' => 'required|in:draft,published,paused',
-        ]);
+{
+    $validated = $request->validate([
+        'categoria_id' => 'required|exists:emprendimiento_categorias,id',
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'phone' => 'required|string|max:50',
+        'show_whatsapp' => 'boolean',
+        'modality' => 'required|string',
+        'attention_zone' => 'nullable|string|max:255',
+        'schedule' => 'nullable|string|max:255',
+        'status' => 'required|in:draft,published,paused',
+    ]);
 
-        $validated['user_id'] = $request->user()->id;
-        $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
+    $validated['user_id'] = $request->user()->id;
+    $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
 
-        $emprendimiento = Emprendimiento::create($validated);
+    // 1. Crear el emprendimiento
+    $emprendimiento = Emprendimiento::create($validated);
 
-        return response()->json([
-            'message' => 'Emprendimiento creado con éxito',
-            'data' => $emprendimiento->load('photos', 'categoria')
-        ], 201);
+    // 2. Notificar a n8n para generar sinónimos (si está publicado)
+    if ($emprendimiento->status === 'published') {
+        try {
+            // Reemplaza con la IP y ruta de tu Webhook de n8n
+            $webhookUrl = 'http://192.168.1.34:5678/webhook/generar-sinonimos';
+            
+            // Usamos un timeout corto (3 seg) para no congelar la app de Android si n8n tarda
+            Http::timeout(3)->post($webhookUrl, [
+                'emprendimiento_id' => $emprendimiento->id,
+                'nombre' => $emprendimiento->name,
+                'descripcion' => $emprendimiento->description,
+                'categoria_id' => $emprendimiento->categoria_id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al contactar a n8n para sinónimos: ' . $e->getMessage());
+            // No detenemos la ejecución, el usuario en Android recibe su éxito de todos modos
+        }
     }
+
+    return response()->json([
+        'message' => 'Emprendimiento creado con éxito',
+        'data' => $emprendimiento->load('photos', 'categoria')
+    ], 201);
+}
 
     // Integración con ZOE para redactar descripciones
-    public function generateWithZoe(Request $request)
-    {
-        $request->validate(['name' => 'required|string']);
+public function generateWithZoe(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string',
+        'description' => 'nullable|string'
+    ]);
 
-        $name = $request->input('name');
-        
-        $description = "Ofrecemos servicios profesionales de {$name} con atención dedicada y de confianza para toda la comunidad vecinal. ¡Contáctanos y agenda tu servicio hoy mismo!";
+    $name = $request->input('name');
+    $draftDescription = $request->input('description', '');
 
-        return response()->json(['description' => $description]);
+    try {
+        // Apunta al nuevo webhook de n8n que procesa la redacción con ZOE
+        // Usa /webhook-test/ si estás realizando pruebas manuales en el lienzo de n8n
+        $webhookUrl = 'http://host.docker.internal:5678/webhook/generar-descripcion';
+
+        $response = Http::timeout(10)->post($webhookUrl, [
+            'name' => $name,
+            'description' => $draftDescription
+        ]);
+
+        if ($response->successful() && $response->json('description')) {
+            $generatedText = trim($response->json('description'));
+            $generatedText = trim($generatedText, '"');
+            
+            return response()->json(['description' => $generatedText]);
+        }
+    } catch (\Exception $e) {
+        Log::error('Error al contactar n8n para ZOE descripción: ' . $e->getMessage());
     }
 
+    // Plan B si n8n no responde
+    $fallback = "Bienvenidos a {$name}. Ofrecemos productos y servicios de calidad pensados para el bienestar de toda la comunidad. ¡Contáctanos y visítanos!";
+    return response()->json(['description' => $fallback]);
+}
     
 
 
@@ -265,15 +309,23 @@ public function buscarPublicados(Request $request)
             );
     }
 
-    $consulta->where(function ($query) use (
+$consulta->where(function ($query) use (
         $terminosBusqueda,
         $categoriasBusqueda
     ) {
         foreach ($terminosBusqueda as $palabra) {
             $query->orWhere('name', 'ILIKE', '%' . $palabra . '%')
-                ->orWhere('description', 'ILIKE', '%' . $palabra . '%')
                 ->orWhereHas('categoria', function ($categoria) use ($palabra) {
                     $categoria->where('name', 'ILIKE', '%' . $palabra . '%');
+                })
+                ->orWhereExists(function ($subQuery) use ($palabra) {
+                    $subQuery->select(\DB::raw(1))
+                        ->from('emprendimiento_busqueda_sinonimos')
+                        ->whereRaw('emprendimiento_busqueda_sinonimos.categoria_id = emprendimientos.categoria_id')
+                        ->where(function ($qSinonimo) use ($palabra) {
+                            $qSinonimo->where('emprendimiento_busqueda_sinonimos.sinonimo', 'ILIKE', '%' . $palabra . '%')
+                                      ->orWhere('emprendimiento_busqueda_sinonimos.termino', 'ILIKE', '%' . $palabra . '%');
+                        });
                 });
         }
 

@@ -9,7 +9,6 @@ class StoreUsuarioRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      */
-    
     public function authorize(): bool
     {
         return true;
@@ -25,8 +24,10 @@ class StoreUsuarioRequest extends FormRequest
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
+            
+            // <-- Agregamos esta línea para validar el cargo de la directiva -->
+            'cargo_id' => 'nullable|exists:cargos,id',
         ];
-        
     }
 
     /**
@@ -42,7 +43,9 @@ class StoreUsuarioRequest extends FormRequest
             'password.required' => 'La contraseña es obligatoria.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
+            
+            // Opcional: mensaje personalizado por si mandan un ID de cargo que no existe
+            'cargo_id.exists' => 'El cargo seleccionado no es válido.',
         ];
     }
-    
 }

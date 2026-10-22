@@ -239,6 +239,15 @@ Route::post('/zoe/mascota', [
     ZoeController::class,
     'mensajeMascota',
 ]);
+// 🕒 NUEVA RUTA PARA EL HISTORIAL DE CONVERSACIONES DE ZOE
+Route::get('/zoe/historial', [
+    ZoeController::class,
+    'historial',
+]);
+Route::get('/zoe/historial/{id}', [ZoeController::class, 'verConversacion']);
+Route::post('/zoe/mensaje-con-adjunto', [ZoeController::class, 'enviarMensajeConArchivo']);
+
+
     /*
     |--------------------------------------------------------------------------
     | ZOE — ASISTENTE INTELIGENTE
@@ -474,7 +483,7 @@ Route::post('/fcm/preferencia', [
     |--------------------------------------------------------------------------
     | ZOE
     |--------------------------------------------------------------------------
-    */
+    
 
       Route::post('/zoe', [
         ZoeController::class,
@@ -485,7 +494,7 @@ Route::post('/fcm/preferencia', [
         ZoeController::class,
         'mensajeMascota',
     ]);
-    /*
+    
     |--------------------------------------------------------------------------
     | ENVÍO DE NOTIFICACIONES
     |--------------------------------------------------------------------------
@@ -580,6 +589,15 @@ Route::post('/zoe-ai/contexto/actualizar', [
     ZoeAiController::class,
     'actualizarContexto',
 ])->middleware('zoe.ai');
+Route::post(
+    '/zoe-ai/emergencias',
+    [ZoeAiController::class, 'obtenerEmergencias']
+)->middleware('zoe.ai');
+
+Route::post(
+    '/zoe-ai/directiva',
+    [ZoeAiController::class, 'obtenerDirectiva']
+)->middleware('zoe.ai');
 /*
 |--------------------------------------------------------------------------
 | CHAT DEVICES — ACCESO POR TOKEN

@@ -9,6 +9,8 @@ use App\Services\Zoe\ZoeQueryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\Periodo;
+use App\Services\ZoeEmergenciaService;
+use App\Services\ZoeDirectivaService;
 use Throwable;
 
 class ZoeAiController extends Controller
@@ -370,5 +372,27 @@ public function saldoCajaActivo(
         ], 500);
     }
 }
+// ... tus otros métodos (movimientos, resumen, estatutos, etc.)
 
+public function obtenerEmergencias(Request $request, ZoeEmergenciaService $emergenciaService)
+{
+    $consulta = $request->input('consulta');
+    $respuesta = $emergenciaService->obtenerNumerosEmergencia($consulta);
+
+    return response()->json([
+        'success' => true,
+        'respuesta' => $respuesta,
+    ]);
+}
+
+  public function obtenerDirectiva(Request $request, ZoeDirectivaService $directivaService)
+{
+    // El servicio actual no requiere filtrar por consulta, devuelve toda la directiva
+    $respuesta = $directivaService->obtenerInformacionDirectiva();
+
+    return response()->json([
+        'success' => true,
+        'respuesta' => $respuesta,
+    ]);
+}
 }

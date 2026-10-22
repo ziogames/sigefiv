@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Cargo; // <--- 1. Importamos el modelo Cargo
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\JWT\IdTokenVerifier;
 use Illuminate\Http\JsonResponse;
@@ -121,16 +122,6 @@ class AuthController extends Controller
                 'SIGEFIV FIREBASE: verificando Firebase ID Token'
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | VERIFICADOR FIREBASE
-            |--------------------------------------------------------------------------
-            |
-            | Se utiliza directamente IdTokenVerifier para poder establecer
-            | una tolerancia de reloj de 60 segundos.
-            |
-            */
-
             $verifier = IdTokenVerifier::createWithProjectId(
                 'sigefiv-b3dc6'
             );
@@ -140,22 +131,7 @@ class AuthController extends Controller
                 60
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | OBTENER PAYLOAD
-            |--------------------------------------------------------------------------
-            |
-            | En firebase-tokens 5.x payload() devuelve un array.
-            |
-            */
-
             $claims = $verifiedIdToken->payload();
-
-            /*
-            |--------------------------------------------------------------------------
-            | IDENTIDAD FIREBASE
-            |--------------------------------------------------------------------------
-            */
 
             $firebaseUid = $claims['sub'] ?? null;
 
@@ -175,16 +151,12 @@ class AuthController extends Controller
                 [
                     'uid_presente' =>
                         !empty($firebaseUid),
-
                     'email_presente' =>
                         !empty($email),
-
                     'email_verified' =>
                         $emailVerified,
-
                     'nombre_presente' =>
                         !empty($nombre),
-
                     'foto_presente' =>
                         !empty($fotoGoogle),
                 ]
@@ -197,7 +169,6 @@ class AuthController extends Controller
                 [
                     'tipo' =>
                         get_class($e),
-
                     'mensaje' =>
                         $e->getMessage(),
                 ]
@@ -229,10 +200,8 @@ class AuthController extends Controller
                 [
                     'uid_presente' =>
                         !empty($firebaseUid),
-
                     'email_presente' =>
                         !empty($email),
-
                     'email_verified' =>
                         $emailVerified,
                 ]
@@ -252,6 +221,9 @@ class AuthController extends Controller
         */
 
         try {
+
+            // Obtenemos el ID del cargo "Vecino" por defecto
+            $cargoVecinoId = Cargo::where('nombre', 'Vecino')->value('id');
 
             /*
              * Primero buscamos por Firebase UID.
@@ -280,29 +252,24 @@ class AuthController extends Controller
                 $user = User::create([
                     'name' =>
                         $nombre,
-
                     'email' =>
                         $email,
-
                     'google_id' =>
                         $firebaseUid,
-
                     'foto' =>
                         $fotoGoogle,
-
+                    'cargo_id' =>
+                        $cargoVecinoId, // <--- 2. Asignamos el cargo "Vecino" al crear por la app
                     'password' =>
                         Hash::make(
                             bin2hex(
                                 random_bytes(32)
                             )
                         ),
-
                     'estado' =>
                         'pendiente',
-
                     'recibir_notificaciones' =>
                         false,
-
                     'bienvenida_vista' =>
                         false,
                 ]);
@@ -318,7 +285,6 @@ class AuthController extends Controller
                     [
                         'user_id' =>
                             $user->id,
-
                         'email' =>
                             $user->email,
                     ]
@@ -346,6 +312,11 @@ class AuthController extends Controller
                         $fotoGoogle;
                 }
 
+                // Si el usuario existente no tiene cargo asignado, le ponemos "Vecino"
+                if (is_null($user->cargo_id) && $cargoVecinoId) {
+                    $datosFirebase['cargo_id'] = $cargoVecinoId;
+                }
+
                 $user->update(
                     $datosFirebase
                 );
@@ -357,7 +328,6 @@ class AuthController extends Controller
                     [
                         'user_id' =>
                             $user->id,
-
                         'email' =>
                             $user->email,
                     ]
@@ -408,7 +378,6 @@ class AuthController extends Controller
                 [
                     'user_id' =>
                         $user->id,
-
                     'email' =>
                         $user->email,
                 ]
@@ -433,7 +402,6 @@ class AuthController extends Controller
                 [
                     'tipo' =>
                         get_class($e),
-
                     'mensaje' =>
                         $e->getMessage(),
                 ]
@@ -473,19 +441,16 @@ class AuthController extends Controller
                 'string',
                 'max:100',
             ],
-
             'telefono' => [
                 'nullable',
                 'string',
                 'max:50',
             ],
-
             'dni' => [
                 'nullable',
                 'string',
                 'max:20',
             ],
-
             'direccion' => [
                 'nullable',
                 'string',
@@ -496,13 +461,10 @@ class AuthController extends Controller
         $user->update([
             'seudonimo' =>
                 $validated['seudonimo'] ?? null,
-
             'telefono' =>
                 $validated['telefono'] ?? null,
-
             'dni' =>
                 $validated['dni'] ?? null,
-
             'direccion' =>
                 $validated['direccion'] ?? null,
         ]);
@@ -592,47 +554,35 @@ class AuthController extends Controller
         return [
             'id' =>
                 $user->id,
-
             'name' =>
                 $user->name,
-
             'seudonimo' =>
                 $user->seudonimo,
-
             'email' =>
                 $user->email,
-
             'estado' =>
                 $user->estado,
-
             'telefono' =>
                 $user->telefono,
-
             'dni' =>
                 $user->dni,
-
             'direccion' =>
                 $user->direccion,
-
             'foto' =>
                 $user->avatar,
-
             'rol' =>
                 $user
                     ->getRoleNames()
                     ->first()
                 ?? 'Sin Rol',
-
             'permisos' =>
                 $user
                     ->getAllPermissions()
                     ->pluck('name')
                     ->values(),
-
             'bienvenida_vista' =>
                 (bool)
                 $user->bienvenida_vista,
-
             'metodo_acceso' =>
                 $user->google_id
                     ? 'Google'

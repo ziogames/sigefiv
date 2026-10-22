@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Cargo; // <--- 1. Importamos el modelo Cargo
 use App\Services\ActividadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -75,6 +76,14 @@ class GoogleController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Obtenemos el ID del cargo "Vecino" por defecto
+        |--------------------------------------------------------------------------
+        */
+        $cargoVecinoId = Cargo::where('nombre', 'Vecino')->value('id');
+
+
+        /*
+        |--------------------------------------------------------------------------
         | Usuario nuevo
         |--------------------------------------------------------------------------
         */
@@ -90,6 +99,8 @@ class GoogleController extends Controller
                 'google_id' => $googleId,
 
                 'foto' => $foto,
+
+                'cargo_id' => $cargoVecinoId, // <--- 2. Asignamos el cargo "Vecino" al crear
 
                 /*
                 | No utilizaremos esta contraseña para
@@ -123,17 +134,21 @@ class GoogleController extends Controller
             | Vinculamos la cuenta de Google y actualizamos
             | la información proporcionada por Google.
             |
-            | No modificamos la contraseña ni el rol.
+            | Si no tenía cargo asignado previamente, le colocamos "Vecino".
             |
             */
 
-            $usuario->update([
-
+            $datosActualizacion = [
                 'google_id' => $googleId,
-
                 'foto' => $foto,
+            ];
 
-            ]);
+            // Si el usuario ya existía pero no tiene cargo, le asignamos "Vecino"
+            if (is_null($usuario->cargo_id) && $cargoVecinoId) {
+                $datosActualizacion['cargo_id'] = $cargoVecinoId;
+            }
+
+            $usuario->update($datosActualizacion);
 
         }
 

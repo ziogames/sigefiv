@@ -45,3 +45,4 @@ sigefiv_backup*
 *.old
 *.bak
 /storage/app/firebase/*.json
+.venv-supertonic/
