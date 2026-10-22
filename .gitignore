@@ -46,3 +46,6 @@ sigefiv_backup*
 *.bak
 /storage/app/firebase/*.json
 .venv-supertonic/
+
+__pycache__/
+*.py[cod]

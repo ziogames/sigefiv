@@ -87,7 +87,7 @@ public function store(Request $request)
     if ($emprendimiento->status === 'published') {
         try {
             // Reemplaza con la IP y ruta de tu Webhook de n8n
-            $webhookUrl = 'http://192.168.1.34:5678/webhook/generar-sinonimos';
+            $webhookUrl = config('services.n8n.webhook_sinonimos');
             
             // Usamos un timeout corto (3 seg) para no congelar la app de Android si n8n tarda
             Http::timeout(3)->post($webhookUrl, [
@@ -122,7 +122,7 @@ public function generateWithZoe(Request $request)
     try {
         // Apunta al nuevo webhook de n8n que procesa la redacción con ZOE
         // Usa /webhook-test/ si estás realizando pruebas manuales en el lienzo de n8n
-        $webhookUrl = 'http://host.docker.internal:5678/webhook/generar-descripcion';
+        $webhookUrl = config('services.n8n.webhook_descripcion');
 
         $response = Http::timeout(10)->post($webhookUrl, [
             'name' => $name,

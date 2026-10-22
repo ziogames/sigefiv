@@ -161,6 +161,8 @@ return [
             'N8N_ZOE_CHAT_WEBHOOK_URL',
             'http://host.docker.internal:5678/webhook/zoe-chat-vecinal'
         ),
+         'webhook_sinonimos' => env('N8N_WEBHOOK_SINONIMOS_URL'),
+    'webhook_descripcion' => env('N8N_WEBHOOK_DESCRIPCION_URL'),
 
     ],
 
