@@ -74,10 +74,11 @@
 'egresos.destroy' => 'Eliminar egresos',
 
 // Movimientos
+// Movimientos
 'movimientos.index' => 'Ver movimientos',
+'movimientos.show' => 'Ver detalle de movimiento',
 'movimientos.create' => 'Registrar movimientos',
 'movimientos.edit' => 'Editar movimientos',
-'movimientos.delete' => 'Eliminar movimientos',
 'movimientos.destroy' => 'Eliminar movimientos',
 
 // Caja

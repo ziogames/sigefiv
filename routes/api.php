@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -163,10 +162,11 @@ Route::put('/movimientos/{movimiento}', [
 ])->middleware('permission:movimientos.edit');
 
 // Eliminar movimiento
+// Eliminar movimiento
 Route::delete('/movimientos/{movimiento}', [
     MovimientoController::class,
     'destroy',
-])->middleware('permission:movimientos.delete');
+])->middleware('permission:movimientos.destroy');
     
 
 
@@ -302,10 +302,22 @@ Route::post('/zoe/mensaje-con-adjunto', [ZoeController::class, 'enviarMensajeCon
     |--------------------------------------------------------------------------
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | ROLES Y PERMISOS
+    |--------------------------------------------------------------------------
+    */
+
     Route::get('/roles', [
         RolController::class,
         'index',
     ])->middleware('permission:roles.index');
+
+    // Debe ir antes de /roles/{id}.
+    Route::get('/roles/permisos', [
+        RolController::class,
+        'permisos',
+    ])->middleware('permission:roles.create');
 
     Route::get('/roles/{id}', [
         RolController::class,
@@ -315,17 +327,17 @@ Route::post('/zoe/mensaje-con-adjunto', [ZoeController::class, 'enviarMensajeCon
     Route::post('/roles', [
         RolController::class,
         'store',
-    ])->middleware('permission:roles.index');
+    ])->middleware('permission:roles.create');
 
     Route::put('/roles/{id}', [
         RolController::class,
         'update',
-    ])->middleware('permission:roles.index');
+    ])->middleware('permission:roles.edit');
 
     Route::delete('/roles/{id}', [
         RolController::class,
         'destroy',
-    ])->middleware('permission:roles.index');
+    ])->middleware('permission:roles.destroy');
 
     /*
     |--------------------------------------------------------------------------
@@ -598,6 +610,11 @@ Route::post(
     '/zoe-ai/directiva',
     [ZoeAiController::class, 'obtenerDirectiva']
 )->middleware('zoe.ai');
+
+Route::post('/zoe-ai/saldo-caja', [ZoeAiController::class, 'saldoCaja'])
+    ->middleware('zoe.ai'); 
+
+
 /*
 |--------------------------------------------------------------------------
 | CHAT DEVICES — ACCESO POR TOKEN

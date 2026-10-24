@@ -466,10 +466,16 @@ async def websocket_zoe(websocket: WebSocket):
                     await safe_send_json({"type": "error", "message": "No se recibió audio."})
                     continue
 
-                # Conversión vectorizada sin copias intermedias innecesarias
-                audio_int16 = np.frombuffer(audio_buffer, dtype="<i2")
-                audio_float = audio_int16.astype(np.float32) * (1.0 / 32768.0)
+                # 1. Extraemos copia inmutable en bytes y limpiamos el bytearray sin bloqueos
+                raw_bytes = bytes(audio_buffer)
                 audio_buffer.clear()
+
+                # 2. Garantizamos múltiplo de 2 bytes (int16) por si llega un fragmento impar
+                if len(raw_bytes) % 2 != 0:
+                    raw_bytes = raw_bytes[:-1]
+
+                # 3. Convertimos a float32 para Faster-Whisper
+                audio_float = np.frombuffer(raw_bytes, dtype="<i2").astype(np.float32) * (1.0 / 32768.0)
 
                 await safe_send_json({"type": "transcribing"})
 

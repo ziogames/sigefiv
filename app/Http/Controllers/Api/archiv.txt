@@ -1,7 +1,351 @@
 
-  
-  
-"output": 
-"¡Claro que sí! Aquí tienes el **Artículo 22** de los estatutos del Grupo Residencial 21, explicado en **palabras sencillas, claras y amables**, sin añadir ni inventar nada:\n\n---\n\n**¿Qué dice el artículo en palabras sencillas?**\n\nLa **Junta Directiva Central** (que es como el equipo encargado de dirigir el grupo) tiene muchos derechos y responsabilidades para que el Grupo Residencial 21 funcione bien. Es como el equipo de gerentes de un barrio o comunidad.\n\nLo que hace es:\n\n1. **Organizar y guiar** cómo avanza el grupo día a día.\n2. **Cumplir** con las reglas del grupo (los estatutos, los reglamentos y acuerdos) y asegurarse de que todos los miembros las respeten.\n3. **Defender los derechos** del grupo, siguiendo las leyes y los estatutos.\n4. **Hacer un plan de trabajo** y un presupuesto (como un presupuesto de dinero) que debe ser aprobado por todos los miembros en la primera reunión de cada año.\n5. **Hacer un informe anual** (una cuenta de lo que hizo el grupo durante el año) que también debe ser aprobado por todos.\n6. **Decidir si alguien puede unirse al grupo** o si debe salir, en primer lugar.\n7. **Mantener un registro** de todos los miembros y de cuánto han pagado en cuotas.\n8. **Proponer** a personas expertas (como asesores) que ayuden al grupo, y que luego se aprueben en una reunión general.\n9. **Imponer sanciones** si alguien no cumple las reglas, y **poder ir a juicio** si es necesario.\n10. **Cuidar que el terreno del grupo no se pierda**, y que se use bien el espacio, los bienes y servicios que tienen.\n11. **Crear y usar recursos** (dinero o ayuda técnica) para que la gente del grupo pueda aprender y crecer.\n12. **Promover** actividades que ayuden a que el grupo sea más social y cultural (como eventos o talleres).\n13. **Comprar, vender o alquilar** bienes (como casas, terrenos o cosas móviles) que el grupo tenga.\n14. **Aprobar pedidos de préstamos**, abrir o cerrar cuentas bancarias, y hacer cualquier operación financiera que sea útil para el grupo.\n15. **Algunas de estas decisiones** (como comprar, contratar o abrir cuentas) **no pueden tomarse sin que la Asamblea General (todos los miembros) los apruebe primero**.\n16. **Hacer investigaciones y auditorías** al menos una vez al año para revisar que todo esté bien.\n17. **Informar a todos los miembros** sobre las decisiones que ha tomado.\n18. **Hacer cualquier otra cosa** que sea necesaria para cumplir con los fines del grupo (como ayudar a la comunidad, fomentar el desarrollo, etc.).\n\n---\n\n**En resumen:**  \nLa Junta Directiva Central es como el equipo de gestión que cuida que todo funcione bien. Tiene muchas responsabilidades, pero **algunas decisiones importantes deben ser aprobadas por todos los miembros en una reunión general**. Así se asegura que nadie tome decisiones importantes sin que todos estén de acuerdo.\n\n---\n\n¿Quieres que te explique alguna parte específica de este artículo (por ejemplo, qué es una \"asamblea general\" o cómo se elige la Junta Directiva)? Puedo ayudarte con eso también. 😊"
-  
+const body = $json.body ?? $json;
+const mensaje = String(body.mensaje ?? '').trim();
+
+// =====================================================
+// 🕒 CALCULAR HORA EXACTA DE PERÚ (America/Lima)
+// =====================================================
+const ahora = new Date();
+
+const horaPeru = Number(
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    hour: 'numeric',
+    hour12: false
+  }).format(ahora)
+);
+
+const horaLegible = new Intl.DateTimeFormat('es-PE', {
+  timeZone: 'America/Lima',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true
+}).format(ahora);
+
+const fechaLegible = new Intl.DateTimeFormat('es-PE', {
+  timeZone: 'America/Lima',
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric'
+}).format(ahora);
+
+const anioActualPeru = Number(
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric'
+  }).format(ahora)
+);
+
+let momentoDia = 'día';
+let saludoContextual = 'Buenos días';
+let despedidaContextual = 'que tengas un excelente día';
+
+if (horaPeru >= 5 && horaPeru < 12) {
+  momentoDia = 'mañana';
+  saludoContextual = 'Buenos días';
+  despedidaContextual = 'que tengas una excelente mañana y disfrutes lo que queda del día';
+} else if (horaPeru >= 12 && horaPeru < 19) {
+  momentoDia = 'tarde';
+  saludoContextual = 'Buenas tardes';
+  despedidaContextual = 'que tengas una buena tarde y disfrutes lo que queda del día';
+} else {
+  momentoDia = 'noche';
+  saludoContextual = 'Buenas noches';
+  despedidaContextual = 'que tengas una buena noche y descanses bien';
 }
+
+const meses = {
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  setiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12
+};
+
+const texto = mensaje.toLowerCase();
+const textoSinTildes = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// =====================================================
+// DETECTAR MES
+// =====================================================
+
+let mes = null;
+
+for (const [nombre, numero] of Object.entries(meses)) {
+  const regex = new RegExp(`\\b${nombre}\\b`, 'i');
+
+  if (regex.test(texto)) {
+    mes = numero;
+    break;
+  }
+}
+
+
+// =====================================================
+// DETECTAR AÑO
+// =====================================================
+
+const coincidenciaAnio = texto.match(/\b(20\d{2})\b/);
+
+const anio = coincidenciaAnio
+  ? Number(coincidenciaAnio[1])
+  : null;
+
+
+// =====================================================
+// DETECTAR CANTIDAD DE MESES PARA ESTADÍSTICAS
+// =====================================================
+
+const coincidenciaMeses = texto.match(
+  /\b(\d{1,2})\s+mes(?:es)?\b/i
+);
+
+const limite_estadistica = coincidenciaMeses
+  ? Math.min(
+      Math.max(Number(coincidenciaMeses[1]), 1),
+      24
+    )
+  : 6;
+
+
+// =====================================================
+// DETECTAR INTENCIÓN (MÁXIMA PRIORIDAD ARRIBA)
+// =====================================================
+
+let intencion = null;
+let tipo_estadistica = null;
+
+
+// =====================================================
+// 🚨 1. EMERGENCIA Y AUXILIO (PRIMERA PRIORIDAD)
+// =====================================================
+
+if (
+  /\b(emergencias?|serenazgo|policias?|comisarias?|bomberos?|ambulancias?|samu|sedapal|luz\s+del\s+sur|camaras?|central|vigilancia|seguridad|robos?|asaltos?|accidentes?|incendios?|auxilio|telefonos?|numeros?)\b/i.test(textoSinTildes)
+) {
+  intencion = 'emergencia';
+
+// =====================================================
+// 🏛️ 2. DIRECTIVA Y CARGOS
+// =====================================================
+} else if (
+  /\b(directiva|junta\s+directiva|secretarios?|secretarias?|cargos?|presidente|presidenta|tesoreros?|tesoreras?|fiscal|vocal|vocales|miembros)\b/i.test(textoSinTildes) &&
+  !/\b(estatutos?|articulos?)\b/i.test(textoSinTildes)
+) {
+  intencion = 'directiva_cargos';
+
+
+// =====================================================
+// REPORTE MULTIMEDIA O INCIDENTE VECINAL (CON O SIN FOTO)
+// =====================================================
+
+} else {
+  const tieneTerminosFinancieros =
+    /\b(ingresos?|egresos?|gastos?|saldo|movimientos?|transacciones?|caja|resumen|periodo|per[ií]odo|cuotas?|estad[ií]sticas?|gr[aá]ficos?)\b/i.test(texto);
+
+  const esReporteDirectiva =
+    texto.includes('[reporte_directiva]') ||
+    body.tiene_archivo === true ||
+    Boolean(body.archivo) ||
+    (!tieneTerminosFinancieros &&
+      /\b(reporte|reportar|alerta|vecinal|seguridad|emergencia|queja|aviso|sospechoso|sospechosas|merodeando|incidente|incidentes)\b/i.test(texto));
+
+  if (esReporteDirectiva) {
+    intencion = 'casual';
+
+  } else if (
+    /\bingresos?\s*(y|vs|versus|contra)\s*(egresos?|gastos?)\b/i.test(texto) ||
+    /\bcompar(ar|ación)\b.*\b(ingresos?|egresos?|gastos?)\b/i.test(texto)
+  ) {
+    intencion = 'estadistica';
+    tipo_estadistica = 'ingresos_vs_egresos';
+
+  } else if (
+    /\bevolución\b.*\bsaldo\b/i.test(texto) ||
+    /\bevolucion\b.*\bsaldo\b/i.test(texto) ||
+    /\bcambio\b.*\bsaldo\b/i.test(texto)
+  ) {
+    intencion = 'estadistica';
+    tipo_estadistica = 'evolucion_saldo';
+
+  } else if (
+    /\bcategor[ií]as?\b/i.test(texto) ||
+    /\bdistribución\b/i.test(texto) ||
+    /\bdistribucion\b/i.test(texto) ||
+    /\b(en|dónde|donde)\b.*\b(gastamos|gastó|gastaron|egresos?)\b/i.test(texto)
+  ) {
+    intencion = 'estadistica';
+    tipo_estadistica = 'egresos_por_categoria';
+
+  } else if (
+    /\bestadísticas?\b/i.test(texto) ||
+    /\bestadistica\b/i.test(texto) ||
+    /\bgráfico\b/i.test(texto) ||
+    /\bgrafico\b/i.test(texto) ||
+    /\bgráficos\b/i.test(texto) ||
+    /\bgraficos\b/i.test(texto)
+  ) {
+    intencion = 'estadistica';
+    tipo_estadistica = 'ingresos_vs_egresos';
+
+  } else if (
+    /\bestatutos?\b/i.test(texto) ||
+    /\bart[ií]culo\s*(?:n[°ºo.]?\s*)?\d{1,2}\b/i.test(texto) ||
+    /\bderechos?\s+de\s+los?\s+miembros?\b/i.test(texto) ||
+    /\bobligaciones?\s+de\s+los?\s+miembros?\b/i.test(texto) ||
+    /\bfunciones?\s+de\s+la\s+junta\b/i.test(texto) ||
+    /\bfunciones?\s+junta\s+directiva\b/i.test(texto) ||
+    /\bfacultades?\s+de\s+la\s+junta\b/i.test(texto) ||
+    /\batribuciones?\s+de\s+la\s+junta\b/i.test(texto) ||
+    /\bjunta\s+directiva\b/i.test(texto) ||
+    /\basamblea\s+general\b/i.test(texto) ||
+    /\bmiembros?\s+plenos?\b/i.test(texto) ||
+    /\belecciones?\s+de\s+la\s+junta\b/i.test(texto) ||
+    /\bcargos?\s+de\s+la\s+junta\b/i.test(texto) ||
+    /\bcuotas?\s+institucionales?\b/i.test(texto) ||
+    /\bdomicilio\s+legal\b/i.test(texto) ||
+    /\bfinalidad\s+del\s+grupo\b/i.test(texto) ||
+    /\bpatrimonio\s+del\s+grupo\b/i.test(texto) ||
+    /\bsanciones?\s+(?:del\s+grupo|de\s+los?\s+miembros?)\b/i.test(texto)
+  ) {
+    intencion = 'estatutos';
+
+  } else if (
+    /\b(emprendimientos?|negocios?\s+vecinales?|directorio\s+de\s+negocios?)\b/i.test(texto) ||
+    (/^(quien|quienes|donde|hay|busco|necesito|recomiendame|conoces)\b/i.test(texto) && 
+     !/^(me\s+gusta|tengo|cultivo|compre)\b/i.test(texto))
+  ) {
+    intencion = 'emprendimientos';
+
+  } else if (
+    /\bingresos?\b|\bingresó\b|\bentradas?\b|\bdinero recibido\b/i.test(texto)
+  ) {
+    intencion = 'ingresos';
+
+  } else if (
+    /\begresos?\b|\bgastos?\b|\bgastamos\b|\bsalidas?\b/i.test(texto)
+  ) {
+    intencion = 'egresos';
+
+  } else if (
+    /\bmovimientos?\b|\btransacciones?\b/i.test(texto)
+  ) {
+    intencion = 'movimientos';
+
+} else if (
+    /\b(sal?do\s+en\s+caja|dinero\s+en\s+caja|cuanto\s+hay\s+en\s+caja|fondos?\s+en\s+caja)\b/i.test(texto) ||
+    (/\bsal?do\b/i.test(texto) && /\bcaja\b/i.test(texto))
+  ) {
+    intencion = 'saldo_caja';
+
+  } else if (
+    /\bsaldo\b/i.test(texto)
+  ) {
+    intencion = 'saldo';
+
+  } else if (
+    /\b(resumen|total)\b/i.test(texto) &&
+    /\b(periodo|período|mes)\s+(actual|vigente|abierto)\b/i.test(texto)
+  ) {
+    intencion = 'resumen_periodo_activo';
+
+  } else if (
+    /\bresumen\b|\btotal\b/i.test(texto)
+  ) {
+    intencion = 'resumen_periodo';
+
+  } else if (
+    mes !== null ||
+    anio !== null
+  ) {
+    intencion = null;
+
+  } else if (
+    /\bclima\b/i.test(texto) ||
+    /\b(?:que|como)\s+(?:esta|estara|estuvo|hara|hace)\s+(?:el\s+)?tiempo\b/i.test(texto) ||
+    /\bpronosticos?\b/i.test(texto) ||
+    /\btemperaturas?\b/i.test(texto) ||
+    /\bhumedad\b/i.test(texto) ||
+    /\bvientos?\b/i.test(texto) ||
+    /\blluvias?\b|\bllovera\b|\bva a llover\b/i.test(texto) ||
+    /\b(?:hace|hara|hay)\s+(?:mucho\s+)?(?:calor|frio)\b/i.test(texto) ||
+    /\btemperatura\s+(?:actual|de|en)\b/i.test(texto) ||
+    /\b(?:esta|estara)\s+(?:soleado|nublado|lloviendo)\b/i.test(texto)
+  ) {
+    intencion = 'clima';
+
+  } else if (texto === 'evento_inicio_sesion') {
+    intencion = 'inicio_sesion';
+
+  } else {
+    intencion = 'casual';
+  }
+}
+
+// Extraer palabras significativas del mensaje (sin conectores) para cruzar con la tabla de sinónimos
+const stopwords = new Set([
+  'hola', 'zoe', 'buenos', 'dias', 'tardes', 'noches', 'por', 'favor', 'porfa', 'disculpa',
+  'busco', 'buscar', 'necesito', 'recomiendame', 'hay', 'algun', 'alguna', 'alguien',
+  'donde', 'puedo', 'comprar', 'compro', 'venden', 'vende', 'venda', 'venga', 'quien', 'quienes',
+  'ofrece', 'ofrecen', 'hace', 'hacen', 'prepara', 'preparan', 'arregla', 'arreglan', 'repara',
+  'reparan', 'repare', 'para', 'los', 'las', 'del', 'unos', 'unas', 'con', 'sin', 'que', 'como',
+  'cual', 'cuales', 'vecino', 'vecina', 'vecinos', 'comunidad', 'quiero', 'quisiera',
+  'saber', 'conocer', 'conoces', 'sabes', 'tienen', 'tiene', 'una', 'uno', 'el', 'la', 'en', 'de',
+  'mi', 'me', 'se', 'zona', 'vendes', 'compras', 'compramos', 'chiste', 'chistes', 'broma',
+  'cuento', 'cuentame', 'cuenta', 'dime', 'decir', 'alegrar', 'alegra', 'dia', 'hoy', 'algo'
+]);
+
+const palabras_busqueda = intencion === 'emprendimientos'
+  ? texto
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(p => p.length >= 3 && !stopwords.has(p))
+  : [];
+
+// =====================================================
+// RESPUESTA
+// =====================================================
+
+return [
+  {
+    json: {
+      ...$json,
+
+      zoe: {
+        mensaje,
+
+        mes,
+        anio,
+
+        intencion,
+        tipo_estadistica,
+        limite_estadistica,
+        palabras_busqueda,
+        tiene_mes: mes !== null,
+        tiene_anio: anio !== null,
+
+        consulta_completa:
+          mes !== null &&
+          anio !== null,
+
+        // Variables de tiempo en Perú
+        fecha_actual: fechaLegible,
+        anio_actual_peru: anioActualPeru,
+        hora_actual: horaLegible,
+        momento_dia: momentoDia,
+        saludo_contextual: saludoContextual,
+        despedida_contextual: despedidaContextual
+      }
+    }
+  }
+];

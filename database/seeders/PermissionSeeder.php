@@ -28,7 +28,8 @@ class PermissionSeeder extends Seeder
             'categorias.edit',
             'categorias.destroy',
 
-            'movimientos.index',
+           'movimientos.index',
+            'movimientos.show',
             'movimientos.create',
             'movimientos.edit',
             'movimientos.destroy',
@@ -50,6 +51,8 @@ class PermissionSeeder extends Seeder
 
             // Chat Vecinal
             'chat.index',
+            // ZOE IA
+            'zoe.llamada',
 
             // Notificaciones
             'notificaciones.index',

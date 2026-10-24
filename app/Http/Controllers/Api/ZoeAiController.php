@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Http;
 use App\Models\Periodo;
 use App\Services\ZoeEmergenciaService;
 use App\Services\ZoeDirectivaService;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Throwable;
 
 class ZoeAiController extends Controller
@@ -395,4 +397,46 @@ public function obtenerEmergencias(Request $request, ZoeEmergenciaService $emerg
         'respuesta' => $respuesta,
     ]);
 }
+public function saldoCaja(Request $request)
+    {
+        // 1. Capturar mes y año enviados desde n8n
+        $mes = $request->input('mes');
+        $anio = $request->input('anio');
+
+        // Si n8n no los envía, usamos el período actual de Perú
+        if (!$mes || !$anio) {
+            $now = Carbon::now('America/Lima');
+            $mes = $mes ?? $now->month;
+            $anio = $anio ?? $now->year;
+        }
+
+        // 2. Consultar directamente la tabla periodos (saldo_final)
+        $periodo = DB::table('periodos')
+            ->where('mes', $mes)
+            ->where('anio', $anio)
+            ->first();
+
+        if (!$periodo) {
+            return response()->json([
+                'success' => true,
+                'resultado' => null,
+                'mensaje' => 'No encontré un período registrado para esa fecha.'
+            ]);
+        }
+
+        // 3. Retornar la estructura JSON para n8n
+        return response()->json([
+            'success' => true,
+            'resultado' => [
+                'mes' => (int) $periodo->mes,
+                'anio' => (int) $anio,
+                'nombre_mes' => $periodo->nombre,
+                'saldo_inicial' => (float) $periodo->saldo_inicial,
+                'total_ingresos' => (float) $periodo->total_ingresos,
+                'total_egresos' => (float) $periodo->total_egresos,
+                'saldo' => (float) $periodo->saldo_final, // El saldo en caja final
+                'estado' => $periodo->estado
+            ]
+        ]);
+    }
 }

@@ -67,24 +67,26 @@ $ultimoLeidoMessageId =
     $usuarioChat?->pivot?->ultimo_leido_message_id;
 
 // 🔔 Primer mensaje no leído
+// 🔔 Primer mensaje no leído
+$desdeMessageId = $ultimoLeidoMessageId ?? 0;
+
 $primerNoLeidoId = null;
 $mensajesNoLeidos = 0;
 
-if ($ultimoLeidoMessageId !== null) {
-    $primerNoLeido = $chat->mensajes()
-        ->where('id', '>', $ultimoLeidoMessageId)
-        ->orderBy('id')
-        ->first();
+$primerNoLeido = $chat->mensajes()
+    ->where('id', '>', $desdeMessageId)
+    ->where('user_id', '!=', $usuario->id)
+    ->orderBy('id')
+    ->first();
 
-    if ($primerNoLeido) {
-        $primerNoLeidoId = $primerNoLeido->id;
+if ($primerNoLeido) {
+    $primerNoLeidoId = $primerNoLeido->id;
 
-        $mensajesNoLeidos = $chat->mensajes()
-            ->where('id', '>', $ultimoLeidoMessageId)
-            ->count();
-    }
+    $mensajesNoLeidos = $chat->mensajes()
+        ->where('id', '>', $desdeMessageId)
+        ->where('user_id', '!=', $usuario->id)
+        ->count();
 }
-
             $resumen =
                 $chatService->obtenerResumenPresencia();
 
@@ -739,12 +741,13 @@ if ($ultimoLeidoMessageId !== null) {
             $ultimoLeidoMessageId =
                 $usuarioChat?->pivot?->ultimo_leido_message_id;
 
-            $primerNoLeidoId = null;
-            $mensajesNoLeidos = 0;
+       $desdeMessageId = $ultimoLeidoMessageId ?? 0;
 
-            if ($ultimoLeidoMessageId !== null) {
-               $primerNoLeido = $chat->mensajes()
-    ->where('id', '>', $ultimoLeidoMessageId)
+$primerNoLeidoId = null;
+$mensajesNoLeidos = 0;
+
+$primerNoLeido = $chat->mensajes()
+    ->where('id', '>', $desdeMessageId)
     ->where('user_id', '!=', $usuario->id)
     ->orderBy('id')
     ->first();
@@ -753,11 +756,10 @@ if ($primerNoLeido) {
     $primerNoLeidoId = $primerNoLeido->id;
 
     $mensajesNoLeidos = $chat->mensajes()
-        ->where('id', '>', $ultimoLeidoMessageId)
+        ->where('id', '>', $desdeMessageId)
         ->where('user_id', '!=', $usuario->id)
         ->count();
 }
-            }
 
             return response()->json([
                 'success' => true,

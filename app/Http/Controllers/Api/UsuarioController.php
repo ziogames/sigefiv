@@ -164,14 +164,13 @@ class UsuarioController extends Controller
     public function cambiarRol(Request $request, User $usuario): JsonResponse
     {
         try {
-            $request->validate([
-                'rol' => [
-                    'required',
-                    'string',
-                    'in:Administrador,Tesorero,Secretario,Consulta',
-                ],
-            ]);
-
+           $request->validate([
+    'rol' => [
+        'required',
+        'string',
+        'exists:roles,name',
+    ],
+]);
             $nuevoRol = $request->input('rol');
 
             // No permitir cambiar el propio rol.
