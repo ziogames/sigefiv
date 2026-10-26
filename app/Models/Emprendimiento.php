@@ -15,9 +15,9 @@ class Emprendimiento extends Model
 
     protected $fillable = [
         'user_id', 
-        'categoria_id', 
         'name', 
         'slug', 
+        'keywords',    // 👈 Campo para las búsquedas de Zoe
         'description',
         'phone', 
         'show_whatsapp', 
@@ -30,12 +30,6 @@ class Emprendimiento extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    // Relación con la categoría exclusiva de emprendimientos
-    public function categoria(): BelongsTo
-    {
-        return $this->belongsTo(EmprendimientoCategoria::class, 'categoria_id');
     }
 
     public function photos(): HasMany

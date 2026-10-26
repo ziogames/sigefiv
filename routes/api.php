@@ -555,6 +555,13 @@ Route::get('/emprendimientos/categorias', [EmprendimientoController::class, 'cat
 Route::put('/emprendimientos/{id}/status', [EmprendimientoController::class, 'updateStatus']);
 Route::get('/user/emprendimientos', [EmprendimientoController::class, 'index']);
 Route::post('/emprendimientos', [EmprendimientoController::class, 'store']);
+// 👇 Añade esta línea para permitir la edición completa con imágenes
+Route::post('/emprendimientos/{id}', [EmprendimientoController::class, 'update']); 
+Route::delete('/emprendimientos/{id}', [EmprendimientoController::class, 'destroy']); // 👈 NUEVA RUTA DE ELIMINACIÓN
+Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
+
+
+
 Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
 
 

@@ -11,9 +11,11 @@ return new class extends Migration
         Schema::create('emprendimientos', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-           $table->foreignId('categoria_id')->constrained('emprendimiento_categorias')->onDelete('cascade');
+            // 👈 Cambiado a nullable para que no sea obligatorio
             $table->string('name');
             $table->string('slug');
+            // 👈 Añadido el campo de palabras clave para las búsquedas de Zoe
+            $table->string('keywords')->nullable();
             $table->text('description')->nullable();
             $table->string('phone');
             $table->boolean('show_whatsapp')->default(true);

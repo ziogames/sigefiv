@@ -1,3 +1,4 @@
+
 FROM php:8.5.12-apache
 
 WORKDIR /var/www/html
@@ -11,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libgmp-dev \
+    libicu-dev \
     nodejs \
     npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -21,10 +23,12 @@ RUN apt-get update && apt-get install -y \
         gd \
         bcmath \
         gmp \
+        intl \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 RUN printf "upload_max_filesize=8M\npost_max_size=8M\n" \
     > /usr/local/etc/php/conf.d/uploads.ini
 
