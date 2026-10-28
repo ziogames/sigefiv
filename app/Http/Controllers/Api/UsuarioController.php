@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use App\Services\FcmService;
+use App\Models\FcmToken;
 
 class UsuarioController extends Controller
 {
@@ -118,6 +120,18 @@ class UsuarioController extends Controller
                 'estado' => $nuevoEstado,
             ]);
 
+            // 🔥 Si se bloquea al usuario, tumbamos su sesión de inmediato
+            if ($nuevoEstado === 'bloqueado') {
+                $usuario->tokens()->delete();
+
+                // 🚀 ENVIAR PUSH FCM: Notificamos al dispositivo que fue bloqueado
+                $this->enviarNotificacionExpulsion(
+                    usuario: $usuario,
+                    titulo: "Cuenta Bloqueada",
+                    mensaje: "Tu cuenta ha sido bloqueada por la administración. Por seguridad, tu sesión ha finalizado."
+                );
+            }
+
             $usuario->load('roles');
 
             return response()->json([
@@ -164,13 +178,13 @@ class UsuarioController extends Controller
     public function cambiarRol(Request $request, User $usuario): JsonResponse
     {
         try {
-           $request->validate([
-    'rol' => [
-        'required',
-        'string',
-        'exists:roles,name',
-    ],
-]);
+            $request->validate([
+                'rol' => [
+                    'required',
+                    'string',
+                    'exists:roles,name',
+                ],
+            ]);
             $nuevoRol = $request->input('rol');
 
             // No permitir cambiar el propio rol.
@@ -207,6 +221,16 @@ class UsuarioController extends Controller
             }
 
             $usuario->syncRoles([$nuevoRol]);
+
+            // 🔥 Invalidamos los tokens de Sanctum para forzar reingreso
+            $usuario->tokens()->delete();
+
+            // 🚀 ENVIAR PUSH FCM: Notificamos al dispositivo que su rol cambió
+            $this->enviarNotificacionExpulsion(
+                usuario: $usuario,
+                titulo: "Actualización de Privilegios",
+                mensaje: "Tus privilegios o rol en la comunidad han sido actualizados por la administración. Por seguridad, tu sesión se cerrará para refrescar tu acceso."
+            );
 
             $usuario->load('roles');
 
@@ -282,6 +306,8 @@ class UsuarioController extends Controller
                 }
             }
 
+            // Destruir sesiones antes de eliminar
+            $usuario->tokens()->delete();
             $usuario->delete();
 
             return response()->json([
@@ -294,6 +320,32 @@ class UsuarioController extends Controller
                 'message' => 'No se pudo eliminar el usuario.',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Helper privado para disparar la notificación push FCM en tiempo real
+     */
+    private function enviarNotificacionExpulsion(User $usuario, string $titulo, string $mensaje)
+    {
+        // Buscamos el token FCM activo de este usuario en la base de datos
+        $fcmTokenRecord = FcmToken::where('user_id', $usuario->id)
+            ->where('activo', true)
+            ->latest()
+            ->first();
+
+        if ($fcmTokenRecord && !empty($fcmTokenRecord->token)) {
+            try {
+                // Invocamos tu FcmService existente usando el método limpio que creamos
+                $fcmService = app(FcmService::class);
+                $fcmService->enviarAlertaExpulsion(
+                    token: $fcmTokenRecord->token,
+                    titulo: $titulo,
+                    mensaje: $mensaje
+                );
+            } catch (\Exception $e) {
+                \Log::error("Error enviando FCM de expulsión: " . $e->getMessage());
+            }
         }
     }
 }

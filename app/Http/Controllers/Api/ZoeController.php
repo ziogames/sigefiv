@@ -15,65 +15,70 @@ use App\Models\ZoeIncidencia;
 
 class ZoeController extends Controller
 {
-    public function consultar(Request $request)
-    {
-        $request->validate([
-            'mensaje' => 'required|string|max:1000',
-        ]);
-
-        try {
-            $usuario = $request->user();
-
-           $response = Http::timeout(120)
-    ->post(config('services.n8n.zoe_webhook_url'), [
-        'mensaje' => $request->mensaje,
-
-        // Usuario autenticado
-        'usuario_id' => $usuario?->id,
-
-        // Nombre del usuario autenticado
-        'nombre_usuario' => $usuario?->name ?? 'vecino',
+    
+public function consultar(Request $request)
+{
+    $request->validate([
+        'mensaje' => 'required|string|max:1000',
     ]);
 
-            Log::info('ZOE respuesta n8n', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-                'json' => $response->json(),
+    try {
+        $usuario = $request->user();
+
+        // Priorizar el seudónimo del vecino.
+       $seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
+        $nombreReal = trim((string) ($usuario?->name ?? ''));
+        $nombreZoe = $seudonimo !== ''
+        ? $seudonimo
+        : (explode(' ', $nombreReal)[0] ?: 'vecino');
+
+        $response = Http::timeout(120)
+            ->post(config('services.n8n.zoe_webhook_url'), [
+                'mensaje' => $request->mensaje,
+                'usuario_id' => $usuario?->id,
+                'nombre_usuario' => $nombreZoe,
+                'seudonimo' => $usuario?->seudonimo,
             ]);
 
-            if ($response->failed()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo obtener respuesta de ZOE.',
-                    'error' => $response->body(),
-                ], 502);
-            }
+        Log::info('ZOE respuesta n8n', [
+            'status' => $response->status(),
+            'body' => $response->body(),
+            'json' => $response->json(),
+        ]);
 
-          $respuesta =
-    $response->json('respuesta')
-    ?? $response->json('mensaje')
-    ?? $response->json('text');
-
-$estadistica = $response->json('estadistica');
-
-return response()->json([
-    'success' => true,
-    'respuesta' => $respuesta,
-    'estadistica' => $estadistica,
-]);
-
-        } catch (\Throwable $e) {
-            Log::error('Error al comunicarse con ZOE', [
-                'error' => $e->getMessage(),
-            ]);
-
+        if ($response->failed()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al comunicarse con ZOE.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => 'No se pudo obtener respuesta de ZOE.',
+                'error' => $response->body(),
+            ], 502);
         }
+
+        $respuesta = $response->json('respuesta')
+            ?? $response->json('mensaje')
+            ?? $response->json('text');
+
+        $estadistica = $response->json('estadistica');
+
+        return response()->json([
+            'success' => true,
+            'respuesta' => $respuesta,
+            'estadistica' => $estadistica,
+        ]);
+
+    } catch (\Throwable $e) {
+        Log::error('Error al comunicarse con ZOE', [
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al comunicarse con ZOE.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
+
      /**
      * Genera un mensaje inteligente para la mascota ZOE
      * y lo distribuye mediante FCM.
@@ -90,14 +95,23 @@ return response()->json([
 
         try {
 
-            $usuario = $request->user();
+           
+$usuario = $request->user();
 
-            $resultado = $zoeN8nService->mensajeMascota(
-                evento: $request->evento,
-                usuarioId: $usuario?->id ?? 0,
-                nombreUsuario: $usuario?->name,
-                contexto: $request->contexto ?? []
-            );
+$seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
+$nombreReal = trim((string) ($usuario?->name ?? ''));
+
+$nombreZoe = $seudonimo !== ''
+    ? $seudonimo
+    : (explode(' ', $nombreReal)[0] ?: 'vecino');
+
+$resultado = $zoeN8nService->mensajeMascota(
+    evento: $request->evento,
+    usuarioId: $usuario?->id ?? 0,
+    nombreUsuario: $nombreZoe,
+    contexto: $request->contexto ?? []
+);
+
 
             if ($resultado === null) {
                 return response()->json([

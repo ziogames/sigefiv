@@ -531,6 +531,40 @@ class AuthController extends Controller
         ]);
     }
 
+    public function actualizarPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'regex:/[A-Z]/',      // Al menos una letra mayúscula
+                'regex:/[@$!%*#?&]/', // Al menos un carácter especial
+            ],
+            'new_password_confirmation' => ['required', 'same:new_password'],
+        ]);
+
+        $user = $request->user();
+
+        // Validar que la contraseña actual sea correcta
+        if (!Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['La contraseña actual es incorrecta.'],
+            ]);
+        }
+
+        // Actualizar la contraseña encriptada
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contraseña actualizada correctamente.',
+        ], 200);
+    }
+
     public function logout(
         Request $request
     ): JsonResponse {
@@ -547,9 +581,16 @@ class AuthController extends Controller
         ]);
     }
 
-    private function datosUsuario(
+private function datosUsuario(
         User $user
     ): array {
+
+        // 🧠 REGLA INTELIGENTE:
+        // 1. Si el usuario tiene seudónimo (no está vacío ni es null), usamos el seudónimo.
+        // 2. Si es null, tomamos el campo 'name' y sacamos únicamente la primera palabra (el primer nombre).
+        $nombrePreferido = !empty($user->seudonimo) 
+            ? $user->seudonimo 
+            : explode(' ', trim($user->name))[0];
 
         return [
             'id' =>
@@ -558,6 +599,8 @@ class AuthController extends Controller
                 $user->name,
             'seudonimo' =>
                 $user->seudonimo,
+            'nombre_usuario' => // 👈 ESTE ES EL CAMPO LISTO PARA ZOE Y LA APP
+                $nombrePreferido,
             'email' =>
                 $user->email,
             'estado' =>

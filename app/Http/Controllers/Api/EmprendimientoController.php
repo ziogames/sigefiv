@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Emprendimiento;
+use App\Models\EmprendimientoFoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class EmprendimientoController extends Controller
 {
@@ -48,7 +50,7 @@ class EmprendimientoController extends Controller
         ]);
     }
 
-    // Crear un nuevo emprendimiento
+    // Crear un nuevo emprendimiento (con soporte para fotos)
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -61,6 +63,7 @@ class EmprendimientoController extends Controller
             'attention_zone' => 'nullable|string|max:255',
             'schedule' => 'nullable|string|max:255',
             'status' => 'required|in:draft,published,paused',
+            'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120', // Validación de imágenes
         ]);
 
         $validated['user_id'] = $request->user()->id;
@@ -69,16 +72,31 @@ class EmprendimientoController extends Controller
         // 1. Crear el emprendimiento
         $emprendimiento = Emprendimiento::create($validated);
 
-        // 2. Notificar a n8n para generar sinónimos (si está publicado)
+        // 2. 📸 Procesar y guardar las fotos en la tabla emprendimiento_fotos
+        if ($request->hasFile('photos')) {
+            foreach ($request->file('photos') as $index => $file) {
+                $path = $file->store('emprendimientos', 'public');
+
+                EmprendimientoFoto::create([
+                    'emprendimiento_id' => $emprendimiento->id,
+                    'path' => $path,
+                    'is_primary' => $index === 0 // La primera foto se marca como principal
+                ]);
+            }
+        }
+
+        // 3. Notificar a n8n para generar sinónimos (si está publicado)
         if ($emprendimiento->status === 'published') {
             try {
                 $webhookUrl = config('services.n8n.webhook_sinonimos');
-                Http::timeout(3)->post($webhookUrl, [
-                    'emprendimiento_id' => $emprendimiento->id,
-                    'nombre' => $emprendimiento->name,
-                    'keywords' => $emprendimiento->keywords,
-                    'descripcion' => $emprendimiento->description
-                ]);
+                if ($webhookUrl) {
+                    Http::timeout(3)->post($webhookUrl, [
+                        'emprendimiento_id' => $emprendimiento->id,
+                        'nombre' => $emprendimiento->name,
+                        'keywords' => $emprendimiento->keywords,
+                        'descripcion' => $emprendimiento->description
+                    ]);
+                }
             } catch (\Exception $e) {
                 Log::error('Error al contactar a n8n para sinónimos: ' . $e->getMessage());
             }
@@ -90,7 +108,7 @@ class EmprendimientoController extends Controller
         ], 201);
     }
 
-    // Actualizar un emprendimiento existente
+    // Actualizar un emprendimiento existente (con soporte para fotos)
     public function update(Request $request, $id)
     {
         $emprendimiento = Emprendimiento::find($id);
@@ -113,11 +131,29 @@ class EmprendimientoController extends Controller
             'attention_zone' => 'nullable|string|max:255',
             'schedule' => 'nullable|string|max:255',
             'status' => 'required|in:draft,published,paused',
+            'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
         $emprendimiento->update($validated);
 
-        // Notificar a n8n si se actualizó y está publicado (opcional)
+        // 📸 Procesar nuevas fotos si se envían en la actualización
+        if ($request->hasFile('photos')) {
+            // Opcional: Si deseas reemplazar todas las fotos anteriores al actualizar, descomenta la siguiente línea:
+            // foreach ($emprendimiento->photos as $fotoAntigua) { Storage::disk('public')->delete($fotoAntigua->path); } $emprendimiento->photos()->delete();
+
+            $tieneFotosPrevias = $emprendimiento->photos()->count() > 0;
+
+            foreach ($request->file('photos') as $index => $file) {
+                $path = $file->store('emprendimientos', 'public');
+
+                EmprendimientoFoto::create([
+                    'emprendimiento_id' => $emprendimiento->id,
+                    'path' => $path,
+                    'is_primary' => (!$tieneFotosPrevias && $index === 0)
+                ]);
+            }
+        }
+
         if ($emprendimiento->status === 'published') {
             try {
                 $webhookUrl = config('services.n8n.webhook_sinonimos');
@@ -230,7 +266,6 @@ class EmprendimientoController extends Controller
             ]);
         }
 
-        // Búsqueda estricta apuntando exclusivamente al nombre y a las palabras clave (keywords)
         $consulta = Emprendimiento::query()
             ->where('status', 'published')
             ->where(function ($query) use ($terminosBusqueda) {
@@ -239,8 +274,10 @@ class EmprendimientoController extends Controller
                         ? mb_substr($palabra, 0, -1, 'UTF-8')
                         : $palabra;
 
-                    $query->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $raiz . '%'])
-                          ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $palabra . '%']);
+                   $query->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $palabra . '%'])
+      ->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $raiz . '%'])
+      ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $palabra . '%'])
+      ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $raiz . '%']);
                 }
             });
 
@@ -250,19 +287,26 @@ class EmprendimientoController extends Controller
             ->orderBy('name')
             ->paginate($limite, ['*'], 'pagina', $pagina);
 
+        $user = auth('sanctum')->user();
+
         $resultados = $emprendimientos->getCollection()
-            ->map(function ($emprendimiento) {
+            ->map(function ($emprendimiento) use ($user) {
+                $esFavorito = false;
+                if ($user) {
+                    $esFavorito = $user->emprendimientosFavoritos()->where('emprendimiento_id', $emprendimiento->id)->exists();
+                }
+
                 return [
                     'id' => $emprendimiento->id,
-                    'nombre' => $emprendimiento->name,
-                    'descripcion' => $emprendimiento->description,
-                    // Mostramos las palabras clave reales en lugar de la categoría eliminada
-                    'categoria' => $emprendimiento->keywords,
-                    'telefono' => $emprendimiento->phone,
+                    'name' => $emprendimiento->name,
+                    'description' => $emprendimiento->description,
+                    'keywords' => $emprendimiento->keywords,
+                    'phone' => $emprendimiento->phone,
                     'show_whatsapp' => (bool) $emprendimiento->show_whatsapp,
-                    'modalidad' => $emprendimiento->modality,
-                    'zona_atencion' => $emprendimiento->attention_zone,
-                    'horario' => $emprendimiento->schedule,
+                    'modality' => $emprendimiento->modality,
+                    'attention_zone' => $emprendimiento->attention_zone,
+                    'schedule' => $emprendimiento->schedule,
+                    'es_favorito' => $esFavorito,
                 ];
             })
             ->values();
@@ -276,6 +320,7 @@ class EmprendimientoController extends Controller
             'emprendimientos' => $resultados,
         ]);
     }
+
     // Eliminar un emprendimiento del usuario autenticado
     public function destroy(Request $request, $id)
     {
@@ -285,20 +330,115 @@ class EmprendimientoController extends Controller
             return response()->json(['message' => 'Emprendimiento no encontrado'], 404);
         }
 
-        // Validación estricta de seguridad: solo el dueño puede eliminarlo
         if ((int)$emprendimiento->user_id !== (int)$request->user()->id) {
             return response()->json(['message' => 'No autorizado para eliminar este negocio'], 403);
         }
 
-        // Eliminar fotos asociadas del almacenamiento si es necesario o dejar que cascada lo maneje
+        // Eliminar archivos físicos del almacenamiento
+        foreach ($emprendimiento->photos as $foto) {
+            Storage::disk('public')->delete($foto->path);
+        }
+
         $emprendimiento->photos()->delete();
-        
-        // Eliminar el emprendimiento
         $emprendimiento->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'Emprendimiento eliminado correctamente'
+        ]);
+    }
+
+    // Listar todos los emprendimientos publicados para el directorio general de la app
+    public function indexPublicos(Request $request)
+    {
+        $categoria = $request->input('categoria');
+        $user = auth('sanctum')->user();
+
+        $query = Emprendimiento::where('status', 'published')
+            ->with(['photos']);
+
+        if ($categoria && $categoria !== 'Todos') {
+            $query->where('keywords', 'ILIKE', "%{$categoria}%");
+        }
+
+        $emprendimientos = $query->orderBy('created_at', 'desc')->get();
+
+        $resultados = $emprendimientos->map(function ($emprendimiento) use ($user) {
+            $esFavorito = false;
+            if ($user) {
+                $esFavorito = $user->emprendimientosFavoritos()->where('emprendimiento_id', $emprendimiento->id)->exists();
+            }
+
+            return [
+                'id' => $emprendimiento->id,
+                'name' => $emprendimiento->name,
+                'keywords' => $emprendimiento->keywords,
+                'description' => $emprendimiento->description,
+                'phone' => $emprendimiento->phone,
+                'show_whatsapp' => (bool) $emprendimiento->show_whatsapp,
+                'modality' => $emprendimiento->modality,
+                'attention_zone' => $emprendimiento->attention_zone,
+                'schedule' => $emprendimiento->schedule,
+                'status' => $emprendimiento->status,
+                'photos' => $emprendimiento->photos ?? [],
+                'es_favorito' => $esFavorito,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'emprendimientos' => $resultados
+        ]);
+    }
+
+    // Marcar o desmarcar favorito
+    public function toggleFavorito(Request $request, $id)
+    {
+        $user = $request->user();
+        $emprendimiento = Emprendimiento::find($id);
+
+        if (!$emprendimiento) {
+            return response()->json(['message' => 'No encontrado'], 404);
+        }
+
+        $user->emprendimientosFavoritos()->toggle($id);
+
+        $esFavorito = $user->emprendimientosFavoritos()->where('emprendimiento_id', $id)->exists();
+
+        return response()->json([
+            'success' => true,
+            'es_favorito' => $esFavorito,
+            'message' => $esFavorito ? 'Agregado a favoritos' : 'Eliminado de favoritos'
+        ]);
+    }
+
+    // Listar favoritos del usuario
+    public function misFavoritos(Request $request)
+    {
+        $user = $request->user();
+        
+        $favoritos = $user->emprendimientosFavoritos()->with(['photos'])->get();
+
+        $resultados = $favoritos->map(function ($emprendimiento) {
+            return [
+                'id' => $emprendimiento->id,
+                'name' => $emprendimiento->name,
+                'keywords' => $emprendimiento->keywords,
+                'description' => $emprendimiento->description,
+                'phone' => $emprendimiento->phone,
+                'show_whatsapp' => (bool) $emprendimiento->show_whatsapp,
+                'modality' => $emprendimiento->modality,
+                'attention_zone' => $emprendimiento->attention_zone,
+                'schedule' => $emprendimiento->schedule,
+                'status' => $emprendimiento->status,
+                'photos' => $emprendimiento->photos ?? [],
+                'es_favorito' => true,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'emprendimientos' => $resultados
         ]);
     }
 }

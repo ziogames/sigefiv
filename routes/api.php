@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\ZoeAiController;
 use App\Http\Controllers\Api\ClimaController;
 use App\Http\Controllers\Api\ZoeEstatutosController;
 use App\Http\Controllers\Api\EmprendimientoController;
+
 /*
 |--------------------------------------------------------------------------
 | PRUEBA DE LA API
@@ -51,6 +52,15 @@ Route::middleware('throttle:10,1')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
+| RUTAS PÚBLICAS DE EMPRENDIMIENTOS (Directorio y Búsqueda para Zoe / App)
+|--------------------------------------------------------------------------
+*/
+Route::get('/emprendimientos/publicos', [EmprendimientoController::class, 'indexPublicos']);
+Route::get('/emprendimientos/buscar', [EmprendimientoController::class, 'buscarPublicados'])->middleware('throttle:30,1');
+Route::get('/clima', [ClimaController::class, 'obtener']);
+
+/*
+|--------------------------------------------------------------------------
 | RUTAS PROTEGIDAS (SANCTUM)
 |--------------------------------------------------------------------------
 */
@@ -62,42 +72,17 @@ Route::middleware('auth:sanctum')->group(function () {
     | USUARIO AUTENTICADO
     |--------------------------------------------------------------------------
     */
-
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | MI CUENTA — PERFIL DEL USUARIO AUTENTICADO
-    |--------------------------------------------------------------------------
-    |
-    | Estas rutas solo permiten modificar al usuario que posee
-    | el token de autenticación.
-    |
-    */
-
-    Route::put('/mi-cuenta', [
-        AuthController::class,
-        'actualizarPerfil',
-    ]);
-
-    Route::post('/mi-cuenta/foto', [
-        AuthController::class,
-        'actualizarFoto',
-    ]);
-
-    /*
-    |--------------------------------------------------------------------------
-    | BIENVENIDA / ONBOARDING
-    |--------------------------------------------------------------------------
-    */
+    Route::put('/mi-cuenta', [AuthController::class, 'actualizarPerfil']);
+    Route::post('/mi-cuenta/foto', [AuthController::class, 'actualizarFoto']);
+    Route::put('/mi-cuenta/password', [AuthController::class, 'actualizarPassword']);
 
     Route::post('/usuario/marcar-bienvenida', function (Request $request) {
         $user = $request->user();
-
         $user->bienvenida_vista = true;
         $user->save();
-
         return response()->json([
             'success' => true,
             'message' => 'Bienvenida registrada correctamente.',
@@ -106,540 +91,167 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | DASHBOARD
+    | DASHBOARD, CAJA Y MOVIMIENTOS
     |--------------------------------------------------------------------------
     */
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard');
+    Route::get('/caja', [CajaController::class, 'index'])->middleware('permission:caja.index');
 
-    Route::get('/dashboard', [
-        DashboardController::class,
-        'index',
-    ])->middleware('permission:dashboard');
+    Route::get('/movimientos', [MovimientoController::class, 'index'])->middleware('permission:movimientos.index');
+    Route::get('/movimientos/categorias', [MovimientoController::class, 'categorias'])->middleware('permission:movimientos.index');
+    Route::get('/movimientos/{movimiento}', [MovimientoController::class, 'show'])->middleware('permission:movimientos.show');
+    Route::post('/movimientos', [MovimientoController::class, 'store'])->middleware('permission:movimientos.create');
+    Route::put('/movimientos/{movimiento}', [MovimientoController::class, 'update'])->middleware('permission:movimientos.edit');
+    Route::delete('/movimientos/{movimiento}', [MovimientoController::class, 'destroy'])->middleware('permission:movimientos.destroy');
 
-    /*
-    |--------------------------------------------------------------------------
-    | CAJA
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/caja', [
-        CajaController::class,
-        'index',
-    ])->middleware('permission:caja.index');
-
-    /*
-    |--------------------------------------------------------------------------
-    | MOVIMIENTOS
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/movimientos', [
-        MovimientoController::class,
-        'index',
-    ])->middleware('permission:movimientos.index');
-
-    Route::get('/movimientos/categorias', [
-    MovimientoController::class,
-    'categorias',
-])->middleware('permission:movimientos.index');
-
-
-// Ver detalle
-Route::get('/movimientos/{movimiento}', [
-    MovimientoController::class,
-    'show',
-])->middleware('permission:movimientos.show');
-
-// Crear movimiento
-Route::post('/movimientos', [
-    MovimientoController::class,
-    'store',
-])->middleware('permission:movimientos.create');
-
-// Editar movimiento
-Route::put('/movimientos/{movimiento}', [
-    MovimientoController::class,
-    'update',
-])->middleware('permission:movimientos.edit');
-
-// Eliminar movimiento
-// Eliminar movimiento
-Route::delete('/movimientos/{movimiento}', [
-    MovimientoController::class,
-    'destroy',
-])->middleware('permission:movimientos.destroy');
-    
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CATEGORÍAS
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/categorias', [
-        CategoriaController::class,
-        'index',
-    ])->middleware('permission:categorias.index');
+    Route::get('/categorias', [CategoriaController::class, 'index'])->middleware('permission:categorias.index');
 
     /*
     |--------------------------------------------------------------------------
     | PERÍODOS
     |--------------------------------------------------------------------------
     */
-
-    Route::get('/periodo/abierto', [
-        PeriodoController::class,
-        'abierto',
-    ])->middleware('permission:periodos.index');
-
-    Route::get('/periodos', [
-        PeriodoController::class,
-        'index',
-    ])->middleware('permission:periodos.index');
-
-    Route::get('/periodos/{id}', [
-        PeriodoController::class,
-        'show',
-    ])->middleware('permission:periodos.index');
-
-    Route::get('/periodos/{id}/movimientos', [
-        PeriodoController::class,
-        'movimientos',
-    ])->middleware('permission:periodos.index');
-Route::post('/periodos/{id}/cerrar', [
-    PeriodoController::class,
-    'cerrar',
-])->middleware('permission:periodos.cerrar');
-
-/*
-|--------------------------------------------------------------------------
-| ZOE AI — NUEVO CEREBRO
-|--------------------------------------------------------------------------
-*/
-
-
-
-Route::post('/zoe-ai/chat', [
-    \App\Http\Controllers\Api\ZoeAiController::class,
-    'chat',
-]);
-
-/*
-|--------------------------------------------------------------------------
-| ZOE
-|--------------------------------------------------------------------------
-*/
-
-Route::post('/zoe', [
-    ZoeController::class,
-    'consultar',
-]);
-
-Route::post('/zoe/mascota', [
-    ZoeController::class,
-    'mensajeMascota',
-]);
-// 🕒 NUEVA RUTA PARA EL HISTORIAL DE CONVERSACIONES DE ZOE
-Route::get('/zoe/historial', [
-    ZoeController::class,
-    'historial',
-]);
-Route::get('/zoe/historial/{id}', [ZoeController::class, 'verConversacion']);
-Route::post('/zoe/mensaje-con-adjunto', [ZoeController::class, 'enviarMensajeConArchivo']);
-
+    Route::get('/periodo/abierto', [PeriodoController::class, 'abierto'])->middleware('permission:periodos.index');
+    Route::get('/periodos', [PeriodoController::class, 'index'])->middleware('permission:periodos.index');
+    Route::get('/periodos/{id}', [PeriodoController::class, 'show'])->middleware('permission:periodos.index');
+    Route::get('/periodos/{id}/movimientos', [PeriodoController::class, 'movimientos'])->middleware('permission:periodos.index');
+    Route::post('/periodos/{id}/cerrar', [PeriodoController::class, 'cerrar'])->middleware('permission:periodos.cerrar');
 
     /*
     |--------------------------------------------------------------------------
-    | ZOE — ASISTENTE INTELIGENTE
+    | ZOE AI & ASISTENTE
     |--------------------------------------------------------------------------
     */
-
-    Route::post('/consulta-inteligente', [
-        ConsultaInteligenteController::class,
-        'consultar',
-    ]);
+    Route::post('/zoe-ai/chat', [\App\Http\Controllers\Api\ZoeAiController::class, 'chat']);
+    Route::post('/zoe', [ZoeController::class, 'consultar']);
+    Route::post('/zoe/mascota', [ZoeController::class, 'mensajeMascota']);
+    Route::get('/zoe/historial', [ZoeController::class, 'historial']);
+    Route::get('/zoe/historial/{id}', [ZoeController::class, 'verConversacion']);
+    Route::post('/zoe/mensaje-con-adjunto', [ZoeController::class, 'enviarMensajeConArchivo']);
+    Route::post('/consulta-inteligente', [ConsultaInteligenteController::class, 'consultar']);
 
     /*
     |--------------------------------------------------------------------------
     | CHAT DEVICES
     |--------------------------------------------------------------------------
     */
-
-    Route::get('/chat-devices/{device}/estado', [
-        ChatDeviceController::class,
-        'estado',
-    ]);
+    Route::get('/chat-devices/{device}/estado', [ChatDeviceController::class, 'estado']);
 
     /*
     |--------------------------------------------------------------------------
-    | USUARIOS
+    | USUARIOS, ROLES Y PERMISOS
     |--------------------------------------------------------------------------
     */
+    Route::get('/usuarios', [UsuarioController::class, 'index'])->middleware('permission:usuarios.index');
+    Route::patch('/usuarios/{usuario}/estado', [UsuarioController::class, 'cambiarEstado'])->middleware('permission:usuarios.index');
+    Route::patch('/usuarios/{usuario}/rol', [UsuarioController::class, 'cambiarRol'])->middleware('permission:usuarios.index');
+    Route::delete('/usuarios/{usuario}', [UsuarioController::class, 'eliminar'])->middleware('permission:usuarios.index');
 
-    Route::get('/usuarios', [
-        UsuarioController::class,
-        'index',
-    ])->middleware('permission:usuarios.index');
-
-    Route::patch('/usuarios/{usuario}/estado', [
-        UsuarioController::class,
-        'cambiarEstado',
-    ])->middleware('permission:usuarios.index');
-
-    Route::patch('/usuarios/{usuario}/rol', [
-        UsuarioController::class,
-        'cambiarRol',
-    ])->middleware('permission:usuarios.index');
-
-    Route::delete('/usuarios/{usuario}', [
-        UsuarioController::class,
-        'eliminar',
-    ])->middleware('permission:usuarios.index');
-
-    /*
-    |--------------------------------------------------------------------------
-    | ROLES Y PERMISOS
-    |--------------------------------------------------------------------------
-    */
-
-    /*
-    |--------------------------------------------------------------------------
-    | ROLES Y PERMISOS
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get('/roles', [
-        RolController::class,
-        'index',
-    ])->middleware('permission:roles.index');
-
-    // Debe ir antes de /roles/{id}.
-    Route::get('/roles/permisos', [
-        RolController::class,
-        'permisos',
-    ])->middleware('permission:roles.create');
-
-    Route::get('/roles/{id}', [
-        RolController::class,
-        'show',
-    ])->middleware('permission:roles.index');
-
-    Route::post('/roles', [
-        RolController::class,
-        'store',
-    ])->middleware('permission:roles.create');
-
-    Route::put('/roles/{id}', [
-        RolController::class,
-        'update',
-    ])->middleware('permission:roles.edit');
-
-    Route::delete('/roles/{id}', [
-        RolController::class,
-        'destroy',
-    ])->middleware('permission:roles.destroy');
+    Route::get('/roles', [RolController::class, 'index'])->middleware('permission:roles.index');
+    Route::get('/roles/permisos', [RolController::class, 'permisos'])->middleware('permission:roles.create');
+    Route::get('/roles/{id}', [RolController::class, 'show'])->middleware('permission:roles.index');
+    Route::post('/roles', [RolController::class, 'store'])->middleware('permission:roles.create');
+    Route::put('/roles/{id}', [RolController::class, 'update'])->middleware('permission:roles.edit');
+    Route::delete('/roles/{id}', [RolController::class, 'destroy'])->middleware('permission:roles.destroy');
 
     /*
     |--------------------------------------------------------------------------
     | CHAT VECINAL
     |--------------------------------------------------------------------------
     */
-
-    Route::get('/chat', [
-        ChatApiController::class,
-        'index',
-    ])->middleware('permission:chat.index');
-
-    Route::post('/chat', [
-        ChatApiController::class,
-        'store',
-    ])->middleware('permission:chat.index');
-
-    Route::post('/chat/presencia', [
-        ChatApiController::class,
-        'presencia',
-    ])->middleware('permission:chat.index');
-
-    Route::post('/chat/escribiendo', [
-        ChatApiController::class,
-        'escribiendo',
-    ])->middleware('permission:chat.index');
-
-    Route::get('/chat/nuevos', [
-        ChatApiController::class,
-        'nuevos',
-    ])->middleware('permission:chat.index');
-    Route::post('/chat/leido', [
-    ChatApiController::class,
-    'marcarLeido',
-])->middleware('permission:chat.index');
-
-    Route::post('/chat/{chatMessage}/reaccion', [
-        ChatApiController::class,
-        'reaccion',
-    ])->middleware('permission:chat.index');
-
-    Route::get('/chat/{chatMessage}/reacciones', [
-        ChatApiController::class,
-        'reacciones',
-    ])->middleware('permission:chat.index');
+    Route::get('/chat', [ChatApiController::class, 'index'])->middleware('permission:chat.index');
+    Route::post('/chat', [ChatApiController::class, 'store'])->middleware('permission:chat.index');
+    Route::post('/chat/presencia', [ChatApiController::class, 'presencia'])->middleware('permission:chat.index');
+    Route::post('/chat/escribiendo', [ChatApiController::class, 'escribiendo'])->middleware('permission:chat.index');
+    Route::get('/chat/nuevos', [ChatApiController::class, 'nuevos'])->middleware('permission:chat.index');
+    Route::post('/chat/leido', [ChatApiController::class, 'marcarLeido'])->middleware('permission:chat.index');
+    Route::post('/chat/{chatMessage}/reaccion', [ChatApiController::class, 'reaccion'])->middleware('permission:chat.index');
+    Route::get('/chat/{chatMessage}/reacciones', [ChatApiController::class, 'reacciones'])->middleware('permission:chat.index');
 
     /*
     |--------------------------------------------------------------------------
     | ASAMBLEAS
     |--------------------------------------------------------------------------
     */
-
-    Route::get('/asambleas', [
-        AsambleaController::class,
-        'index',
-    ])->middleware('permission:asambleas.index');
-
-    Route::post('/asambleas', [
-        AsambleaController::class,
-        'store',
-    ])->middleware('permission:asambleas.index');
-
-Route::get('/asambleas/convocatoria/proxima', [
-    AsambleaController::class,
-    'proxima',
-]);
-Route::get('/asambleas/aviso-sin-asamblea', [
-    AsambleaController::class,
-    'avisoSinAsamblea',
-]);
-
-Route::get('/asambleas/convocatoria/{asamblea}', [
-    AsambleaController::class,
-    'showPublicada',
-]);
-
-    Route::get('/asambleas/{asamblea}', [
-        AsambleaController::class,
-        'show',
-    ])->middleware('permission:asambleas.index');
-
-    Route::put('/asambleas/{asamblea}', [
-        AsambleaController::class,
-        'update',
-    ])->middleware('permission:asambleas.index');
-
-    Route::delete('/asambleas/{asamblea}', [
-        AsambleaController::class,
-        'destroy',
-    ])->middleware('permission:asambleas.index');
-
-    Route::post('/asambleas/{asamblea}/publicar', [
-        AsambleaController::class,
-        'publicar',
-    ])->middleware('permission:asambleas.index');
+    Route::get('/asambleas', [AsambleaController::class, 'index'])->middleware('permission:asambleas.index');
+    Route::post('/asambleas', [AsambleaController::class, 'store'])->middleware('permission:asambleas.index');
+    Route::get('/asambleas/convocatoria/proxima', [AsambleaController::class, 'proxima']);
+    Route::get('/asambleas/aviso-sin-asamblea', [AsambleaController::class, 'avisoSinAsamblea']);
+    Route::get('/asambleas/convocatoria/{asamblea}', [AsambleaController::class, 'showPublicada']);
+    Route::get('/asambleas/{asamblea}', [AsambleaController::class, 'show'])->middleware('permission:asambleas.index');
+    Route::put('/asambleas/{asamblea}', [AsambleaController::class, 'update'])->middleware('permission:asambleas.index');
+    Route::delete('/asambleas/{asamblea}', [AsambleaController::class, 'destroy'])->middleware('permission:asambleas.index');
+    Route::post('/asambleas/{asamblea}/publicar', [AsambleaController::class, 'publicar'])->middleware('permission:asambleas.index');
 
     /*
     |--------------------------------------------------------------------------
-    | FIREBASE CLOUD MESSAGING (FCM)
+    | FCM & NOTIFICACIONES
     |--------------------------------------------------------------------------
     */
+    Route::post('/fcm/token', [FcmTokenController::class, 'registrar']);
+    Route::post('/fcm/token/desactivar', [FcmTokenController::class, 'desactivar']);
+    Route::get('/fcm/preferencia', [FcmPreferenciaController::class, 'obtener']);
+    Route::post('/fcm/preferencia', [FcmPreferenciaController::class, 'actualizar']);
 
-    Route::post('/fcm/token', [
-        FcmTokenController::class,
-        'registrar',
-    ]);
-
-    Route::post('/fcm/token/desactivar', [
-        FcmTokenController::class,
-        'desactivar',
-    ]);
+    Route::get('/notificaciones', [NotificacionController::class, 'index'])->middleware('permission:notificaciones.index');
+    Route::get('/notificaciones/no-leidas', [NotificacionController::class, 'noLeidas'])->middleware('permission:notificaciones.index');
+    Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])->middleware('permission:notificaciones.index');
+    Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodasLeidas'])->middleware('permission:notificaciones.index');
+    Route::post('/notificaciones/enviar', [NotificacionController::class, 'enviar']);
 
     /*
     |--------------------------------------------------------------------------
-    | NOTIFICACIONES
+    | ACTIVIDAD Y ESTADÍSTICAS ZOE
     |--------------------------------------------------------------------------
     */
+    Route::get('/actividad', [ActividadController::class, 'index'])->middleware('permission:actividad.index');
+    Route::get('/estadisticas/ingresos-egresos', [ZoeEstadisticasController::class, 'ingresosVsEgresos']);
+    Route::get('/estadisticas/evolucion-saldo', [ZoeEstadisticasController::class, 'evolucionSaldo']);
+    Route::get('/estadisticas/egresos-categoria', [ZoeEstadisticasController::class, 'egresosPorCategoria']);
+    Route::get('/estadisticas/resumen-financiero', [ZoeEstadisticasController::class, 'resumenFinanciero']);
+    Route::post('/zoe-voz', [ZoeVozController::class, 'transcribir']);
 
-    Route::get('/notificaciones', [
-        NotificacionController::class,
-        'index',
-    ])->middleware('permission:notificaciones.index');
-
-    Route::get('/notificaciones/no-leidas', [
-        NotificacionController::class,
-        'noLeidas',
-    ])->middleware('permission:notificaciones.index');
-
-    Route::post('/notificaciones/{id}/leer', [
-        NotificacionController::class,
-        'marcarLeida',
-    ])->middleware('permission:notificaciones.index');
-
-    Route::post('/notificaciones/leer-todas', [
-        NotificacionController::class,
-        'marcarTodasLeidas',
-    ])->middleware('permission:notificaciones.index');
-
- /*
-|--------------------------------------------------------------------------
-| PREFERENCIA FCM
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/fcm/preferencia', [
-    FcmPreferenciaController::class,
-    'obtener',
-]);
-
-Route::post('/fcm/preferencia', [
-    FcmPreferenciaController::class,
-    'actualizar',
-]);
     /*
     |--------------------------------------------------------------------------
-    | ZOE
+    | GESTIÓN DE EMPRENDIMIENTOS (AUTENTICADO) & FAVORITOS
     |--------------------------------------------------------------------------
+    */
+    Route::get('/emprendimientos/categorias', [EmprendimientoController::class, 'categorias']);
+    Route::get('/user/emprendimientos', [EmprendimientoController::class, 'index']);
     
+    // 💖 Rutas de favoritos protegidas con Sanctum
+    Route::get('/emprendimientos/favoritos', [EmprendimientoController::class, 'misFavoritos']);
+    Route::post('/emprendimientos/{id}/favorito', [EmprendimientoController::class, 'toggleFavorito']);
 
-      Route::post('/zoe', [
-        ZoeController::class,
-        'consultar',
-    ]);
-
-    Route::post('/zoe/mascota', [
-        ZoeController::class,
-        'mensajeMascota',
-    ]);
-    
-    |--------------------------------------------------------------------------
-    | ENVÍO DE NOTIFICACIONES
-    |--------------------------------------------------------------------------
-    */
-
-    Route::post('/notificaciones/enviar', [
-        NotificacionController::class,
-        'enviar',
-    ]);
-
-    Route::get('/actividad', [
-    ActividadController::class,
-    'index',
-])->middleware('permission:actividad.index');
-
-Route::get('/estadisticas/ingresos-egresos', [
-    ZoeEstadisticasController::class,
-    'ingresosVsEgresos'
-]);
-
-Route::get('/estadisticas/evolucion-saldo', [
-    ZoeEstadisticasController::class,
-    'evolucionSaldo'
-]);
-
-Route::get('/estadisticas/egresos-categoria', [
-    ZoeEstadisticasController::class,
-    'egresosPorCategoria'
-]);
-Route::get(
-    '/estadisticas/resumen-financiero',
-    [ZoeEstadisticasController::class, 'resumenFinanciero']
-);
-
-
-Route::post('/zoe-voz', [
-    ZoeVozController::class,
-    'transcribir'
-]);
-
-// Cambia esto:
-// Route::get('/categorias', [EmprendimientoController::class, 'categorias']);
-
-// Por esto (con una ruta única):
-Route::get('/emprendimientos/categorias', [EmprendimientoController::class, 'categorias']);
-Route::put('/emprendimientos/{id}/status', [EmprendimientoController::class, 'updateStatus']);
-Route::get('/user/emprendimientos', [EmprendimientoController::class, 'index']);
-Route::post('/emprendimientos', [EmprendimientoController::class, 'store']);
-// 👇 Añade esta línea para permitir la edición completa con imágenes
-Route::post('/emprendimientos/{id}', [EmprendimientoController::class, 'update']); 
-Route::delete('/emprendimientos/{id}', [EmprendimientoController::class, 'destroy']); // 👈 NUEVA RUTA DE ELIMINACIÓN
-Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
-
-
-
-Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
-
+    Route::post('/emprendimientos', [EmprendimientoController::class, 'store']);
+    Route::post('/emprendimientos/{id}', [EmprendimientoController::class, 'update']);
+    Route::put('/emprendimientos/{id}/status', [EmprendimientoController::class, 'updateStatus']);
+    Route::delete('/emprendimientos/{id}', [EmprendimientoController::class, 'destroy']);
+    Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
 
 });
 
-
-Route::post(
-    '/zoe-estadisticas',
-    [ZoeEstadisticasBridgeController::class, 'consultar']
-)->middleware('zoe.ai');
-
-Route::post(
-    '/zoe-estatutos',
-    [ZoeEstatutosController::class, 'consultar']
-)->middleware('zoe.ai');
-
-Route::post('/zoe-ai/resumen-periodo', [
-    ZoeAiController::class,
-    'resumenPeriodo',
-])->middleware('zoe.ai');
-
-Route::post('/zoe-ai/resumen-periodo-activo', [
-    ZoeAiController::class,
-    'resumenPeriodoActivo',
-])->middleware('zoe.ai');
-
-Route::post('/zoe-ai/saldo-caja-activo', [
-    ZoeAiController::class,
-    'saldoCajaActivo',
-])->middleware('zoe.ai');
-
-
-Route::post('/zoe-ai/movimientos', [
-    ZoeAiController::class,
-    'movimientos',
-])->middleware('zoe.ai');
-
-Route::post('/zoe-ai/contexto', [
-    ZoeAiController::class,
-    'obtenerContexto',
-])->middleware('zoe.ai');
-
-Route::post('/zoe-ai/contexto/actualizar', [
-    ZoeAiController::class,
-    'actualizarContexto',
-])->middleware('zoe.ai');
-Route::post(
-    '/zoe-ai/emergencias',
-    [ZoeAiController::class, 'obtenerEmergencias']
-)->middleware('zoe.ai');
-
-Route::post(
-    '/zoe-ai/directiva',
-    [ZoeAiController::class, 'obtenerDirectiva']
-)->middleware('zoe.ai');
-
-Route::post('/zoe-ai/saldo-caja', [ZoeAiController::class, 'saldoCaja'])
-    ->middleware('zoe.ai'); 
-
+/*
+|--------------------------------------------------------------------------
+| ENDPOINTS INTERNOS PARA ZOE AI (MIDDLEWARE zoe.ai)
+|--------------------------------------------------------------------------
+*/
+Route::post('/zoe-estadisticas', [ZoeEstadisticasBridgeController::class, 'consultar'])->middleware('zoe.ai');
+Route::post('/zoe-estatutos', [ZoeEstatutosController::class, 'consultar'])->middleware('zoe.ai');
+Route::post('/zoe-ai/resumen-periodo', [ZoeAiController::class, 'resumenPeriodo'])->middleware('zoe.ai');
+Route::post('/zoe-ai/resumen-periodo-activo', [ZoeAiController::class, 'resumenPeriodoActivo'])->middleware('zoe.ai');
+Route::post('/zoe-ai/saldo-caja-activo', [ZoeAiController::class, 'saldoCajaActivo'])->middleware('zoe.ai');
+Route::post('/zoe-ai/movimientos', [ZoeAiController::class, 'movimientos'])->middleware('zoe.ai');
+Route::post('/zoe-ai/contexto', [ZoeAiController::class, 'obtenerContexto'])->middleware('zoe.ai');
+Route::post('/zoe-ai/contexto/actualizar', [ZoeAiController::class, 'actualizarContexto'])->middleware('zoe.ai');
+Route::post('/zoe-ai/emergencias', [ZoeAiController::class, 'obtenerEmergencias'])->middleware('zoe.ai');
+Route::post('/zoe-ai/directiva', [ZoeAiController::class, 'obtenerDirectiva'])->middleware('zoe.ai');
+Route::post('/zoe-ai/saldo-caja', [ZoeAiController::class, 'saldoCaja'])->middleware('zoe.ai');
 
 /*
 |--------------------------------------------------------------------------
 | CHAT DEVICES — ACCESO POR TOKEN
 |--------------------------------------------------------------------------
 */
-
-Route::get('/chat-devices/{device}/estado-device', [
-    ChatDeviceController::class,
-    'estadoPorToken',
-]);
-
-Route::post('/chat-devices/{device}/control', [
-    ChatDeviceController::class,
-    'controlarPorToken',
-]);
-Route::get('/clima', [ClimaController::class, 'obtener']);
-
-Route::get(
-    '/emprendimientos/buscar',
-    [EmprendimientoController::class, 'buscarPublicados']
-)->middleware('throttle:30,1');
+Route::get('/chat-devices/{device}/estado-device', [ChatDeviceController::class, 'estadoPorToken']);
+Route::post('/chat-devices/{device}/control', [ChatDeviceController::class, 'controlarPorToken']);

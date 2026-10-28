@@ -253,4 +253,29 @@ public function enviarEventoAUsuarios(
             ]
         );
     }
+    /**
+     * Envía una alerta de seguridad (cambio de rol o baneo) 
+     * directamente al token FCM de un usuario específico.
+     */
+public function enviarAlertaExpulsion(
+        string $token,
+        string $titulo,
+        string $mensaje
+    ): void {
+        // Usamos solo datos (data-only) para que Android despierte el servicio y dibuje el diálogo
+        $datos = [
+            'tipo' => 'cambio_rol',
+            'titulo' => $titulo,
+            'mensaje' => $mensaje,
+        ];
+
+        $mensajeFcm = CloudMessage::new()
+            ->withToken($token)
+            ->withData($datos) // 👈 Solo enviamos data, sin Notification::create(...)
+            ->withAndroidConfig(AndroidConfig::fromArray([
+                'priority' => 'high',
+            ]));
+
+        $this->messaging->send($mensajeFcm);
+    }
 }

@@ -160,4 +160,16 @@ class User extends Authenticatable
 {
     return $this->belongsTo(Cargo::class);
 }
+/**
+     * Emprendimientos marcados como favoritos por el usuario.
+     */
+    public function emprendimientosFavoritos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Emprendimiento::class,
+            'emprendimiento_favoritos',
+            'user_id',
+            'emprendimiento_id'
+        )->withTimestamps();
+    }
 }
