@@ -55,6 +55,7 @@ class EmprendimientoController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'categoria' => 'required|string|max:100',
             'keywords' => 'required|string|max:255',
             'description' => 'nullable|string',
             'phone' => 'required|string|max:50',
@@ -123,6 +124,7 @@ class EmprendimientoController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'categoria' => 'required|string|max:100',
             'keywords' => 'required|string|max:255',
             'description' => 'nullable|string',
             'phone' => 'required|string|max:50',
@@ -349,16 +351,19 @@ class EmprendimientoController extends Controller
     }
 
     // Listar todos los emprendimientos publicados para el directorio general de la app
+    // Listar todos los emprendimientos publicados para el directorio general de la app
     public function indexPublicos(Request $request)
     {
         $categoria = $request->input('categoria');
         $user = auth('sanctum')->user();
 
         $query = Emprendimiento::where('status', 'published')
-            ->with(['photos']);
+            ->with(['photos'])
+            ->withAvg('opiniones as promedio_calificacion', 'calificacion')
+            ->withCount('opiniones as total_opiniones');
 
-        if ($categoria && $categoria !== 'Todos') {
-            $query->where('keywords', 'ILIKE', "%{$categoria}%");
+       if ($categoria && $categoria !== 'Todos') {
+            $query->where('categoria', $categoria); // 👈 Filtro exacto por columna
         }
 
         $emprendimientos = $query->orderBy('created_at', 'desc')->get();
@@ -372,6 +377,7 @@ class EmprendimientoController extends Controller
             return [
                 'id' => $emprendimiento->id,
                 'name' => $emprendimiento->name,
+                'categoria' => $emprendimiento->categoria ?? 'Servicios',
                 'keywords' => $emprendimiento->keywords,
                 'description' => $emprendimiento->description,
                 'phone' => $emprendimiento->phone,
@@ -382,6 +388,9 @@ class EmprendimientoController extends Controller
                 'status' => $emprendimiento->status,
                 'photos' => $emprendimiento->photos ?? [],
                 'es_favorito' => $esFavorito,
+                // 🌟 Promedio redondeado a 1 decimal y conteo total de opiniones
+                'promedio_calificacion' => round((float) ($emprendimiento->promedio_calificacion ?? 0.0), 1),
+                'total_opiniones' => (int) ($emprendimiento->total_opiniones ?? 0),
             ];
         });
 
@@ -423,6 +432,7 @@ class EmprendimientoController extends Controller
             return [
                 'id' => $emprendimiento->id,
                 'name' => $emprendimiento->name,
+                'categoria' => $emprendimiento->categoria ?? 'Servicios',
                 'keywords' => $emprendimiento->keywords,
                 'description' => $emprendimiento->description,
                 'phone' => $emprendimiento->phone,

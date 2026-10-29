@@ -17,6 +17,7 @@ class Emprendimiento extends Model
     protected $fillable = [
         'user_id', 
         'name', 
+        'categoria', 
         'slug', 
         'keywords',    // 👈 Campo para las búsquedas de Zoe
         'description',

@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\ZoeAiController;
 use App\Http\Controllers\Api\ClimaController;
 use App\Http\Controllers\Api\ZoeEstatutosController;
 use App\Http\Controllers\Api\EmprendimientoController;
+use App\Http\Controllers\Api\EmprendimientoOpinionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -222,6 +223,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // 💖 Rutas de favoritos protegidas con Sanctum
     Route::get('/emprendimientos/favoritos', [EmprendimientoController::class, 'misFavoritos']);
     Route::post('/emprendimientos/{id}/favorito', [EmprendimientoController::class, 'toggleFavorito']);
+
+    Route::get('/emprendimientos/{id}/opiniones', [EmprendimientoOpinionController::class, 'index']);
+    Route::post('/emprendimientos/{id}/opiniones', [EmprendimientoOpinionController::class, 'store']);
 
     Route::post('/emprendimientos', [EmprendimientoController::class, 'store']);
     Route::post('/emprendimientos/{id}', [EmprendimientoController::class, 'update']);
