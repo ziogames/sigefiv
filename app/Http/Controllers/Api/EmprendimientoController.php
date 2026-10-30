@@ -210,17 +210,18 @@ class EmprendimientoController extends Controller
         $fallback = "Bienvenidos a {$name}. Ofrecemos productos y servicios de calidad pensados para el bienestar de toda la comunidad. ¡Contáctanos y visítanos!";
         return response()->json(['description' => $fallback]);
     }
-
-    // Buscar emprendimientos publicados de forma segura y estricta usando keywords
+// Buscar emprendimientos publicados de forma segura y estricta usando keywords, descripción y categorías
     public function buscarPublicados(Request $request)
     {
         $request->validate([
             'q' => 'required|string|min:2|max:100',
+            'categoria' => 'nullable|string|in:Comida,Servicios,Belleza,Construcción,Comercio,Todos',
             'limite' => 'nullable|integer|min:1|max:20',
             'pagina' => 'nullable|integer|min:1',
         ]);
 
         $termino = trim(ltrim($request->input('q'), '='));
+        $categoriaFiltro = trim((string) $request->input('categoria'));
         $limite = $request->integer('limite', 10);
         $pagina = $request->integer('pagina', 1);
 
@@ -233,16 +234,20 @@ class EmprendimientoController extends Controller
             ]);
         };
 
+        // Lista estricta de palabras conversacionales y pronombres
         $palabrasIgnoradas = [
             'hola', 'zoe', 'buenos', 'dias', 'tardes', 'noches', 'por', 'favor', 'porfa',
             'busco', 'buscar', 'necesito', 'quiero', 'quisiera', 'recomiendame', 'recomiendas',
             'conoces', 'conocer', 'sabes', 'saben', 'saber', 'alguien', 'algun', 'alguna',
             'vecino', 'vecina', 'vecinos', 'vecinas', 'comunidad', 'grupo', 'sigefiv',
             'vende', 'venden', 'venda', 'vendan', 'venta', 'comprar', 'compro', 'ofrece', 'ofrecen',
-            'hace', 'hacen', 'haga', 'prepara', 'arregla', 'repara', 'servicio', 'servicios',
+            'hace', 'hacen', 'haga', 'prepara', 'arregla', 'arreglan', 'arreglando', 'repara', 'reparan',
+            'ayuda', 'ayude', 'ayudar', 'servicio', 'servicios', 'comida', 'comidas', 'comercio',
             'tienda', 'negocio', 'emprendimiento', 'emprendimientos',
             'un', 'una', 'unos', 'unas', 'el', 'la', 'los', 'las',
-            'de', 'del', 'para', 'por', 'con', 'en', 'que', 'quien', 'quienes', 'donde', 'hay',
+            'de', 'del', 'para', 'por', 'con', 'en', 'que', 'quien', 'quienes', 
+            'donde', 'dond', 'don', 'puedo', 'puede', 'pueden', 'podria', 'hay',
+            'opcion', 'opciones', 'disponible', 'disponibles', 'todos'
         ];
 
         $palabras = preg_split('/[^\p{L}\p{N}]+/u', $termino, -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -256,8 +261,9 @@ class EmprendimientoController extends Controller
         }
 
         $terminosBusqueda = array_values(array_unique($terminosBusqueda));
+        $tieneCategoriaValida = !empty($categoriaFiltro) && $categoriaFiltro !== 'Todos';
 
-        if (empty($terminosBusqueda)) {
+        if (empty($terminosBusqueda) && !$tieneCategoriaValida) {
             return response()->json([
                 'success' => true,
                 'total' => 0,
@@ -268,47 +274,86 @@ class EmprendimientoController extends Controller
             ]);
         }
 
-        $consulta = Emprendimiento::query()
-            ->where('status', 'published')
-            ->where(function ($query) use ($terminosBusqueda) {
+        $consulta = Emprendimiento::query()->where('status', 'published');
+
+        // 🎯 1. Si viene una categoría clara (ej. Comercio), restringir por ese rubro
+        if ($tieneCategoriaValida) {
+            $consulta->where('categoria', $categoriaFiltro);
+        }
+
+        // 🎯 2. Filtrar por coincidencia de términos en Nombre, Keywords o Descripción
+        if (!empty($terminosBusqueda)) {
+            $consulta->where(function ($query) use ($terminosBusqueda) {
                 foreach ($terminosBusqueda as $palabra) {
                     $raiz = mb_strlen($palabra, 'UTF-8') >= 5
                         ? mb_substr($palabra, 0, -1, 'UTF-8')
                         : $palabra;
 
-                   $query->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $palabra . '%'])
-      ->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $raiz . '%'])
-      ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $palabra . '%'])
-      ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $raiz . '%']);
+                    $query->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $palabra . '%'])
+                          ->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $raiz . '%'])
+                          ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $palabra . '%'])
+                          ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $raiz . '%'])
+                          ->orWhereRaw('unaccent(lower(COALESCE(description, \'\'))) ILIKE ?', ['%' . $palabra . '%'])
+                          ->orWhereRaw('unaccent(lower(COALESCE(description, \'\'))) ILIKE ?', ['%' . $raiz . '%']);
                 }
             });
+        }
 
         $total = (clone $consulta)->count();
 
+        $relacionFotos = method_exists(Emprendimiento::class, 'photos') ? 'photos' : 'fotos';
+
         $emprendimientos = $consulta
+            ->with($relacionFotos)
             ->orderBy('name')
             ->paginate($limite, ['*'], 'pagina', $pagina);
 
         $user = auth('sanctum')->user();
 
         $resultados = $emprendimientos->getCollection()
-            ->map(function ($emprendimiento) use ($user) {
+            ->map(function ($emprendimiento) use ($user, $relacionFotos) {
                 $esFavorito = false;
                 if ($user) {
-                    $esFavorito = $user->emprendimientosFavoritos()->where('emprendimiento_id', $emprendimiento->id)->exists();
+                    $esFavorito = $user->emprendimientosFavoritos()
+                        ->where('emprendimiento_id', $emprendimiento->id)
+                        ->exists();
                 }
+
+                $coleccionFotos = $emprendimiento->$relacionFotos ?? collect();
+
+                $fotosFormateadas = $coleccionFotos->map(function ($f) {
+                    $pathLimpio = ltrim($f->path ?? $f->ruta ?? '', '/');
+                    return [
+                        'id' => $f->id,
+                        'path' => $pathLimpio,
+                        'url' => $pathLimpio,
+                    ];
+                })->values();
+
+                $primeraFotoPath = $fotosFormateadas->first()['path'] ?? null;
 
                 return [
                     'id' => $emprendimiento->id,
                     'name' => $emprendimiento->name,
+                    'nombre' => $emprendimiento->name,
+                    'categoria' => $emprendimiento->categoria ?? 'Servicios',
                     'description' => $emprendimiento->description,
+                    'descripcion' => $emprendimiento->description,
                     'keywords' => $emprendimiento->keywords,
                     'phone' => $emprendimiento->phone,
+                    'telefono' => $emprendimiento->phone,
                     'show_whatsapp' => (bool) $emprendimiento->show_whatsapp,
                     'modality' => $emprendimiento->modality,
+                    'modalidad' => $emprendimiento->modality,
                     'attention_zone' => $emprendimiento->attention_zone,
+                    'zona_atencion' => $emprendimiento->attention_zone,
                     'schedule' => $emprendimiento->schedule,
+                    'horario' => $emprendimiento->schedule,
                     'es_favorito' => $esFavorito,
+                    'imagen' => $primeraFotoPath,
+                    'imagen_url' => $primeraFotoPath,
+                    'photos' => $fotosFormateadas,
+                    'fotos' => $fotosFormateadas,
                 ];
             })
             ->values();

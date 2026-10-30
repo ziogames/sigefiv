@@ -23,14 +23,14 @@ class ZoeN8nService
 
     /**
      * Envía una consulta a ZOE mediante n8n.
+     * Retorna un array con el texto base y la información complementaria (emprendimientos, estadísticas), o null en error.
      */
     public function consultar(
         string $mensaje,
         int $usuarioId,
         ?string $nombreUsuario = null
-    ): ?string {
+    ): ?array {
         try {
-
             if (trim($this->webhookUrl) === '') {
                 Log::error('ZOE: webhook de n8n no configurado.');
 
@@ -61,69 +61,44 @@ class ZoeN8nService
                 return null;
             }
 
-            /*
-             * Intentamos obtener JSON.
-             */
             $datos = $response->json();
 
-            /*
-             * Caso normal:
-             *
-             * {
-             *     "respuesta": "..."
-             * }
-             */
-            if (is_array($datos)) {
-
-                $texto =
-                    $datos['respuesta']
-                    ?? $datos['mensaje']
-                    ?? $datos['text']
-                    ?? $datos['output']
-                    ?? null;
-
-                if (is_string($texto) && trim($texto) !== '') {
-                    return trim($texto);
+            // Si no se parseó automáticamente como JSON, probamos desde el body crudo
+            if (!is_array($datos)) {
+                $body = trim($response->body());
+                if ($body !== '') {
+                    $jsonBody = json_decode($body, true);
+                    if (is_array($jsonBody)) {
+                        $datos = $jsonBody;
+                    } else {
+                        // En caso de ser solo una cadena de texto plano
+                        return [
+                            'texto' => $body,
+                            'extra' => null,
+                            'raw' => $body,
+                        ];
+                    }
                 }
             }
 
-            /*
-             * Algunos flujos pueden devolver JSON
-             * como texto dentro del body.
-             */
-            $body = trim($response->body());
+            if (is_array($datos)) {
+                $texto = $datos['respuesta']
+                    ?? $datos['mensaje']
+                    ?? $datos['text']
+                    ?? $datos['output']
+                    ?? '';
 
-            if ($body !== '') {
+                // Extraemos el listado de emprendimientos o estadísticas estructuradas
+                $extra = $datos['estadistica']
+                    ?? $datos['emprendimientos']
+                    ?? $datos['data']
+                    ?? null;
 
-                $jsonBody = json_decode($body, true);
-
-                if (is_array($jsonBody)) {
-
-                    $texto =
-                        $jsonBody['respuesta']
-                        ?? $jsonBody['mensaje']
-                        ?? $jsonBody['text']
-                        ?? $jsonBody['output']
-                        ?? null;
-
-                    if (
-                        is_string($texto) &&
-                        trim($texto) !== ''
-                    ) {
-                        return trim($texto);
-                    }
-                }
-
-                /*
-                 * Si n8n devolvió texto plano,
-                 * también lo aceptamos.
-                 */
-                if (
-                    !str_starts_with($body, '<') &&
-                    !str_starts_with($body, '{')
-                ) {
-                    return $body;
-                }
+                return [
+                    'texto' => trim((string) $texto),
+                    'extra' => $extra,
+                    'raw' => $datos,
+                ];
             }
 
             Log::warning('ZOE: n8n respondió pero no se encontró texto.', [
@@ -135,7 +110,6 @@ class ZoeN8nService
             return null;
 
         } catch (Throwable $e) {
-
             Log::error('Error conectando ZOE con n8n.', [
                 'url' => $this->webhookUrl,
                 'mensaje' => $e->getMessage(),
@@ -146,11 +120,9 @@ class ZoeN8nService
             return null;
         }
     }
-        /**
+
+    /**
      * Envía un evento a ZOE para generar un mensaje de la mascota.
-     *
-     * No modifica el método consultar(), para mantener
-     * compatibilidad con todo el flujo actual de ZOE.
      */
     public function mensajeMascota(
         string $evento,
@@ -159,23 +131,22 @@ class ZoeN8nService
         array $contexto = []
     ): ?array {
         try {
-
             $webhookMascota = (string) config(
-    'services.n8n.zoe_webhook',
-    'http://host.docker.internal:5678/webhook/zoe'
-);
+                'services.n8n.zoe_webhook',
+                'http://host.docker.internal:5678/webhook/zoe'
+            );
 
-if (trim($webhookMascota) === '') {
-    Log::error('ZOE MASCOTA: webhook de n8n no configurado.');
+            if (trim($webhookMascota) === '') {
+                Log::error('ZOE MASCOTA: webhook de n8n no configurado.');
 
-    return null;
-}
+                return null;
+            }
 
-$response = Http::timeout(30)
-    ->connectTimeout(10)
-    ->acceptJson()
-    ->asJson()
-    ->post($webhookMascota, [
+            $response = Http::timeout(30)
+                ->connectTimeout(10)
+                ->acceptJson()
+                ->asJson()
+                ->post($webhookMascota, [
                     'tipo' => 'mascota',
                     'evento' => $evento,
                     'usuario_id' => $usuarioId,
@@ -189,13 +160,10 @@ $response = Http::timeout(30)
             ]);
 
             if (!$response->successful()) {
-                Log::warning(
-                    'n8n devolvió un error para ZOE MASCOTA.',
-                    [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                    ]
-                );
+                Log::warning('n8n devolvió un error para ZOE MASCOTA.', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
 
                 return null;
             }
@@ -206,8 +174,7 @@ $response = Http::timeout(30)
                 return null;
             }
 
-            $mensaje =
-                $datos['mensaje']
+            $mensaje = $datos['mensaje']
                 ?? $datos['respuesta']
                 ?? $datos['text']
                 ?? $datos['output']
@@ -234,7 +201,6 @@ $response = Http::timeout(30)
             ];
 
         } catch (Throwable $e) {
-
             Log::error('Error conectando ZOE MASCOTA con n8n.', [
                 'url' => $this->webhookUrl,
                 'evento' => $evento,
