@@ -33,6 +33,7 @@ class UsuarioController extends Controller
                     'name' => $usuario->name,
                     'email' => $usuario->email,
                     'estado' => $usuario->estado,
+                    'advertencias_count' => $usuario->advertencias_count ?? 0,
                     'recibir_notificaciones' => $usuario->recibir_notificaciones,
                     'telefono' => $usuario->telefono,
                     'dni' => $usuario->dni,
@@ -73,7 +74,7 @@ class UsuarioController extends Controller
                 'estado' => [
                     'required',
                     'string',
-                    'in:pendiente,activo,bloqueado',
+                    'in:pendiente,activo,bloqueado,advertido',
                 ],
             ]);
 
@@ -116,9 +117,18 @@ class UsuarioController extends Controller
                 }
             }
 
-            $usuario->update([
-                'estado' => $nuevoEstado,
-            ]);
+            $usuario->estado = $nuevoEstado;
+
+            // 🔄 OPORTUNIDAD: Si se reactiva al usuario, se restablecen todas sus sanciones y advertencias
+            if ($nuevoEstado === 'activo') {
+                $usuario->advertencias_count = 0;
+                $usuario->mensaje_bloqueo = null;
+                $usuario->fecha_bloqueo = null;
+                $usuario->ultimo_mensaje_advertencia = null;
+                $usuario->fecha_advertencia = null;
+            }
+
+            $usuario->save();
 
             // 🔥 Si se bloquea al usuario, tumbamos su sesión de inmediato
             if ($nuevoEstado === 'bloqueado') {
@@ -136,12 +146,19 @@ class UsuarioController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Estado del usuario actualizado correctamente.',
+                'message' => $nuevoEstado === 'activo'
+                    ? "Usuario activado correctamente y su historial disciplinario fue restablecido."
+                    : "Estado del usuario actualizado correctamente.",
                 'usuario' => [
                     'id' => $usuario->id,
                     'name' => $usuario->name,
                     'email' => $usuario->email,
                     'estado' => $usuario->estado,
+                    'advertencias_count' => $usuario->advertencias_count ?? 0,
+                    'mensaje_bloqueo' => $usuario->mensaje_bloqueo,
+                    'fecha_bloqueo' => $usuario->fecha_bloqueo,
+                    'ultimo_mensaje_advertencia' => $usuario->ultimo_mensaje_advertencia,
+                    'fecha_advertencia' => $usuario->fecha_advertencia,
                     'recibir_notificaciones' => $usuario->recibir_notificaciones,
                     'telefono' => $usuario->telefono,
                     'dni' => $usuario->dni,
@@ -242,6 +259,7 @@ class UsuarioController extends Controller
                     'name' => $usuario->name,
                     'email' => $usuario->email,
                     'estado' => $usuario->estado,
+                    'advertencias_count' => $usuario->advertencias_count ?? 0,
                     'recibir_notificaciones' => $usuario->recibir_notificaciones,
                     'telefono' => $usuario->telefono,
                     'dni' => $usuario->dni,
@@ -328,7 +346,6 @@ class UsuarioController extends Controller
      */
     private function enviarNotificacionExpulsion(User $usuario, string $titulo, string $mensaje)
     {
-        // Buscamos el token FCM activo de este usuario en la base de datos
         $fcmTokenRecord = FcmToken::where('user_id', $usuario->id)
             ->where('activo', true)
             ->latest()
@@ -336,7 +353,6 @@ class UsuarioController extends Controller
 
         if ($fcmTokenRecord && !empty($fcmTokenRecord->token)) {
             try {
-                // Invocamos tu FcmService existente usando el método limpio que creamos
                 $fcmService = app(FcmService::class);
                 $fcmService->enviarAlertaExpulsion(
                     token: $fcmTokenRecord->token,

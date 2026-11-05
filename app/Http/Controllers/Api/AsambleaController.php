@@ -1053,4 +1053,107 @@ PROMPT;
                     ?->toISOString(),
         ];
     }
+    /**
+     * Endpoint de solo lectura para el asistente inteligente ZOE.
+     * Devuelve el resumen estructurado de la próxima asamblea y sus puntos de agenda
+     * con fechas y horas formateadas en estándar de 12 horas (a.m. / p.m.).
+     *
+     * GET /api/asambleas/zoe/resumen
+     */
+    public function zoeResumenProxima(): JsonResponse
+    {
+        try {
+            $ahora = now();
+
+            $asamblea = Asamblea::query()
+                ->where('estado', 'publicada')
+                ->whereNotNull('fecha')
+                ->where(function ($query) {
+                    $query->whereNotNull('hora')
+                        ->orWhereNotNull('primera_citacion');
+                })
+                ->where(function ($query) use ($ahora) {
+                    $query->whereDate('fecha', '>', $ahora->toDateString())
+                        ->orWhere(function ($subQuery) use ($ahora) {
+                            $subQuery->whereDate('fecha', '=', $ahora->toDateString())
+                                ->whereRaw("COALESCE(hora, primera_citacion) > ?", [$ahora->format('H:i:s')]);
+                        });
+                })
+                ->orderBy('fecha', 'asc')
+                ->orderByRaw("COALESCE(hora, primera_citacion) asc")
+                ->with(['agendas' => function ($q) {
+                    $q->orderBy('numero', 'asc');
+                }])
+                ->first();
+
+            if (!$asamblea) {
+                return response()->json([
+                    'success' => true,
+                    'hay_asamblea' => false,
+                    'mensaje' => 'No hay ninguna asamblea general programada o pendiente por el momento en el Grupo Residencial 21.'
+                ]);
+            }
+
+            // Helper interno para formatear a 12 horas (ej: "5:00 p.m.")
+            $formatearHora12 = function ($hora) {
+                if (!$hora) {
+                    return null;
+                }
+
+                try {
+                    $horaStr = is_string($hora) ? $hora : $hora->format('H:i:s');
+                    $dt = \Carbon\Carbon::createFromTimeString($horaStr);
+                    
+                    // Reemplaza am/pm por a.m./p.m.
+                    return str_replace(['am', 'pm'], ['a.m.', 'p.m.'], $dt->format('g:i a'));
+                } catch (\Throwable $th) {
+                    return is_string($hora) ? substr($hora, 0, 5) : null;
+                }
+            };
+
+            // Mapeo limpio y ordenado de los puntos de la agenda
+            $agendaPuntos = $asamblea->agendas
+                ->filter(fn($agenda) => !empty(trim((string)$agenda->descripcion)))
+                ->map(function ($agenda) {
+                    return "{$agenda->numero}. {$agenda->descripcion}";
+                })
+                ->values()
+                ->all();
+
+            // Fecha legible en español
+            $fechaCarbon = $asamblea->fecha ? \Carbon\Carbon::parse($asamblea->fecha)->locale('es') : null;
+
+            return response()->json([
+                'success' => true,
+                'hay_asamblea' => true,
+                'datos' => [
+                    'id' => $asamblea->id,
+                    'titulo' => $asamblea->titulo,
+                    'tipo' => $asamblea->tipo,
+                    'convoca' => $asamblea->convoca,
+                    'fecha' => $fechaCarbon?->format('d/m/Y'),
+                    'fecha_texto' => $fechaCarbon ? $fechaCarbon->translatedFormat('d \d\e F \d\e Y') : null,
+                    'hora' => $formatearHora12($asamblea->hora ?? $asamblea->primera_citacion),
+                    'primera_citacion' => $formatearHora12($asamblea->primera_citacion),
+                    'segunda_citacion' => $formatearHora12($asamblea->segunda_citacion),
+                    'lugar' => $asamblea->lugar,
+                    'descripcion' => $asamblea->descripcion,
+                    'importancia' => $asamblea->importancia,
+                    'agenda' => $agendaPuntos
+                ]
+            ]);
+
+        } catch (Throwable $e) {
+            Log::error('Error en zoeResumenProxima: ' . $e->getMessage(), [
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'hay_asamblea' => false,
+                'mensaje' => 'Ocurrió un error al verificar las asambleas.'
+            ], 500);
+        }
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Bitacora;
+use Illuminate\Support\Facades\Log;
 
 class BitacoraService
 {
@@ -12,24 +13,20 @@ class BitacoraService
     public static function registrar(
         string $modulo,
         string $accion,
-        string $descripcion
+        string $descripcion,
+        ?int $userId = null
     ): void {
-
-        Bitacora::create([
-
-            'user_id' => auth()->id(),
-
-            'modulo' => $modulo,
-
-            'accion' => $accion,
-
-            'descripcion' => $descripcion,
-
-            'ip' => request()->ip(),
-
-            'user_agent' => request()->userAgent(),
-
-        ]);
-
+        try {
+            Bitacora::create([
+                'user_id'     => $userId ?? auth()->id() ?? auth('sanctum')->id(),
+                'modulo'      => $modulo,
+                'accion'      => $accion,
+                'descripcion' => $descripcion,
+                'ip'          => request()->ip() ?? '127.0.0.1',
+                'user_agent'  => request()->userAgent() ?? 'Sistema',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("Error al registrar en bitácora: " . $e->getMessage());
+        }
     }
 }

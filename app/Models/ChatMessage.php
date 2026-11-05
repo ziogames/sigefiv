@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChatMessage extends Model
 {
@@ -24,6 +24,9 @@ class ChatMessage extends Model
         'mensaje_padre_id',
         'reply_to_id',
         'editado',
+        'bloqueado_moderacion',
+        'motivo_moderacion',
+        'deleted_by',
     ];
 
     /**
@@ -73,6 +76,17 @@ class ChatMessage extends Model
     }
 
     /**
+     * Moderador o usuario que eliminó el mensaje.
+     */
+    public function moderadorElimino(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'deleted_by'
+        );
+    }
+
+    /**
      * Respuestas de este mensaje.
      */
     public function respuestas()
@@ -84,17 +98,25 @@ class ChatMessage extends Model
     }
 
     /**
+     * Reacciones del mensaje.
+     */
+    public function reacciones(): HasMany
+    {
+        return $this->hasMany(
+            ChatMessageReaction::class,
+            'chat_message_id'
+        );
+    }
+
+    /**
      * Conversiones de atributos.
      */
     protected function casts(): array
     {
         return [
             'editado' => 'boolean',
+            'bloqueado_moderacion' => 'boolean',
             'deleted_at' => 'datetime',
         ];
     }
-    public function reacciones(): HasMany
-{
-    return $this->hasMany(ChatMessageReaction::class, 'chat_message_id');
-}
 }

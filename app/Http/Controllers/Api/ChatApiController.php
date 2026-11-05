@@ -33,19 +33,20 @@ class ChatApiController extends Controller
     ): JsonResponse {
         try {
             $usuario = $request->user();
-
             $chat = $chatService->obtenerChatVecinal();
 
-            $chatPresenceService->actualizarPresencia(
-                $usuario
-            );
+            $chatPresenceService->actualizarPresencia($usuario);
 
             if (!$chatService->usuarioPerteneceAlChat($usuario)) {
                 $chatService->agregarUsuario($usuario);
             }
 
+            // withTrashed() conserva mensajes borrados para "Este mensaje fue eliminado"
+            // where('bloqueado_moderacion', false) oculta las evidencias forenses a los vecinos
             $mensajes = $chat->mensajes()
-                ->with(['usuario', 'replyTo.usuario'])
+                ->withTrashed()
+                ->where('bloqueado_moderacion', false)
+                ->with(['usuario', 'replyTo.usuario', 'mensajePadre.usuario', 'reacciones'])
                 ->orderByDesc('id')
                 ->limit(100)
                 ->get()
@@ -56,9 +57,7 @@ class ChatApiController extends Controller
                 ->where('users.id', $usuario->id)
                 ->first();
 
-            $ultimoLeidoMessageId =
-                $usuarioChat?->pivot?->ultimo_leido_message_id;
-
+            $ultimoLeidoMessageId = $usuarioChat?->pivot?->ultimo_leido_message_id;
             $desdeMessageId = $ultimoLeidoMessageId ?? 0;
 
             $primerNoLeidoId = null;
@@ -67,6 +66,7 @@ class ChatApiController extends Controller
             $primerNoLeido = $chat->mensajes()
                 ->where('id', '>', $desdeMessageId)
                 ->where('user_id', '!=', $usuario->id)
+                ->where('bloqueado_moderacion', false)
                 ->orderBy('id')
                 ->first();
 
@@ -76,6 +76,7 @@ class ChatApiController extends Controller
                 $mensajesNoLeidos = $chat->mensajes()
                     ->where('id', '>', $desdeMessageId)
                     ->where('user_id', '!=', $usuario->id)
+                    ->where('bloqueado_moderacion', false)
                     ->count();
             }
 
@@ -156,16 +157,31 @@ class ChatApiController extends Controller
             $archivoAdjunto = $request->file('archivo');
             $replyToId = $request->input('reply_to_id');
 
+            // 🛡️ MODERACIÓN ZOE (3 Strikes + Detección IA)
             if ($texto !== '') {
                 $resultadoModeracion = $zoeService->procesarMensaje($chat->id, $usuario, $texto);
 
                 if ($resultadoModeracion['bloquear_mensaje'] ?? false) {
+                    // Guarda la evidencia oculta en la base de datos
+                    ChatMessage::create([
+                        'conversation_id'      => $chat->id,
+                        'user_id'              => $usuario->id,
+                        'mensaje'              => $texto,
+                        'bloqueado_moderacion' => true,
+                        'motivo_moderacion'    => $resultadoModeracion['detalle_motivo'] ?? 'Lenguaje ofensivo o infracción a normas',
+                        'reply_to_id'          => $replyToId,
+                        'created_at'           => now(),
+                    ]);
+
+                    $esBloqueo = ($resultadoModeracion['accion'] ?? '') === 'bloqueo';
+
                     return response()->json([
-                        'success' => false,
-                        'message' => $resultadoModeracion['message'] ?? 'Tu mensaje ha sido bloqueado por las normas de convivencia de ZOE.',
-                        'detalle' => $resultadoModeracion['accion'] ?? 'advertencia',
-                        'es_bloqueo_permanente' => ($resultadoModeracion['accion'] ?? '') === 'bloqueo',
-                    ], 422);
+                        'success'               => false,
+                        'message'               => $resultadoModeracion['message'] ?? 'Tu mensaje ha sido bloqueado por las normas de convivencia de ZOE.',
+                        'detalle'               => $resultadoModeracion['accion'] ?? 'advertencia',
+                        'strikes'               => $resultadoModeracion['strikes'] ?? $usuario->advertencias_count,
+                        'es_bloqueo_permanente' => $esBloqueo,
+                    ], $esBloqueo ? 403 : 422);
                 }
             }
 
@@ -238,38 +254,67 @@ class ChatApiController extends Controller
                         : (string) $respuestaIa;
 
                     $textoFinal = '🤖 ' . trim($textoBase);
+                    $esEstadisticaGrafica = false;
 
-                    // Extraer array de emprendimientos si n8n lo devolvió estructurado
-                    $listaEmprendimientos = null;
+                    // 1. Verificar si n8n devolvió estadísticas estructuradas (Canvas)
                     if (is_array($respuestaIa)) {
                         $extra = $respuestaIa['extra'] ?? null;
+                        if (
+                            is_array($extra) &&
+                            isset($extra['tipo']) &&
+                            in_array($extra['tipo'], [
+                                'ingresos_vs_egresos',
+                                'evolucion_saldo',
+                                'egresos_por_categoria',
+                                'resumen_financiero'
+                            ])
+                        ) {
+                            if (empty($extra['titulo']) && !empty($textoBase)) {
+                                $extra['titulo'] = $textoBase;
+                            }
+                            $textoFinal = json_encode($extra, JSON_UNESCAPED_UNICODE);
+                            $esEstadisticaGrafica = true;
+                        }
+                    }
+
+                    // 2. Si no es estadística gráfica, verificar si es lista de emprendimientos
+                 // 2. Si no es estadística gráfica, verificar si es lista de emprendimientos
+                    if (!$esEstadisticaGrafica && is_array($respuestaIa)) {
+                        $extra = $respuestaIa['extra'] ?? null;
+                        $listaEmprendimientos = null;
+
                         if (is_array($extra)) {
                             $listaEmprendimientos = $extra['emprendimientos']
                                 ?? (isset($extra[0]) ? $extra : null);
                         }
+
+                        if (is_array($listaEmprendimientos) && !empty($listaEmprendimientos)) {
+                            foreach ($listaEmprendimientos as $emp) {
+                                $nombre = $emp['nombre'] ?? $emp['name'] ?? 'Emprendimiento Vecinal';
+                                $categoria = $emp['categoria'] ?? $emp['modalidad'] ?? 'General';
+                                $descripcion = $emp['descripcion'] ?? $emp['description'] ?? '';
+                                $contacto = $emp['telefono'] ?? $emp['phone'] ?? '';
+
+                                $imagen = $emp['imagen']
+                                    ?? $emp['imagen_url']
+                                    ?? ($emp['fotos'][0]['url'] ?? null)
+                                    ?? ($emp['photos'][0]['url'] ?? null)
+                                    ?? '';
+
+                                // Si la imagen es una ruta relativa local, convertirla a URL completa accesible por Android
+                                if (!empty($imagen) && !str_starts_with($imagen, 'http')) {
+                                    $imagen = url('storage/' . ltrim($imagen, '/'));
+                                }
+
+                                $zona = $emp['zona_atencion'] ?? $emp['attention_zone'] ?? '';
+                                $horario = $emp['horario'] ?? $emp['schedule'] ?? '';
+
+                                // 🎯 LA CLAVE: Agregar el punto • al inicio para que Android active ChatUIComponent.Emprendimiento
+                                $textoFinal .= "\n• {$nombre} | {$categoria} | {$descripcion} | {$contacto} | {$imagen} | {$zona} | {$horario}";
+                            }
+                        }
                     }
 
-                    // Anexar líneas con viñetas para que Android genere las tarjetas interactivas
-  if (is_array($listaEmprendimientos) && !empty($listaEmprendimientos)) {
-    foreach ($listaEmprendimientos as $emp) {
-        $nombre = $emp['nombre'] ?? $emp['name'] ?? 'Emprendimiento Vecinal';
-        $categoria = $emp['categoria'] ?? $emp['modalidad'] ?? 'General';
-        $descripcion = $emp['descripcion'] ?? $emp['description'] ?? '';
-        $contacto = $emp['telefono'] ?? $emp['phone'] ?? '';
-
-        // 📸 Extracción profunda de la URL de la foto (soporta imagen directa o array de fotos)
-        $imagen = $emp['imagen'] 
-            ?? $emp['imagen_url'] 
-            ?? ($emp['fotos'][0]['url'] ?? null) 
-            ?? ($emp['photos'][0]['url'] ?? null) 
-            ?? '';
-
-        $zona = $emp['zona_atencion'] ?? $emp['attention_zone'] ?? '';
-        $horario = $emp['horario'] ?? $emp['schedule'] ?? '';
-
-        $textoFinal .= "\n• {$nombre} | {$categoria} | {$descripcion} | {$contacto} | {$imagen} | {$zona} | {$horario}";
-    }
-}
                     $mensajeSigi = $chatSigiService->crearMensajeSigi(
                         $chat,
                         [
@@ -339,6 +384,118 @@ class ChatApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo enviar el mensaje.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * PUT /api/chat/mensajes/{id}
+     * Editar un mensaje propio (límite de 15 minutos).
+     */
+    public function update(
+        Request $request,
+        int $id,
+        ChatService $chatService,
+        ChatResponseService $chatResponseService
+    ): JsonResponse {
+        try {
+            $request->validate([
+                'mensaje' => 'required|string|max:5000',
+            ]);
+
+            $usuario = $request->user();
+            $chat = $chatService->obtenerChatVecinal();
+
+            $mensaje = ChatMessage::where('id', $id)
+                ->where('conversation_id', $chat->id)
+                ->firstOrFail();
+
+            if ((int) $mensaje->user_id !== (int) $usuario->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permiso para editar este mensaje.',
+                ], 403);
+            }
+
+            if ($mensaje->created_at->diffInMinutes(now()) > 15) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El tiempo límite para editar este mensaje (15 minutos) ha expirado.',
+                ], 422);
+            }
+
+            $mensaje->update([
+                'mensaje' => trim($request->input('mensaje')),
+                'editado' => true,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'mensaje' => $chatResponseService->mensaje(
+                    $mensaje->fresh(['usuario', 'replyTo.usuario', 'mensajePadre.usuario', 'reacciones'])
+                ),
+            ]);
+
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo editar el mensaje.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * DELETE /api/chat/mensajes/{id}
+     * Eliminar mensaje (autor: hasta 48h / moderación de directiva: sin límite).
+     */
+    public function destroy(
+        Request $request,
+        int $id,
+        ChatService $chatService,
+        ChatResponseService $chatResponseService
+    ): JsonResponse {
+        try {
+            $usuario = $request->user();
+            $chat = $chatService->obtenerChatVecinal();
+
+            $mensaje = ChatMessage::where('id', $id)
+                ->where('conversation_id', $chat->id)
+                ->firstOrFail();
+
+            $esAutor = (int) $mensaje->user_id === (int) $usuario->id;
+            $esDirectiva = !is_null($usuario->cargo_id);
+
+            if (!$esAutor && !$esDirectiva) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permisos para eliminar este mensaje.',
+                ], 403);
+            }
+
+            if ($esAutor && !$esDirectiva && $mensaje->created_at->diffInHours(now()) > 48) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El plazo para eliminar tu mensaje ha vencido.',
+                ], 422);
+            }
+
+            $mensaje->deleted_by = $usuario->id;
+            $mensaje->save();
+            $mensaje->delete(); // Soft delete activa deleted_at
+
+            return response()->json([
+                'success' => true,
+                'mensaje' => $chatResponseService->mensaje(
+                    $mensaje->fresh(['usuario', 'replyTo.usuario', 'mensajePadre.usuario', 'reacciones'])
+                ),
+            ]);
+
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo eliminar el mensaje.',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -452,8 +609,11 @@ class ChatApiController extends Controller
                 $chatService->agregarUsuario($usuario);
             }
 
+            // withTrashed() para mensajes eliminados, sin exponer las evidencias de moderación
             $mensajes = $chat->mensajes()
-                ->with(['usuario', 'replyTo.usuario'])
+                ->withTrashed()
+                ->where('bloqueado_moderacion', false)
+                ->with(['usuario', 'replyTo.usuario', 'mensajePadre.usuario', 'reacciones'])
                 ->where('id', '>', $afterId)
                 ->orderBy('id')
                 ->limit(100)
@@ -474,6 +634,7 @@ class ChatApiController extends Controller
             $primerNoLeido = $chat->mensajes()
                 ->where('id', '>', $desdeMessageId)
                 ->where('user_id', '!=', $usuario->id)
+                ->where('bloqueado_moderacion', false)
                 ->orderBy('id')
                 ->first();
 
@@ -483,6 +644,7 @@ class ChatApiController extends Controller
                 $mensajesNoLeidos = $chat->mensajes()
                     ->where('id', '>', $desdeMessageId)
                     ->where('user_id', '!=', $usuario->id)
+                    ->where('bloqueado_moderacion', false)
                     ->count();
             }
 

@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -26,13 +27,15 @@ use App\Http\Controllers\Api\ClimaController;
 use App\Http\Controllers\Api\ZoeEstatutosController;
 use App\Http\Controllers\Api\EmprendimientoController;
 use App\Http\Controllers\Api\EmprendimientoOpinionController;
+use App\Http\Controllers\Api\ZoeAsambleaController;
+use App\Http\Controllers\Api\BitacoraApiController;
+use App\Http\Controllers\Api\IncidenciaController;
 
 /*
 |--------------------------------------------------------------------------
 | PRUEBA DE LA API
 |--------------------------------------------------------------------------
 */
-
 Route::get('/test', function () {
     return response()->json([
         'success' => true,
@@ -45,7 +48,6 @@ Route::get('/test', function () {
 | AUTENTICACIÓN (RUTAS PÚBLICAS)
 |--------------------------------------------------------------------------
 */
-
 Route::middleware('throttle:10,1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/auth/google', [AuthController::class, 'google']);
@@ -53,7 +55,7 @@ Route::middleware('throttle:10,1')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| RUTAS PÚBLICAS DE EMPRENDIMIENTOS (Directorio y Búsqueda para Zoe / App)
+| RUTAS PÚBLICAS DE EMPRENDIMIENTOS & CLIMA
 |--------------------------------------------------------------------------
 */
 Route::get('/emprendimientos/publicos', [EmprendimientoController::class, 'indexPublicos']);
@@ -62,10 +64,9 @@ Route::get('/clima', [ClimaController::class, 'obtener']);
 
 /*
 |--------------------------------------------------------------------------
-| RUTAS PROTEGIDAS (SANCTUM)
+| RUTAS PROTEGIDAS (SANCTUM - APP ANDROID Y WEB)
 |--------------------------------------------------------------------------
 */
-
 Route::middleware('auth:sanctum')->group(function () {
 
     /*
@@ -75,7 +76,6 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
-
     Route::put('/mi-cuenta', [AuthController::class, 'actualizarPerfil']);
     Route::post('/mi-cuenta/foto', [AuthController::class, 'actualizarFoto']);
     Route::put('/mi-cuenta/password', [AuthController::class, 'actualizarPassword']);
@@ -120,16 +120,31 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ZOE AI & ASISTENTE
+    | ZOE AI & ASISTENTE (CLIENTE APP)
     |--------------------------------------------------------------------------
     */
-    Route::post('/zoe-ai/chat', [\App\Http\Controllers\Api\ZoeAiController::class, 'chat']);
+    Route::post('/zoe-ai/chat', [ZoeAiController::class, 'chat']);
     Route::post('/zoe', [ZoeController::class, 'consultar']);
     Route::post('/zoe/mascota', [ZoeController::class, 'mensajeMascota']);
     Route::get('/zoe/historial', [ZoeController::class, 'historial']);
     Route::get('/zoe/historial/{id}', [ZoeController::class, 'verConversacion']);
     Route::post('/zoe/mensaje-con-adjunto', [ZoeController::class, 'enviarMensajeConArchivo']);
     Route::post('/consulta-inteligente', [ConsultaInteligenteController::class, 'consultar']);
+
+    // Asistente ZOE - Asambleas desde App
+    Route::post('/zoe/asambleas/verificar-pendientes', [ZoeAsambleaController::class, 'verificarAvisosPendientes']);
+    Route::post('/zoe/asambleas/confirmar', [ZoeAsambleaController::class, 'confirmarAsistencia']);
+    Route::get('/zoe/asambleas/estadisticas-activa', [ZoeAsambleaController::class, 'obtenerEstadisticasActiva']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | INCIDENCIAS
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/zoe-incidencias', [IncidenciaController::class, 'index'])->middleware('can:incidencias.index');
+    Route::get('/mis-reportes', [IncidenciaController::class, 'misReportes'])->middleware('can:misreportes.index');
+    Route::post('/zoe-incidencias', [IncidenciaController::class, 'store'])->middleware('can:misreportes.create');
+    Route::patch('/zoe-incidencias/{id}/estado', [IncidenciaController::class, 'actualizarEstado'])->middleware('can:incidencias.edit');
 
     /*
     |--------------------------------------------------------------------------
@@ -168,6 +183,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chat/leido', [ChatApiController::class, 'marcarLeido'])->middleware('permission:chat.index');
     Route::post('/chat/{chatMessage}/reaccion', [ChatApiController::class, 'reaccion'])->middleware('permission:chat.index');
     Route::get('/chat/{chatMessage}/reacciones', [ChatApiController::class, 'reacciones'])->middleware('permission:chat.index');
+    Route::put('/chat/mensajes/{id}', [ChatApiController::class, 'update'])->middleware('permission:chat.index');
+    Route::delete('/chat/mensajes/{id}', [ChatApiController::class, 'destroy'])->middleware('permission:chat.index');
 
     /*
     |--------------------------------------------------------------------------
@@ -178,6 +195,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/asambleas', [AsambleaController::class, 'store'])->middleware('permission:asambleas.index');
     Route::get('/asambleas/convocatoria/proxima', [AsambleaController::class, 'proxima']);
     Route::get('/asambleas/aviso-sin-asamblea', [AsambleaController::class, 'avisoSinAsamblea']);
+    Route::get('/asambleas/zoe/resumen', [AsambleaController::class, 'zoeResumenProxima']); // Antepuesto a rutas con comodín
     Route::get('/asambleas/convocatoria/{asamblea}', [AsambleaController::class, 'showPublicada']);
     Route::get('/asambleas/{asamblea}', [AsambleaController::class, 'show'])->middleware('permission:asambleas.index');
     Route::put('/asambleas/{asamblea}', [AsambleaController::class, 'update'])->middleware('permission:asambleas.index');
@@ -214,30 +232,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | GESTIÓN DE EMPRENDIMIENTOS (AUTENTICADO) & FAVORITOS
+    | GESTIÓN DE EMPRENDIMIENTOS & FAVORITOS
     |--------------------------------------------------------------------------
     */
     Route::get('/emprendimientos/categorias', [EmprendimientoController::class, 'categorias']);
     Route::get('/user/emprendimientos', [EmprendimientoController::class, 'index']);
-    
-    // 💖 Rutas de favoritos protegidas con Sanctum
     Route::get('/emprendimientos/favoritos', [EmprendimientoController::class, 'misFavoritos']);
     Route::post('/emprendimientos/{id}/favorito', [EmprendimientoController::class, 'toggleFavorito']);
-
     Route::get('/emprendimientos/{id}/opiniones', [EmprendimientoOpinionController::class, 'index']);
     Route::post('/emprendimientos/{id}/opiniones', [EmprendimientoOpinionController::class, 'store']);
-
     Route::post('/emprendimientos', [EmprendimientoController::class, 'store']);
     Route::post('/emprendimientos/{id}', [EmprendimientoController::class, 'update']);
     Route::put('/emprendimientos/{id}/status', [EmprendimientoController::class, 'updateStatus']);
     Route::delete('/emprendimientos/{id}', [EmprendimientoController::class, 'destroy']);
     Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
 
+    // Bitácora
+    Route::get('/bitacora', [BitacoraApiController::class, 'index']);
 });
 
 /*
 |--------------------------------------------------------------------------
-| ENDPOINTS INTERNOS PARA ZOE AI (MIDDLEWARE zoe.ai)
+| ENDPOINTS INTERNOS PARA ZOE AI (MIDDLEWARE zoe.ai - N8N / LOCAL WORKFLOWS)
 |--------------------------------------------------------------------------
 */
 Route::post('/zoe-estadisticas', [ZoeEstadisticasBridgeController::class, 'consultar'])->middleware('zoe.ai');
@@ -251,6 +267,9 @@ Route::post('/zoe-ai/contexto/actualizar', [ZoeAiController::class, 'actualizarC
 Route::post('/zoe-ai/emergencias', [ZoeAiController::class, 'obtenerEmergencias'])->middleware('zoe.ai');
 Route::post('/zoe-ai/directiva', [ZoeAiController::class, 'obtenerDirectiva'])->middleware('zoe.ai');
 Route::post('/zoe-ai/saldo-caja', [ZoeAiController::class, 'saldoCaja'])->middleware('zoe.ai');
+
+// Herramienta interna para que n8n consulte la asamblea mediante zoe.ai
+Route::post('/zoe-ai/asambleas/resumen', [AsambleaController::class, 'zoeResumenProxima'])->middleware('zoe.ai');
 
 /*
 |--------------------------------------------------------------------------

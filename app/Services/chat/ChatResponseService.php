@@ -17,11 +17,15 @@ class ChatResponseService
         ChatMessage $mensaje
     ): array {
 
-        $usuario =
-            $mensaje->usuario;
+        $usuario = $mensaje->usuario;
 
-        $mensajePadre =
-            $mensaje->mensajePadre;
+        // Soporta tanto mensajePadre como replyTo
+        $mensajePadre = $mensaje->mensajePadre ?? $mensaje->replyTo;
+
+        $fueEliminado = $mensaje->trashed();
+        $eliminadoPorModerador = $fueEliminado 
+            && !empty($mensaje->deleted_by) 
+            && (int) $mensaje->deleted_by !== (int) $mensaje->user_id;
 
         /*
          * Cargamos las reacciones del mensaje.
@@ -29,8 +33,8 @@ class ChatResponseService
          * Cada usuario solamente puede tener una reacción
          * por mensaje.
          */
-        $reacciones =
-            $mensaje->reacciones
+        $reacciones = $mensaje->reacciones
+            ? $mensaje->reacciones
                 ->groupBy('emoji')
                 ->map(
                     function (
@@ -38,104 +42,87 @@ class ChatResponseService
                         string $emoji
                     ) {
 
-                        $usuarioActualId =
-                            auth()->id();
+                        $usuarioActualId = auth()->id();
 
-                        $yo =
-                            $usuarioActualId !== null
+                        $yo = $usuarioActualId !== null
                             && $reaccionesEmoji->contains(
-                                function ($reaccion) use (
-                                    $usuarioActualId
-                                ) {
-                                    return (int) $reaccion->user_id
-                                        === (int) $usuarioActualId;
+                                function ($reaccion) use ($usuarioActualId) {
+                                    return (int) $reaccion->user_id === (int) $usuarioActualId;
                                 }
                             );
 
                         return [
-                            'emoji' =>
-                                $emoji,
-
-                            'cantidad' =>
-                                $reaccionesEmoji->count(),
-
-                            'yo' =>
-                                $yo,
+                            'emoji' => $emoji,
+                            'cantidad' => $reaccionesEmoji->count(),
+                            'yo' => $yo,
                         ];
                     }
                 )
                 ->values()
-                ->all();
+                ->all()
+            : [];
 
         return [
-            'id' =>
-                $mensaje->id,
+            'id' => $mensaje->id,
 
-            'mensaje' =>
-                $mensaje->mensaje,
+            // Si fue eliminado, se oculta el texto original estilo WhatsApp
+            'mensaje' => $fueEliminado
+                ? 'Este mensaje fue eliminado'
+                : $mensaje->mensaje,
 
-            'tipo' =>
-                $mensaje->tipo,
+            'tipo' => $mensaje->tipo,
 
-            'editado' =>
-                $mensaje->editado,
+            'editado' => (bool) $mensaje->editado,
 
-            'created_at' =>
-                $mensaje->created_at
-                    ?->format('H:i'),
+            'eliminado' => $fueEliminado,
 
-            'usuario' =>
-                $usuario
-                    ? [
-                        'id' =>
-                            $usuario->id,
+            'eliminado_por_moderador' => $eliminadoPorModerador,
 
-                        /*
-                         * Si existe seudónimo se muestra el seudónimo.
-                         * Si no existe, se muestra el nombre real.
-                         */
-                        'name' =>
-                            $usuario->seudonimo
-                                ?: $usuario->name,
+            'created_at' => $mensaje->created_at?->format('H:i'),
 
-                        'avatar' =>
-                            $usuario->avatar,
-                    ]
-                    : null,
+            'usuario' => $usuario
+                ? [
+                    'id' => $usuario->id,
+
+                    /*
+                     * Si existe seudónimo se muestra el seudónimo.
+                     * Si no existe, se muestra el nombre real.
+                     */
+                    'name' => $usuario->seudonimo ?: $usuario->name,
+
+                    'avatar' => $usuario->avatar,
+
+                    'cargo_id' => $usuario->cargo_id,
+                ]
+                : null,
 
             // 💬 Mensaje al que se está respondiendo
-            'reply_to' =>
-                $mensajePadre
-                    ? [
-                        'id' =>
-                            $mensajePadre->id,
+            'reply_to' => $mensajePadre
+                ? [
+                    'id' => $mensajePadre->id,
 
-                        'mensaje' =>
-                            $mensajePadre->mensaje,
+                    'mensaje' => $mensajePadre->trashed()
+                        ? 'Este mensaje fue eliminado'
+                        : $mensajePadre->mensaje,
 
-                        'usuario' =>
-                            $mensajePadre->usuario
-                                ? [
-                                    'id' =>
-                                        $mensajePadre->usuario->id,
+                    'usuario' => $mensajePadre->usuario
+                        ? [
+                            'id' => $mensajePadre->usuario->id,
 
-                                    /*
-                                     * Si existe seudónimo se muestra
-                                     * el seudónimo en la respuesta.
-                                     */
-                                    'name' =>
-                                        $mensajePadre->usuario->seudonimo
-                                            ?: $mensajePadre->usuario->name,
-                                ]
-                                : null,
-                    ]
-                    : null,
+                            /*
+                             * Si existe seudónimo se muestra
+                             * el seudónimo en la respuesta.
+                             */
+                            'name' => $mensajePadre->usuario->seudonimo ?: $mensajePadre->usuario->name,
+                        ]
+                        : null,
+                ]
+                : null,
 
             /*
              * ❤️ Reacciones del mensaje
              */
-            'reacciones' =>
-                $reacciones,
+            'reacciones' => $reacciones,
         ];
     }
 
@@ -148,24 +135,19 @@ class ChatResponseService
     ): Collection {
 
         /*
-         * Cargamos las reacciones de todos los mensajes
-         * antes de procesarlos.
-         *
-         * Esto evita realizar una consulta independiente
-         * por cada mensaje.
+         * Cargamos las relaciones necesarias antes de procesar
+         * para evitar consultas N+1.
          */
-        $mensajes->loadMissing('reacciones');
+        $mensajes->loadMissing(['reacciones', 'usuario', 'mensajePadre.usuario', 'replyTo.usuario']);
 
         return $mensajes
             ->map(
                 function (
                     ChatMessage $mensaje
                 ) {
-
                     return $this->mensaje(
                         $mensaje
                     );
-
                 }
             )
             ->values();
@@ -183,19 +165,15 @@ class ChatResponseService
     ): array {
 
         return [
-            'id' =>
-                $usuario->id,
+            'id' => $usuario->id,
 
             /*
              * Si existe seudónimo se muestra el seudónimo.
              * Si no existe, se muestra el nombre real.
              */
-            'name' =>
-                $usuario->seudonimo
-                    ?: $usuario->name,
+            'name' => $usuario->seudonimo ?: $usuario->name,
 
-            'avatar' =>
-                $usuario->avatar,
+            'avatar' => $usuario->avatar,
         ];
     }
 }

@@ -28,7 +28,7 @@ class PermissionSeeder extends Seeder
             'categorias.edit',
             'categorias.destroy',
 
-           'movimientos.index',
+            'movimientos.index',
             'movimientos.show',
             'movimientos.create',
             'movimientos.edit',
@@ -60,6 +60,17 @@ class PermissionSeeder extends Seeder
             // Períodos
             'periodos.index',
             'periodos.cerrar',
+
+            // Incidencias
+            'incidencias.index',
+            'incidencias.create',
+            'incidencias.edit',
+            'incidencias.destroy',
+            // Mis Reportes (Vista exclusiva de vecinos)
+            'misreportes.index',
+            'misreportes.create',
+            'misreportes.edit',
+            'misreportes.destroy'
         ];
 
 

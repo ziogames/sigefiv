@@ -62,15 +62,16 @@ class MovimientoController extends Controller
     }
 
     /**
- * Categorías disponibles para registrar movimientos.
- */
-public function categorias(): JsonResponse
-{
-    return response()->json([
-        'success' => true,
-        'categorias' => Categoria::orderBy('nombre')->get(),
-    ]);
-}
+     * Categorías disponibles para registrar movimientos.
+     */
+    public function categorias(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'categorias' => Categoria::orderBy('nombre')->get(),
+        ]);
+    }
+
     /**
      * El detalle se puede consultar aunque el período esté cerrado.
      */
@@ -101,7 +102,6 @@ public function categorias(): JsonResponse
         StoreMovimientoRequest $request
     ): JsonResponse {
         try {
-
             $datos = $request->validated();
 
             $datos['user_id'] = auth()->id();
@@ -120,12 +120,10 @@ public function categorias(): JsonResponse
              * Notificamos silenciosamente a los dispositivos
              * para que actualicen sus datos en tiempo real.
              */
-          $this->fcmService->enviarEventoAUsuarios([
-    'tipo' => 'movimiento_actualizado',
-    'movimiento_id' => $movimiento->id,
-]);
-
-
+            $this->fcmService->enviarEventoAUsuarios([
+                'tipo' => 'movimiento_actualizado',
+                'movimiento_id' => $movimiento->id,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -137,7 +135,6 @@ public function categorias(): JsonResponse
             ], 201);
 
         } catch (\Throwable $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -157,7 +154,6 @@ public function categorias(): JsonResponse
         Movimiento $movimiento
     ): JsonResponse {
         try {
-
             $datos = $request->validated();
 
             $movimiento = MovimientoService::actualizar(
@@ -190,7 +186,6 @@ public function categorias(): JsonResponse
             ]);
 
         } catch (\Throwable $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -209,7 +204,6 @@ public function categorias(): JsonResponse
         Movimiento $movimiento
     ): JsonResponse {
         try {
-
             $movimiento->load([
                 'categoria',
                 'periodo',
@@ -246,7 +240,6 @@ public function categorias(): JsonResponse
             ]);
 
         } catch (\Throwable $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -297,7 +290,6 @@ public function categorias(): JsonResponse
         ];
 
         if ($detalle) {
-
             $resultado['usuario'] =
                 $movimiento->usuario
                     ? [

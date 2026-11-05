@@ -21,6 +21,7 @@ use Spatie\Permission\Traits\HasRoles;
     'google_id',
     'estado',
     'recibir_notificaciones',
+    'advertencias_count',
     'telefono',
     'dni',
     'direccion',

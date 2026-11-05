@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use App\Models\Configuracion;
+use App\Models\Movimiento;
+use App\Observers\MovimientoObserver;
 use Illuminate\Support\Facades\View;
 use App\Services\NotificationService;
 
@@ -21,27 +23,30 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-public function boot(): void
-{
-    Paginator::useBootstrapFive();
+    public function boot(): void
+    {
+        Paginator::useBootstrapFive();
 
-    View::composer('*', function ($view) {
+        // 🔍 Registrar Observer para auditoría de ingresos y egresos
+       // Movimiento::observe(MovimientoObserver::class);
 
-        $view->with(
-            'configuracionGlobal',
-            Configuracion::first()
-        );
+        View::composer('*', function ($view) {
 
-        $view->with(
-            'notificaciones',
-            NotificationService::ultimas()
-        );
+            $view->with(
+                'configuracionGlobal',
+                Configuracion::first()
+            );
 
-        $view->with(
-            'cantidadNotificaciones',
-            NotificationService::cantidad()
-        );
+            $view->with(
+                'notificaciones',
+                NotificationService::ultimas()
+            );
 
-    });
-}
+            $view->with(
+                'cantidadNotificaciones',
+                NotificationService::cantidad()
+            );
+
+        });
+    }
 }

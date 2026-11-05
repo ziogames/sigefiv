@@ -211,6 +211,9 @@ class EmprendimientoController extends Controller
         return response()->json(['description' => $fallback]);
     }
 // Buscar emprendimientos publicados de forma segura y estricta usando keywords, descripción y categorías
+    // Buscar emprendimientos publicados usando PostgreSQL Full-Text Search (tsvector) y fallback de similitud
+    // Buscar emprendimientos publicados usando PostgreSQL Full-Text Search y búsqueda flexible singular/plural
+    // Buscar emprendimientos publicados usando PostgreSQL Full-Text Search (tsvector), raíces léxicas e ILIKE multivariable
     public function buscarPublicados(Request $request)
     {
         $request->validate([
@@ -234,33 +237,40 @@ class EmprendimientoController extends Controller
             ]);
         };
 
-        // Lista estricta de palabras conversacionales y pronombres
+        // Palabras conversacionales a filtrar antes de armar la búsqueda
         $palabrasIgnoradas = [
             'hola', 'zoe', 'buenos', 'dias', 'tardes', 'noches', 'por', 'favor', 'porfa',
             'busco', 'buscar', 'necesito', 'quiero', 'quisiera', 'recomiendame', 'recomiendas',
             'conoces', 'conocer', 'sabes', 'saben', 'saber', 'alguien', 'algun', 'alguna',
             'vecino', 'vecina', 'vecinos', 'vecinas', 'comunidad', 'grupo', 'sigefiv',
-            'vende', 'venden', 'venda', 'vendan', 'venta', 'comprar', 'compro', 'ofrece', 'ofrecen',
-            'hace', 'hacen', 'haga', 'prepara', 'arregla', 'arreglan', 'arreglando', 'repara', 'reparan',
-            'ayuda', 'ayude', 'ayudar', 'servicio', 'servicios', 'comida', 'comidas', 'comercio',
-            'tienda', 'negocio', 'emprendimiento', 'emprendimientos',
+            'ayuda', 'ayude', 'ayudar', 'tienda', 'negocio', 'emprendimiento', 'emprendimientos',
             'un', 'una', 'unos', 'unas', 'el', 'la', 'los', 'las',
             'de', 'del', 'para', 'por', 'con', 'en', 'que', 'quien', 'quienes', 
             'donde', 'dond', 'don', 'puedo', 'puede', 'pueden', 'podria', 'hay',
-            'opcion', 'opciones', 'disponible', 'disponibles', 'todos'
+            'opcion', 'opciones', 'disponible', 'disponibles', 'todos',
+            'bien', 'bueno', 'buena', 'buenos', 'buenas', 'muy', 'dia', 'dias'
         ];
 
         $palabras = preg_split('/[^\p{L}\p{N}]+/u', $termino, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $terminosBusqueda = [];
+        $raicesBusqueda = [];
 
         foreach ($palabras as $palabra) {
             $limpia = $normalizar($palabra);
             if (mb_strlen($limpia, 'UTF-8') >= 3 && !in_array($limpia, $palabrasIgnoradas, true)) {
-                $terminosBusqueda[] = $limpia;
+                $terminosBusqueda[] = $palabra;
+
+                // Generar raíz para tolerar variaciones singular/plural:
+                // 'computadoras' -> 'computador', 'computadora' -> 'computador'
+                $raiz = preg_replace('/(as|es|os|a|o|s)$/iu', '', $limpia);
+                if (mb_strlen($raiz, 'UTF-8') >= 3) {
+                    $raicesBusqueda[] = $raiz;
+                }
             }
         }
 
         $terminosBusqueda = array_values(array_unique($terminosBusqueda));
+        $raicesBusqueda = array_values(array_unique($raicesBusqueda));
         $tieneCategoriaValida = !empty($categoriaFiltro) && $categoriaFiltro !== 'Todos';
 
         if (empty($terminosBusqueda) && !$tieneCategoriaValida) {
@@ -274,40 +284,85 @@ class EmprendimientoController extends Controller
             ]);
         }
 
-        $consulta = Emprendimiento::query()->where('status', 'published');
+        $textoQuery = implode(' ', $terminosBusqueda);
 
-        // 🎯 1. Si viene una categoría clara (ej. Comercio), restringir por ese rubro
+        // 1. Consulta base (solo publicados y activos)
+        $consulta = Emprendimiento::query()
+            ->where('status', 'published')
+            ->whereNull('deleted_at');
+
         if ($tieneCategoriaValida) {
             $consulta->where('categoria', $categoriaFiltro);
         }
 
-        // 🎯 2. Filtrar por coincidencia de términos en Nombre, Keywords o Descripción
-        if (!empty($terminosBusqueda)) {
-            $consulta->where(function ($query) use ($terminosBusqueda) {
-                foreach ($terminosBusqueda as $palabra) {
-                    $raiz = mb_strlen($palabra, 'UTF-8') >= 5
-                        ? mb_substr($palabra, 0, -1, 'UTF-8')
-                        : $palabra;
+        $relacionFotos = method_exists(Emprendimiento::class, 'photos') ? 'photos' : 'fotos';
 
-                    $query->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $palabra . '%'])
-                          ->orWhereRaw('unaccent(lower(name)) ILIKE ?', ['%' . $raiz . '%'])
-                          ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $palabra . '%'])
-                          ->orWhereRaw('unaccent(lower(COALESCE(keywords, \'\'))) ILIKE ?', ['%' . $raiz . '%'])
-                          ->orWhereRaw('unaccent(lower(COALESCE(description, \'\'))) ILIKE ?', ['%' . $palabra . '%'])
-                          ->orWhereRaw('unaccent(lower(COALESCE(description, \'\'))) ILIKE ?', ['%' . $raiz . '%']);
+        // 2. Búsqueda principal: Cobertura integrada de search_vector (FTS) + prefijos + ILIKE en columnas clave
+        $queryPrincipal = clone $consulta;
+
+        if (!empty($terminosBusqueda)) {
+            // Convierte ['repare', 'computadora'] en 'repare:* | computadora:*' para ampliar coincidencias FTS
+            $tsQueryPrefijo = implode(' | ', array_map(function ($t) {
+                $sanitizado = preg_replace('/[^a-zA-Z0-9]/', '', $t);
+                return !empty($sanitizado) ? $sanitizado . ':*' : '';
+            }, array_filter($terminosBusqueda)));
+
+            $queryPrincipal->where(function ($q) use ($textoQuery, $tsQueryPrefijo, $terminosBusqueda, $raicesBusqueda) {
+                // A. Evaluación sobre search_vector (tsvector nativo de PostgreSQL)
+                if (!empty($tsQueryPrefijo)) {
+                    $q->whereRaw("search_vector @@ to_tsquery('spanish', ?)", [$tsQueryPrefijo])
+                      ->orWhereRaw("search_vector @@ plainto_tsquery('spanish', ?)", [$textoQuery]);
+                } else {
+                    $q->whereRaw("search_vector @@ plainto_tsquery('spanish', ?)", [$textoQuery]);
+                }
+
+                // B. Coincidencia por término completo en name, keywords, description y categoria
+                foreach ($terminosBusqueda as $item) {
+                    $q->orWhere('name', 'ILIKE', "%{$item}%")
+                      ->orWhere('keywords', 'ILIKE', "%{$item}%")
+                      ->orWhere('description', 'ILIKE', "%{$item}%")
+                      ->orWhere('categoria', 'ILIKE', "%{$item}%");
+                }
+
+                // C. Coincidencia por raíz léxica (ej: 'computador' coincide con 'computadora' y 'computadoras')
+                foreach ($raicesBusqueda as $raiz) {
+                    $q->orWhere('name', 'ILIKE', "%{$raiz}%")
+                      ->orWhere('keywords', 'ILIKE', "%{$raiz}%")
+                      ->orWhere('description', 'ILIKE', "%{$raiz}%")
+                      ->orWhere('categoria', 'ILIKE', "%{$raiz}%");
                 }
             });
         }
 
-        $total = (clone $consulta)->count();
+        $queryPrincipal->orderBy('name');
 
-        $relacionFotos = method_exists(Emprendimiento::class, 'photos') ? 'photos' : 'fotos';
+        $total = (clone $queryPrincipal)->count();
+        $emprendimientos = null;
 
-        $emprendimientos = $consulta
-            ->with($relacionFotos)
-            ->orderBy('name')
-            ->paginate($limite, ['*'], 'pagina', $pagina);
+        // 3. Fallback con similitud Trigram si no hubo coincidencia estricta (para errores de tipeo como 'computadra')
+        if ($total === 0 && !empty($terminosBusqueda)) {
+            $queryFallback = clone $consulta;
 
+            $queryFallback->where(function ($q) use ($terminosBusqueda, $raicesBusqueda) {
+                foreach (array_merge($terminosBusqueda, $raicesBusqueda) as $item) {
+                    $q->orWhereRaw("similarity(unaccent(lower(name)), unaccent(lower(?))) >= 0.25", [$item])
+                      ->orWhereRaw("similarity(unaccent(lower(COALESCE(keywords, ''))), unaccent(lower(?))) >= 0.25", [$item])
+                      ->orWhereRaw("similarity(unaccent(lower(COALESCE(description, ''))), unaccent(lower(?))) >= 0.25", [$item]);
+                }
+            });
+
+            $total = (clone $queryFallback)->count();
+            $emprendimientos = $queryFallback
+                ->with($relacionFotos)
+                ->orderBy('name')
+                ->paginate($limite, ['*'], 'pagina', $pagina);
+        } else {
+            $emprendimientos = $queryPrincipal
+                ->with($relacionFotos)
+                ->paginate($limite, ['*'], 'pagina', $pagina);
+        }
+
+        // 4. Formateo de respuesta estándar para el Chatbot Zoe y la App Móvil
         $user = auth('sanctum')->user();
 
         $resultados = $emprendimientos->getCollection()
