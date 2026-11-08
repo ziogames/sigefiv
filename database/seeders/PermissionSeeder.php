@@ -38,7 +38,9 @@ class PermissionSeeder extends Seeder
 
             'reportes.index',
 
-            'configuracion',
+           // Estandarizado:
+            'configuracion.index',
+            'configuracion.edit', // Opcional, pero muy útil si un rol solo puede consultar y otro editar
 
             'bitacora.index',
 

@@ -30,7 +30,7 @@ use App\Http\Controllers\Api\EmprendimientoOpinionController;
 use App\Http\Controllers\Api\ZoeAsambleaController;
 use App\Http\Controllers\Api\BitacoraApiController;
 use App\Http\Controllers\Api\IncidenciaController;
-
+use App\Http\Controllers\Api\ConfiguracionController;
 /*
 |--------------------------------------------------------------------------
 | PRUEBA DE LA API
@@ -249,6 +249,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Bitácora
     Route::get('/bitacora', [BitacoraApiController::class, 'index']);
+    
+    Route::get('/configuracion', [ConfiguracionController::class, 'show'])
+        ->middleware('permission:configuracion.index');
+
+    Route::put('/configuracion', [ConfiguracionController::class, 'update'])
+        ->middleware('permission:configuracion.index'); // o configuracion.edit
 });
 
 /*
@@ -259,6 +265,10 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::post('/zoe-estadisticas', [ZoeEstadisticasBridgeController::class, 'consultar'])->middleware('zoe.ai');
 Route::post('/zoe-estatutos', [ZoeEstatutosController::class, 'consultar'])->middleware('zoe.ai');
 Route::post('/zoe-ai/resumen-periodo', [ZoeAiController::class, 'resumenPeriodo'])->middleware('zoe.ai');
+
+Route::post('/zoe-ai/contexto/preparar', [ZoeAiController::class, 'prepararContexto']);
+Route::post('/zoe-ai/contexto/guardar', [ZoeAiController::class, 'guardarContexto']);
+
 Route::post('/zoe-ai/resumen-periodo-activo', [ZoeAiController::class, 'resumenPeriodoActivo'])->middleware('zoe.ai');
 Route::post('/zoe-ai/saldo-caja-activo', [ZoeAiController::class, 'saldoCajaActivo'])->middleware('zoe.ai');
 Route::post('/zoe-ai/movimientos', [ZoeAiController::class, 'movimientos'])->middleware('zoe.ai');

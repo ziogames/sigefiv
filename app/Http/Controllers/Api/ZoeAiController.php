@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use App\Services\Zoe\ZoeContextDetectorService;
 use Throwable;
 
 class ZoeAiController extends Controller
@@ -548,4 +549,71 @@ class ZoeAiController extends Controller
             ]
         ]);
     }
+
+
+
+// Agrega estos métodos al final de la clase:
+
+public function prepararContexto(
+    Request $request,
+    ZoeConversationMemoryService $memoria,
+    ZoeContextDetectorService $detector
+) {
+    $datos = $request->validate([
+        'usuario_id' => ['required', 'integer'],
+        'mensaje'    => ['required', 'string'],
+    ]);
+
+    $usuarioId = (int) $datos['usuario_id'];
+    $contextoPrevio = $memoria->obtener($usuarioId);
+
+    $analisis = $detector->analizar($datos['mensaje'], $contextoPrevio);
+
+    return response()->json([
+        'success' => true,
+        'usuario_id' => $usuarioId,
+        'dominio' => $analisis['dominio'],
+        'intencion' => $analisis['intencion'],
+        'mes' => $analisis['mes'],
+        'anio' => $analisis['anio'],
+        'categoria' => $analisis['categoria'],
+        'palabras_busqueda' => $analisis['palabras_busqueda'],
+        'fecha_actual' => $analisis['fecha_actual'],
+        'hora_actual' => $analisis['hora_actual'],
+        'contexto_previo' => $contextoPrevio,
+    ]);
+}
+
+public function guardarContexto(
+    Request $request,
+    ZoeConversationMemoryService $memoria
+) {
+    $datos = $request->validate([
+        'usuario_id' => ['required', 'integer'],
+        'dominio'    => ['nullable', 'string'],
+        'intencion'  => ['nullable', 'string'],
+        'mes'        => ['nullable', 'integer', 'between:1,12'],
+        'anio'       => ['nullable', 'integer', 'min:2000', 'max:2100'],
+    ]);
+
+    $usuarioId = (int) $datos['usuario_id'];
+
+    $actualizaciones = [
+        'ultimo_dominio'   => $datos['dominio'] ?? null,
+        'ultima_intencion' => $datos['intencion'] ?? null,
+        'ultimo_mes'       => $datos['mes'] ?? null,
+        'ultimo_anio'      => $datos['anio'] ?? null,
+        'actualizado_en'   => Carbon::now('America/Lima')->toDateTimeString(),
+    ];
+
+    $contextoActualizado = $memoria->actualizar(
+        $usuarioId,
+        array_filter($actualizaciones, fn($v) => $v !== null)
+    );
+
+    return response()->json([
+        'success' => true,
+        'contexto' => $contextoActualizado,
+    ]);
+}
 }
