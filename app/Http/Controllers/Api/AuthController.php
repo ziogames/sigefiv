@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Cargo; // <--- 1. Importamos el modelo Cargo
+use App\Models\Cargo;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\JWT\IdTokenVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -259,7 +262,7 @@ class AuthController extends Controller
                     'foto' =>
                         $fotoGoogle,
                     'cargo_id' =>
-                        $cargoVecinoId, // <--- 2. Asignamos el cargo "Vecino" al crear por la app
+                        $cargoVecinoId,
                     'password' =>
                         Hash::make(
                             bin2hex(
@@ -418,6 +421,188 @@ class AuthController extends Controller
         }
     }
 
+    public function facebook(Request $request): JsonResponse
+    {
+        Log::info('SIGEFIV FACEBOOK: petición de login recibida');
+
+        $validated = $request->validate([
+            'access_token' => ['nullable', 'string', 'required_without:id_token'],
+            'id_token'     => ['nullable', 'string', 'required_without:access_token'],
+        ]);
+
+        $facebookId = null;
+        $email = null;
+        $nombre = 'Usuario Facebook';
+        $fotoFacebook = null;
+
+        try {
+            // OPCIÓN A: Si Android envía el Firebase ID Token (Firebase Auth + Facebook)
+            if (!empty($validated['id_token'])) {
+                $verifier = IdTokenVerifier::createWithProjectId('sigefiv-b3dc6');
+                $verifiedIdToken = $verifier->verifyIdTokenWithLeeway($validated['id_token'], 60);
+                $claims = $verifiedIdToken->payload();
+
+                $facebookId = $claims['sub'] ?? null;
+                $email = $claims['email'] ?? null;
+                $nombre = $claims['name'] ?? 'Usuario Facebook';
+                $fotoFacebook = $claims['picture'] ?? null;
+            }
+            // OPCIÓN B: Si Android envía directamente el Access Token del SDK de Facebook
+            else {
+                $response = Http::timeout(10)->get('https://graph.facebook.com/v21.0/me', [
+                    'fields'       => 'id,name,email,picture.type(large)',
+                    'access_token' => $validated['access_token'],
+                ]);
+
+                if ($response->failed()) {
+                    Log::warning('SIGEFIV FACEBOOK: token rechazado por Graph API', [
+                        'status' => $response->status(),
+                        'body'   => $response->json(),
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El token de Facebook no es válido o ha expirado.',
+                    ], 401);
+                }
+
+                $fbData = $response->json();
+                $facebookId = $fbData['id'] ?? null;
+                $email = $fbData['email'] ?? null;
+                $nombre = $fbData['name'] ?? 'Usuario Facebook';
+                $fotoFacebook = $fbData['picture']['data']['url'] ?? null;
+            }
+        } catch (\Throwable $e) {
+            Log::error('SIGEFIV FACEBOOK: ERROR VALIDANDO TOKEN', [
+                'tipo'    => get_class($e),
+                'mensaje' => $e->getMessage(),
+            ]);
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo verificar la sesión de Facebook.',
+            ], 401);
+        }
+
+        if (!$facebookId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Facebook no devolvió un identificador de usuario válido.',
+            ], 401);
+        }
+
+        if (!$email) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu cuenta de Facebook no tiene un correo electrónico asociado. Por favor inicia sesión con Google o con tu correo.',
+            ], 422);
+        }
+
+        try {
+            $cargoVecinoId = Cargo::where('nombre', 'Vecino')->value('id');
+            $tieneColumnaFb = Schema::hasColumn('users', 'facebook_id');
+
+            $user = null;
+            if ($tieneColumnaFb) {
+                $user = User::where('facebook_id', $facebookId)->first();
+            }
+
+            if (!$user) {
+                $user = User::where('email', $email)->first();
+            }
+
+            if (!$user) {
+                $datosCrear = [
+                    'name'                   => $nombre,
+                    'email'                  => $email,
+                    'foto'                   => $fotoFacebook,
+                    'cargo_id'               => $cargoVecinoId,
+                    'password'               => Hash::make(bin2hex(random_bytes(32))),
+                    'estado'                 => 'pendiente',
+                    'recibir_notificaciones' => false,
+                    'bienvenida_vista'       => false,
+                ];
+
+                if ($tieneColumnaFb) {
+                    $datosCrear['facebook_id'] = $facebookId;
+                }
+
+                $user = User::create($datosCrear);
+                $user->assignRole('Consulta');
+                $user->refresh();
+
+                Log::info('SIGEFIV FACEBOOK: usuario creado', [
+                    'user_id' => $user->id,
+                    'email'   => $user->email,
+                ]);
+            } else {
+                $datosActualizar = [];
+
+                if ($tieneColumnaFb && empty($user->facebook_id)) {
+                    $datosActualizar['facebook_id'] = $facebookId;
+                }
+
+                if (empty($user->foto) && !empty($fotoFacebook)) {
+                    $datosActualizar['foto'] = $fotoFacebook;
+                }
+
+                if (is_null($user->cargo_id) && $cargoVecinoId) {
+                    $datosActualizar['cargo_id'] = $cargoVecinoId;
+                }
+
+                if (!empty($datosActualizar)) {
+                    $user->update($datosActualizar);
+                    $user->refresh();
+                }
+
+                Log::info('SIGEFIV FACEBOOK: usuario existente vinculado', [
+                    'user_id' => $user->id,
+                    'email'   => $user->email,
+                ]);
+            }
+
+            if ($user->estado === 'bloqueado') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tu cuenta de SIGEFIV está bloqueada. Comunícate con el administrador.',
+                ], 403);
+            }
+
+            $user->tokens()->delete();
+            $token = $user->createToken('sigefiv-android')->plainTextToken;
+
+            $user->ultimo_acceso = now();
+            $user->ultima_ip = $request->ip();
+            $user->save();
+
+            Log::info('SIGEFIV FACEBOOK: LOGIN COMPLETADO', [
+                'user_id' => $user->id,
+                'email'   => $user->email,
+            ]);
+
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Inicio de sesión con Facebook correcto.',
+                'token'      => $token,
+                'token_type' => 'Bearer',
+                'usuario'    => $this->datosUsuario($user),
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('SIGEFIV FACEBOOK: ERROR PROCESANDO USUARIO', [
+                'tipo'    => get_class($e),
+                'mensaje' => $e->getMessage(),
+            ]);
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la sesión de usuario: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function user(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -547,14 +732,12 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        // Validar que la contraseña actual sea correcta
         if (!Hash::check($request->current_password, $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['La contraseña actual es incorrecta.'],
             ]);
         }
 
-        // Actualizar la contraseña encriptada
         $user->update([
             'password' => Hash::make($request->new_password)
         ]);
@@ -581,13 +764,10 @@ class AuthController extends Controller
         ]);
     }
 
-private function datosUsuario(
+    private function datosUsuario(
         User $user
     ): array {
 
-        // 🧠 REGLA INTELIGENTE:
-        // 1. Si el usuario tiene seudónimo (no está vacío ni es null), usamos el seudónimo.
-        // 2. Si es null, tomamos el campo 'name' y sacamos únicamente la primera palabra (el primer nombre).
         $nombrePreferido = !empty($user->seudonimo) 
             ? $user->seudonimo 
             : explode(' ', trim($user->name))[0];
@@ -599,7 +779,7 @@ private function datosUsuario(
                 $user->name,
             'seudonimo' =>
                 $user->seudonimo,
-            'nombre_usuario' => // 👈 ESTE ES EL CAMPO LISTO PARA ZOE Y LA APP
+            'nombre_usuario' =>
                 $nombrePreferido,
             'email' =>
                 $user->email,
@@ -629,7 +809,7 @@ private function datosUsuario(
             'metodo_acceso' =>
                 $user->google_id
                     ? 'Google'
-                    : 'Correo y contraseña',
+                    : (!empty($user->facebook_id) ? 'Facebook' : 'Correo y contraseña'),
         ];
     }
 }

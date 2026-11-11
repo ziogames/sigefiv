@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\ZoeAsambleaController;
 use App\Http\Controllers\Api\BitacoraApiController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\ConfiguracionController;
+use App\Http\Controllers\Api\ReporteApiController;
 /*
 |--------------------------------------------------------------------------
 | PRUEBA DE LA API
@@ -51,7 +52,9 @@ Route::get('/test', function () {
 Route::middleware('throttle:10,1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/auth/google', [AuthController::class, 'google']);
+      Route::post('/auth/facebook', [AuthController::class, 'facebook']);
 });
+
 
 /*
 |--------------------------------------------------------------------------
@@ -255,6 +258,20 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::put('/configuracion', [ConfiguracionController::class, 'update'])
         ->middleware('permission:configuracion.index'); // o configuracion.edit
+
+
+
+/*
+    |--------------------------------------------------------------------------
+    | REPORTES Y EXPORTACIONES
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('reportes')->middleware('permission:reportes.index')->group(function () {
+        Route::get('/filtros', [ReporteApiController::class, 'filtros']);
+        Route::get('/resumen', [ReporteApiController::class, 'resumen']);
+        Route::get('/pdf', [ReporteApiController::class, 'pdf']);
+        Route::get('/excel', [ReporteApiController::class, 'excel']);
+    });
 });
 
 /*

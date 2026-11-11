@@ -43,6 +43,9 @@ class User extends Authenticatable
     use Notifiable;
     use HasRoles;
 
+    // Fuerza a Spatie a validar roles y permisos contra el guard 'web' incluso usando Sanctum
+    protected $guard_name = 'web';
+    
     protected function casts(): array
     {
         return [
