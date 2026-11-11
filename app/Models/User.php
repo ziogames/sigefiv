@@ -19,6 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
     'email',
     'password',
     'google_id',
+    'facebook_id',
     'estado',
     'recibir_notificaciones',
     'advertencias_count',
