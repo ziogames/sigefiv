@@ -32,17 +32,22 @@ use App\Http\Controllers\Api\BitacoraApiController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\Api\ReporteApiController;
+// Arriba junto a los demás use:
+use App\Http\Controllers\Api\PasswordResetApiController;
+
 /*
 |--------------------------------------------------------------------------
-| PRUEBA DE LA API
+| PRUEBA DE LA API (SOLO ENTORNO LOCAL)
 |--------------------------------------------------------------------------
 */
-Route::get('/test', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'API de SIGEFIV funcionando correctamente.',
-    ]);
-});
+if (app()->isLocal()) {
+    Route::get('/test', function () {
+        return response()->json([
+            'success' => true,
+            'message' => 'API de SIGEFIV funcionando correctamente.',
+        ]);
+    });
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -52,9 +57,12 @@ Route::get('/test', function () {
 Route::middleware('throttle:10,1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/auth/google', [AuthController::class, 'google']);
-      Route::post('/auth/facebook', [AuthController::class, 'facebook']);
-});
+    Route::post('/auth/facebook', [AuthController::class, 'facebook']);
 
+    // Recuperación de contraseña (App Android / Web)
+    Route::post('/forgot-password', [PasswordResetApiController::class, 'sendCode']);
+    Route::post('/reset-password', [PasswordResetApiController::class, 'resetWithCode']);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -162,9 +170,9 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/usuarios', [UsuarioController::class, 'index'])->middleware('permission:usuarios.index');
-    Route::patch('/usuarios/{usuario}/estado', [UsuarioController::class, 'cambiarEstado'])->middleware('permission:usuarios.index');
-    Route::patch('/usuarios/{usuario}/rol', [UsuarioController::class, 'cambiarRol'])->middleware('permission:usuarios.index');
-    Route::delete('/usuarios/{usuario}', [UsuarioController::class, 'eliminar'])->middleware('permission:usuarios.index');
+    Route::patch('/usuarios/{usuario}/estado', [UsuarioController::class, 'cambiarEstado'])->middleware('permission:usuarios.edit');
+    Route::patch('/usuarios/{usuario}/rol', [UsuarioController::class, 'cambiarRol'])->middleware('permission:usuarios.edit');
+    Route::delete('/usuarios/{usuario}', [UsuarioController::class, 'eliminar'])->middleware('permission:usuarios.destroy');
 
     Route::get('/roles', [RolController::class, 'index'])->middleware('permission:roles.index');
     Route::get('/roles/permisos', [RolController::class, 'permisos'])->middleware('permission:roles.create');
@@ -219,7 +227,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notificaciones/no-leidas', [NotificacionController::class, 'noLeidas'])->middleware('permission:notificaciones.index');
     Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])->middleware('permission:notificaciones.index');
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodasLeidas'])->middleware('permission:notificaciones.index');
-    Route::post('/notificaciones/enviar', [NotificacionController::class, 'enviar']);
+    Route::post('/notificaciones/enviar', [NotificacionController::class, 'enviar'])
+        ->middleware('role:Administrador|Tesorero|Secretario');
 
     /*
     |--------------------------------------------------------------------------
@@ -251,17 +260,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/zoe/generate-description', [EmprendimientoController::class, 'generateWithZoe']);
 
     // Bitácora
-    Route::get('/bitacora', [BitacoraApiController::class, 'index']);
-    
+    Route::get('/bitacora', [BitacoraApiController::class, 'index'])
+        ->middleware('permission:bitacora.index');
+
     Route::get('/configuracion', [ConfiguracionController::class, 'show'])
         ->middleware('permission:configuracion.index');
 
     Route::put('/configuracion', [ConfiguracionController::class, 'update'])
-        ->middleware('permission:configuracion.index'); // o configuracion.edit
+        ->middleware('permission:configuracion.index');
 
-
-
-/*
+    /*
     |--------------------------------------------------------------------------
     | REPORTES Y EXPORTACIONES
     |--------------------------------------------------------------------------
@@ -283,6 +291,10 @@ Route::post('/zoe-estadisticas', [ZoeEstadisticasBridgeController::class, 'consu
 Route::post('/zoe-estatutos', [ZoeEstatutosController::class, 'consultar'])->middleware('zoe.ai');
 Route::post('/zoe-ai/resumen-periodo', [ZoeAiController::class, 'resumenPeriodo'])->middleware('zoe.ai');
 
+Route::match(['get', 'post'], '/zoe-ai/clima', [ClimaController::class, 'obtener'])
+    ->middleware('zoe.ai');
+
+// Nota: añade ->middleware('zoe.ai') cuando confirmes que n8n envía el token interno en estos 2 nodos
 Route::post('/zoe-ai/contexto/preparar', [ZoeAiController::class, 'prepararContexto']);
 Route::post('/zoe-ai/contexto/guardar', [ZoeAiController::class, 'guardarContexto']);
 
@@ -303,5 +315,7 @@ Route::post('/zoe-ai/asambleas/resumen', [AsambleaController::class, 'zoeResumen
 | CHAT DEVICES — ACCESO POR TOKEN
 |--------------------------------------------------------------------------
 */
-Route::get('/chat-devices/{device}/estado-device', [ChatDeviceController::class, 'estadoPorToken']);
-Route::post('/chat-devices/{device}/control', [ChatDeviceController::class, 'controlarPorToken']);
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/chat-devices/{device}/estado-device', [ChatDeviceController::class, 'estadoPorToken']);
+    Route::post('/chat-devices/{device}/control', [ChatDeviceController::class, 'controlarPorToken']);
+});

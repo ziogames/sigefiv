@@ -7,6 +7,7 @@ use App\Models\Emprendimiento;
 use App\Models\EmprendimientoFoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -64,16 +65,14 @@ class EmprendimientoController extends Controller
             'attention_zone' => 'nullable|string|max:255',
             'schedule' => 'nullable|string|max:255',
             'status' => 'required|in:draft,published,paused',
-            'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120', // Validación de imágenes
+            'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
         $validated['user_id'] = $request->user()->id;
         $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
 
-        // 1. Crear el emprendimiento
         $emprendimiento = Emprendimiento::create($validated);
 
-        // 2. 📸 Procesar y guardar las fotos en la tabla emprendimiento_fotos
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $index => $file) {
                 $path = $file->store('emprendimientos', 'public');
@@ -81,12 +80,11 @@ class EmprendimientoController extends Controller
                 EmprendimientoFoto::create([
                     'emprendimiento_id' => $emprendimiento->id,
                     'path' => $path,
-                    'is_primary' => $index === 0 // La primera foto se marca como principal
+                    'is_primary' => $index === 0
                 ]);
             }
         }
 
-        // 3. Notificar a n8n para generar sinónimos (si está publicado)
         if ($emprendimiento->status === 'published') {
             try {
                 $webhookUrl = config('services.n8n.webhook_sinonimos');
@@ -138,11 +136,7 @@ class EmprendimientoController extends Controller
 
         $emprendimiento->update($validated);
 
-        // 📸 Procesar nuevas fotos si se envían en la actualización
         if ($request->hasFile('photos')) {
-            // Opcional: Si deseas reemplazar todas las fotos anteriores al actualizar, descomenta la siguiente línea:
-            // foreach ($emprendimiento->photos as $fotoAntigua) { Storage::disk('public')->delete($fotoAntigua->path); } $emprendimiento->photos()->delete();
-
             $tieneFotosPrevias = $emprendimiento->photos()->count() > 0;
 
             foreach ($request->file('photos') as $index => $file) {
@@ -200,7 +194,7 @@ class EmprendimientoController extends Controller
             if ($response->successful() && $response->json('description')) {
                 $generatedText = trim($response->json('description'));
                 $generatedText = trim($generatedText, '"');
-                
+
                 return response()->json(['description' => $generatedText]);
             }
         } catch (\Exception $e) {
@@ -210,10 +204,8 @@ class EmprendimientoController extends Controller
         $fallback = "Bienvenidos a {$name}. Ofrecemos productos y servicios de calidad pensados para el bienestar de toda la comunidad. ¡Contáctanos y visítanos!";
         return response()->json(['description' => $fallback]);
     }
-// Buscar emprendimientos publicados de forma segura y estricta usando keywords, descripción y categorías
-    // Buscar emprendimientos publicados usando PostgreSQL Full-Text Search (tsvector) y fallback de similitud
-    // Buscar emprendimientos publicados usando PostgreSQL Full-Text Search y búsqueda flexible singular/plural
-    // Buscar emprendimientos publicados usando PostgreSQL Full-Text Search (tsvector), raíces léxicas e ILIKE multivariable
+
+    // Buscar emprendimientos publicados de forma estricta por relevancia real
     public function buscarPublicados(Request $request)
     {
         $request->validate([
@@ -237,18 +229,22 @@ class EmprendimientoController extends Controller
             ]);
         };
 
-        // Palabras conversacionales a filtrar antes de armar la búsqueda
+        // Palabras conversacionales y verbos genéricos que NO definen un rubro específico
         $palabrasIgnoradas = [
             'hola', 'zoe', 'buenos', 'dias', 'tardes', 'noches', 'por', 'favor', 'porfa',
-            'busco', 'buscar', 'necesito', 'quiero', 'quisiera', 'recomiendame', 'recomiendas',
-            'conoces', 'conocer', 'sabes', 'saben', 'saber', 'alguien', 'algun', 'alguna',
-            'vecino', 'vecina', 'vecinos', 'vecinas', 'comunidad', 'grupo', 'sigefiv',
+            'busco', 'buscar', 'buscando', 'necesito', 'quiero', 'quisiera', 'recomiendame', 'recomiendas',
+            'conoces', 'coneces', 'conocer', 'sabes', 'saben', 'saber', 'sepa', 'sepas',
+            'alguien', 'algun', 'alguna', 'alguno', 'algunos', 'algunas',
+            'persona', 'personas', 'vecino', 'vecina', 'vecinos', 'vecinas', 'comunidad', 'grupo', 'sigefiv',
             'ayuda', 'ayude', 'ayudar', 'tienda', 'negocio', 'emprendimiento', 'emprendimientos',
+            'servicio', 'servicios', 'reparar', 'repare', 'repara', 'arreglar', 'arregle', 'arregla',
+            'vender', 'vende', 'venden', 'venda', 'vendan', 'hacer', 'hace', 'hacen', 'haga', 'hagan',
+            'comprar', 'compro', 'compra', 'alquilar', 'alquila', 'alquilan',
             'un', 'una', 'unos', 'unas', 'el', 'la', 'los', 'las',
-            'de', 'del', 'para', 'por', 'con', 'en', 'que', 'quien', 'quienes', 
-            'donde', 'dond', 'don', 'puedo', 'puede', 'pueden', 'podria', 'hay',
+            'de', 'del', 'para', 'con', 'en', 'que', 'quien', 'quienes', 'cual', 'cuales',
+            'donde', 'dond', 'don', 'puedo', 'puede', 'pueda', 'puedas', 'pueden', 'puedan', 'podria', 'podrias', 'hay',
             'opcion', 'opciones', 'disponible', 'disponibles', 'todos',
-            'bien', 'bueno', 'buena', 'buenos', 'buenas', 'muy', 'dia', 'dias'
+            'bien', 'bueno', 'buena', 'buenos', 'buenas', 'muy', 'dia', 'tengo', 'hambre'
         ];
 
         $palabras = preg_split('/[^\p{L}\p{N}]+/u', $termino, -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -258,11 +254,10 @@ class EmprendimientoController extends Controller
         foreach ($palabras as $palabra) {
             $limpia = $normalizar($palabra);
             if (mb_strlen($limpia, 'UTF-8') >= 3 && !in_array($limpia, $palabrasIgnoradas, true)) {
-                $terminosBusqueda[] = $palabra;
+                $terminosBusqueda[] = $limpia;
 
-                // Generar raíz para tolerar variaciones singular/plural:
-                // 'computadoras' -> 'computador', 'computadora' -> 'computador'
-                $raiz = preg_replace('/(as|es|os|a|o|s)$/iu', '', $limpia);
+                // Generar raíz lingüística en español (ej. 'tortas' -> 'tort', 'televisores' -> 'televisor')
+                $raiz = preg_replace('/(adores|adoras|ador|adora|es|as|os|a|o|s)$/iu', '', $limpia);
                 if (mb_strlen($raiz, 'UTF-8') >= 3) {
                     $raicesBusqueda[] = $raiz;
                 }
@@ -273,6 +268,7 @@ class EmprendimientoController extends Controller
         $raicesBusqueda = array_values(array_unique($raicesBusqueda));
         $tieneCategoriaValida = !empty($categoriaFiltro) && $categoriaFiltro !== 'Todos';
 
+        // Si no hay términos concretos ni categoría válida, devolver vacío inmediatamente
         if (empty($terminosBusqueda) && !$tieneCategoriaValida) {
             return response()->json([
                 'success' => true,
@@ -284,72 +280,64 @@ class EmprendimientoController extends Controller
             ]);
         }
 
-        $textoQuery = implode(' ', $terminosBusqueda);
-
-        // 1. Consulta base (solo publicados y activos)
         $consulta = Emprendimiento::query()
             ->where('status', 'published')
             ->whereNull('deleted_at');
 
-        if ($tieneCategoriaValida) {
+        // Solo filtrar por categoría cuando el usuario pidió el rubro sin un producto específico
+        if ($tieneCategoriaValida && empty($terminosBusqueda)) {
             $consulta->where('categoria', $categoriaFiltro);
         }
 
         $relacionFotos = method_exists(Emprendimiento::class, 'photos') ? 'photos' : 'fotos';
-
-        // 2. Búsqueda principal: Cobertura integrada de search_vector (FTS) + prefijos + ILIKE en columnas clave
         $queryPrincipal = clone $consulta;
 
         if (!empty($terminosBusqueda)) {
-            // Convierte ['repare', 'computadora'] en 'repare:* | computadora:*' para ampliar coincidencias FTS
-            $tsQueryPrefijo = implode(' | ', array_map(function ($t) {
-                $sanitizado = preg_replace('/[^a-zA-Z0-9]/', '', $t);
-                return !empty($sanitizado) ? $sanitizado . ':*' : '';
-            }, array_filter($terminosBusqueda)));
+            $textoQuery = implode(' ', $terminosBusqueda);
 
-            $queryPrincipal->where(function ($q) use ($textoQuery, $tsQueryPrefijo, $terminosBusqueda, $raicesBusqueda) {
-                // A. Evaluación sobre search_vector (tsvector nativo de PostgreSQL)
-                if (!empty($tsQueryPrefijo)) {
-                    $q->whereRaw("search_vector @@ to_tsquery('spanish', ?)", [$tsQueryPrefijo])
-                      ->orWhereRaw("search_vector @@ plainto_tsquery('spanish', ?)", [$textoQuery]);
-                } else {
-                    $q->whereRaw("search_vector @@ plainto_tsquery('spanish', ?)", [$textoQuery]);
-                }
+            // Exigir que TODOS los términos relevantes coincidan (AND) en texto, raíz o sinónimos registrados
+            foreach ($terminosBusqueda as $idx => $item) {
+                $raiz = $raicesBusqueda[$idx] ?? $item;
 
-                // B. Coincidencia por término completo en name, keywords, description y categoria
-                foreach ($terminosBusqueda as $item) {
-                    $q->orWhere('name', 'ILIKE', "%{$item}%")
-                      ->orWhere('keywords', 'ILIKE', "%{$item}%")
-                      ->orWhere('description', 'ILIKE', "%{$item}%")
-                      ->orWhere('categoria', 'ILIKE', "%{$item}%");
-                }
-
-                // C. Coincidencia por raíz léxica (ej: 'computador' coincide con 'computadora' y 'computadoras')
-                foreach ($raicesBusqueda as $raiz) {
-                    $q->orWhere('name', 'ILIKE', "%{$raiz}%")
-                      ->orWhere('keywords', 'ILIKE', "%{$raiz}%")
-                      ->orWhere('description', 'ILIKE', "%{$raiz}%")
-                      ->orWhere('categoria', 'ILIKE', "%{$raiz}%");
-                }
-            });
+                $queryPrincipal->where(function ($q) use ($item, $raiz, $textoQuery) {
+                    $q->whereRaw("search_vector @@ plainto_tsquery('spanish', unaccent(?))", [$textoQuery])
+                      ->orWhereRaw("unaccent(lower(name)) ILIKE ?", ["%{$item}%"])
+                      ->orWhereRaw("unaccent(lower(COALESCE(keywords, ''))) ILIKE ?", ["%{$item}%"])
+                      ->orWhereRaw("unaccent(lower(COALESCE(description, ''))) ILIKE ?", ["%{$item}%"])
+                      ->orWhereRaw("unaccent(lower(name)) ILIKE ?", ["%{$raiz}%"])
+                      ->orWhereRaw("unaccent(lower(COALESCE(keywords, ''))) ILIKE ?", ["%{$raiz}%"])
+                      ->orWhereRaw("unaccent(lower(COALESCE(description, ''))) ILIKE ?", ["%{$raiz}%"])
+                      ->orWhereExists(function ($sub) use ($item, $raiz) {
+                          $sub->select(DB::raw(1))
+                              ->from('emprendimiento_busqueda_sinonimos as s')
+                              ->where(function ($sq) use ($item, $raiz) {
+                                  $sq->whereRaw("unaccent(lower(COALESCE(s.sinonimo, ''))) ILIKE ?", ["%{$item}%"])
+                                     ->orWhereRaw("unaccent(lower(COALESCE(s.termino, ''))) ILIKE ?", ["%{$item}%"])
+                                     ->orWhereRaw("unaccent(lower(COALESCE(s.sinonimo, ''))) ILIKE ?", ["%{$raiz}%"]);
+                              })
+                              ->where(function ($matchEmp) {
+                                  $matchEmp->whereRaw("unaccent(lower(emprendimientos.name)) ILIKE '%' || unaccent(lower(COALESCE(s.termino, ''))) || '%'")
+                                           ->orWhereRaw("unaccent(lower(COALESCE(emprendimientos.keywords, ''))) ILIKE '%' || unaccent(lower(COALESCE(s.termino, ''))) || '%'")
+                                           ->orWhereRaw("unaccent(lower(COALESCE(emprendimientos.description, ''))) ILIKE '%' || unaccent(lower(COALESCE(s.termino, ''))) || '%'");
+                              });
+                      });
+                });
+            }
         }
 
         $queryPrincipal->orderBy('name');
-
         $total = (clone $queryPrincipal)->count();
-        $emprendimientos = null;
 
-        // 3. Fallback con similitud Trigram si no hubo coincidencia estricta (para errores de tipeo como 'computadra')
+        // Fallback estricto por similitud Trigram (>= 0.42) solo para errores ortográficos leves
         if ($total === 0 && !empty($terminosBusqueda)) {
             $queryFallback = clone $consulta;
 
-            $queryFallback->where(function ($q) use ($terminosBusqueda, $raicesBusqueda) {
-                foreach (array_merge($terminosBusqueda, $raicesBusqueda) as $item) {
-                    $q->orWhereRaw("similarity(unaccent(lower(name)), unaccent(lower(?))) >= 0.25", [$item])
-                      ->orWhereRaw("similarity(unaccent(lower(COALESCE(keywords, ''))), unaccent(lower(?))) >= 0.25", [$item])
-                      ->orWhereRaw("similarity(unaccent(lower(COALESCE(description, ''))), unaccent(lower(?))) >= 0.25", [$item]);
-                }
-            });
+            foreach ($terminosBusqueda as $item) {
+                $queryFallback->where(function ($q) use ($item) {
+                    $q->whereRaw("similarity(unaccent(lower(name)), ?) >= 0.42", [$item])
+                      ->orWhereRaw("similarity(unaccent(lower(COALESCE(keywords, ''))), ?) >= 0.42", [$item]);
+                });
+            }
 
             $total = (clone $queryFallback)->count();
             $emprendimientos = $queryFallback
@@ -362,7 +350,6 @@ class EmprendimientoController extends Controller
                 ->paginate($limite, ['*'], 'pagina', $pagina);
         }
 
-        // 4. Formateo de respuesta estándar para el Chatbot Zoe y la App Móvil
         $user = auth('sanctum')->user();
 
         $resultados = $emprendimientos->getCollection()
@@ -436,7 +423,6 @@ class EmprendimientoController extends Controller
             return response()->json(['message' => 'No autorizado para eliminar este negocio'], 403);
         }
 
-        // Eliminar archivos físicos del almacenamiento
         foreach ($emprendimiento->photos as $foto) {
             Storage::disk('public')->delete($foto->path);
         }
@@ -451,7 +437,6 @@ class EmprendimientoController extends Controller
     }
 
     // Listar todos los emprendimientos publicados para el directorio general de la app
-    // Listar todos los emprendimientos publicados para el directorio general de la app
     public function indexPublicos(Request $request)
     {
         $categoria = $request->input('categoria');
@@ -462,8 +447,8 @@ class EmprendimientoController extends Controller
             ->withAvg('opiniones as promedio_calificacion', 'calificacion')
             ->withCount('opiniones as total_opiniones');
 
-       if ($categoria && $categoria !== 'Todos') {
-            $query->where('categoria', $categoria); // 👈 Filtro exacto por columna
+        if ($categoria && $categoria !== 'Todos') {
+            $query->where('categoria', $categoria);
         }
 
         $emprendimientos = $query->orderBy('created_at', 'desc')->get();
@@ -488,7 +473,6 @@ class EmprendimientoController extends Controller
                 'status' => $emprendimiento->status,
                 'photos' => $emprendimiento->photos ?? [],
                 'es_favorito' => $esFavorito,
-                // 🌟 Promedio redondeado a 1 decimal y conteo total de opiniones
                 'promedio_calificacion' => round((float) ($emprendimiento->promedio_calificacion ?? 0.0), 1),
                 'total_opiniones' => (int) ($emprendimiento->total_opiniones ?? 0),
             ];
@@ -525,7 +509,7 @@ class EmprendimientoController extends Controller
     public function misFavoritos(Request $request)
     {
         $user = $request->user();
-        
+
         $favoritos = $user->emprendimientosFavoritos()->with(['photos'])->get();
 
         $resultados = $favoritos->map(function ($emprendimiento) {

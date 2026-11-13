@@ -503,6 +503,12 @@ class AuthController extends Controller
             $cargoVecinoId = Cargo::where('nombre', 'Vecino')->value('id');
             $tieneColumnaFb = Schema::hasColumn('users', 'facebook_id');
 
+            // Descargar y guardar localmente el avatar de Facebook
+            $rutaAvatarLocal = $this->guardarAvatarExterno(
+                $fotoFacebook,
+                $validated['access_token'] ?? null
+            );
+
             $user = null;
             if ($tieneColumnaFb) {
                 $user = User::where('facebook_id', $facebookId)->first();
@@ -516,7 +522,7 @@ class AuthController extends Controller
                 $datosCrear = [
                     'name'                   => $nombre,
                     'email'                  => $email,
-                    'foto'                   => $fotoFacebook,
+                    'foto'                   => $rutaAvatarLocal ?? $fotoFacebook,
                     'cargo_id'               => $cargoVecinoId,
                     'password'               => Hash::make(bin2hex(random_bytes(32))),
                     'estado'                 => 'pendiente',
@@ -543,7 +549,10 @@ class AuthController extends Controller
                     $datosActualizar['facebook_id'] = $facebookId;
                 }
 
-                if (empty($user->foto) && !empty($fotoFacebook)) {
+                // Si no tiene foto o aún apunta a una URL externa, reemplazamos con la descarga local
+                if ((empty($user->foto) || filter_var($user->foto, FILTER_VALIDATE_URL)) && !empty($rutaAvatarLocal)) {
+                    $datosActualizar['foto'] = $rutaAvatarLocal;
+                } elseif (empty($user->foto) && !empty($fotoFacebook)) {
                     $datosActualizar['foto'] = $fotoFacebook;
                 }
 
@@ -812,4 +821,37 @@ class AuthController extends Controller
                     : (!empty($user->facebook_id) ? 'Facebook' : 'Correo y contraseña'),
         ];
     }
+    private function guardarAvatarExterno(?string $urlFoto, ?string $accessToken = null): ?string
+{
+    if (empty($urlFoto)) {
+        return null;
+    }
+
+    try {
+        // Si es URL de Graph API y tenemos access_token, pedimos la foto en alta calidad sin redirección rota
+        if (str_contains($urlFoto, 'graph.facebook.com') && !empty($accessToken) && !str_contains($urlFoto, 'access_token=')) {
+            $separador = str_contains($urlFoto, '?') ? '&' : '?';
+            $urlFoto .= $separador . 'access_token=' . urlencode($accessToken);
+        }
+
+        $respuesta = Http::timeout(10)->withOptions(['allow_redirects' => true])->get($urlFoto);
+
+        if ($respuesta->successful() && str_starts_with($respuesta->header('Content-Type', ''), 'image/')) {
+            $extension = match ($respuesta->header('Content-Type')) {
+                'image/png'  => 'png',
+                'image/webp' => 'webp',
+                default      => 'jpg',
+            };
+
+            $nombreArchivo = 'usuarios/fb_' . uniqid() . '.' . $extension;
+            Storage::disk('public')->put($nombreArchivo, $respuesta->body());
+
+            return $nombreArchivo;
+        }
+    } catch (\Throwable $e) {
+        Log::warning('SIGEFIV FACEBOOK: no se pudo descargar avatar', ['error' => $e->getMessage()]);
+    }
+
+    return null;
+}
 }

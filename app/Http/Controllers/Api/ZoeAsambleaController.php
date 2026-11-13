@@ -5,19 +5,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class ZoeAsambleaController extends Controller
 {
-    
-/**
+    /**
      * Obtiene o crea la conversación activa de Zoe para el usuario.
      */
     private function obtenerConversacionId($userId)
     {
         // 1. Buscar la última conversación activa usando usuario_id
         $conversacion = DB::table('zoe_conversaciones')
-            ->where('usuario_id', $userId) // 👈 Cambiado a usuario_id
+            ->where('usuario_id', $userId)
+            ->where('activa', true)
             ->orderBy('id', 'desc')
             ->first();
 
@@ -25,14 +26,17 @@ class ZoeAsambleaController extends Controller
             return $conversacion->id;
         }
 
-        // 2. Si no existe, crear una nueva
+        // 2. Si no existe, crear una nueva con las columnas reales de la tabla
         return DB::table('zoe_conversaciones')->insertGetId([
-            'usuario_id' => $userId,      // 👈 Cambiado a usuario_id
-            'titulo' => 'Conversación con Zoe',
+            'usuario_id' => $userId,
+            'sesion_id'  => (string) Str::uuid(),
+            'resumen'    => 'Conversación con Zoe',
+            'activa'     => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
     }
+
     public function verificarAvisosPendientes(Request $request)
     {
         $userId = $request->user()->id;
@@ -168,7 +172,6 @@ class ZoeAsambleaController extends Controller
             'en_duda' => 'Comprendo. Ojalá puedas darte un tiempo para acompañarnos; tu opinión siempre suma.',
         ];
 
-        // Insertar respuesta de Zoe usando las columnas reales
         $conversacionId = $this->obtenerConversacionId($userId);
         DB::table('zoe_mensajes')->insert([
             'conversacion_id' => $conversacionId,
@@ -230,66 +233,67 @@ class ZoeAsambleaController extends Controller
             ]);
         }
     }
+
     public function obtenerEstadisticasActiva(Request $request)
-{
-    $userId = $request->user()->id;
-    $ahora = Carbon::now();
+    {
+        $userId = $request->user()->id;
+        $ahora = Carbon::now();
 
-    // 1. Buscar la asamblea publicada y próxima en la ventana de 5 días
-    $asambleas = DB::table('asambleas')
-        ->where('estado', 'publicada')
-        ->whereDate('fecha', '>=', $ahora->toDateString())
-        ->whereDate('fecha', '<=', $ahora->copy()->addDays(5)->toDateString())
-        ->orderBy('fecha', 'asc')
-        ->orderBy('hora', 'asc')
-        ->get();
+        // 1. Buscar la asamblea publicada y próxima en la ventana de 5 días
+        $asambleas = DB::table('asambleas')
+            ->where('estado', 'publicada')
+            ->whereDate('fecha', '>=', $ahora->toDateString())
+            ->whereDate('fecha', '<=', $ahora->copy()->addDays(5)->toDateString())
+            ->orderBy('fecha', 'asc')
+            ->orderBy('hora', 'asc')
+            ->get();
 
-    $asamblea = null;
-    foreach ($asambleas as $item) {
-        $momento = Carbon::parse("{$item->fecha} {$item->hora}");
-        if ($momento->greaterThan($ahora)) {
-            $asamblea = $item;
-            break;
+        $asamblea = null;
+        foreach ($asambleas as $item) {
+            $momento = Carbon::parse("{$item->fecha} {$item->hora}");
+            if ($momento->greaterThan($ahora)) {
+                $asamblea = $item;
+                break;
+            }
         }
-    }
 
-    if (!$asamblea) {
+        if (!$asamblea) {
+            return response()->json([
+                'tiene_asamblea' => false
+            ]);
+        }
+
+        // 2. Conteo de votos de vecinos
+        $stats = DB::table('asamblea_asistencias')
+            ->where('asamblea_id', $asamblea->id)
+            ->selectRaw("
+                COUNT(*) FILTER (WHERE estado = 'asistira') as asistiran,
+                COUNT(*) FILTER (WHERE estado = 'en_duda') as en_duda,
+                COUNT(*) FILTER (WHERE estado = 'no_asistira') as no_asistiran,
+                COUNT(*) as total
+            ")
+            ->first();
+
+        // 3. Voto actual del vecino autenticado
+        $miVoto = DB::table('asamblea_asistencias')
+            ->where('asamblea_id', $asamblea->id)
+            ->where('user_id', $userId)
+            ->value('estado');
+
         return response()->json([
-            'tiene_asamblea' => false
+            'tiene_asamblea' => true,
+            'asamblea_id' => $asamblea->id,
+            'titulo' => $asamblea->titulo,
+            'fecha' => Carbon::parse($asamblea->fecha)->format('d/m/Y'),
+            'hora' => Carbon::parse($asamblea->hora)->format('h:i A'),
+            'lugar' => $asamblea->lugar,
+            'mi_voto' => $miVoto,
+            'estadisticas' => [
+                'asistiran' => (int) ($stats->asistiran ?? 0),
+                'en_duda' => (int) ($stats->en_duda ?? 0),
+                'no_asistiran' => (int) ($stats->no_asistiran ?? 0),
+                'total' => (int) ($stats->total ?? 0),
+            ]
         ]);
     }
-
-    // 2. Conteo de votos de vecinos
-    $stats = DB::table('asamblea_asistencias')
-        ->where('asamblea_id', $asamblea->id)
-        ->selectRaw("
-            COUNT(*) FILTER (WHERE estado = 'asistira') as asistiran,
-            COUNT(*) FILTER (WHERE estado = 'en_duda') as en_duda,
-            COUNT(*) FILTER (WHERE estado = 'no_asistira') as no_asistiran,
-            COUNT(*) as total
-        ")
-        ->first();
-
-    // 3. Voto actual del vecino autenticado
-    $miVoto = DB::table('asamblea_asistencias')
-        ->where('asamblea_id', $asamblea->id)
-        ->where('user_id', $userId)
-        ->value('estado');
-
-    return response()->json([
-        'tiene_asamblea' => true,
-        'asamblea_id' => $asamblea->id,
-        'titulo' => $asamblea->titulo,
-        'fecha' => Carbon::parse($asamblea->fecha)->format('d/m/Y'),
-        'hora' => Carbon::parse($asamblea->hora)->format('h:i A'),
-        'lugar' => $asamblea->lugar,
-        'mi_voto' => $miVoto,
-        'estadisticas' => [
-            'asistiran' => (int) ($stats->asistiran ?? 0),
-            'en_duda' => (int) ($stats->en_duda ?? 0),
-            'no_asistiran' => (int) ($stats->no_asistiran ?? 0),
-            'total' => (int) ($stats->total ?? 0),
-        ]
-    ]);
-}
 }
