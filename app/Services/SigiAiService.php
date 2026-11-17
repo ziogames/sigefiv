@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Services\sigi\SigiSecurityService;
+use App\Services\Sigi\SigiSecurityService;
 use Illuminate\Support\Facades\Http;
 
 class SigiAiService

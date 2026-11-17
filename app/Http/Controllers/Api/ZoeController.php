@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\ZoeN8nService;
@@ -12,74 +13,72 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\ZoeIncidencia;
 
-
 class ZoeController extends Controller
 {
-    
-public function consultar(Request $request)
-{
-    $request->validate([
-        'mensaje' => 'required|string|max:1000',
-    ]);
+    public function consultar(Request $request)
+    {
+        $request->validate([
+            'mensaje' => 'required|string|max:1000',
+        ]);
 
-    try {
-        $usuario = $request->user();
+        try {
+            $usuario = $request->user();
 
-        // Priorizar el seudónimo del vecino.
-       $seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
-        $nombreReal = trim((string) ($usuario?->name ?? ''));
-        $nombreZoe = $seudonimo !== ''
-        ? $seudonimo
-        : (explode(' ', $nombreReal)[0] ?: 'vecino');
+            // Priorizar el seudónimo del vecino.
+            $seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
+            $nombreReal = trim((string) ($usuario?->name ?? ''));
+            $nombreZoe = $seudonimo !== ''
+                ? $seudonimo
+                : (explode(' ', $nombreReal)[0] ?: 'vecino');
 
-        $response = Http::timeout(120)
-            ->post(config('services.n8n.zoe_webhook_url'), [
-                'mensaje' => $request->mensaje,
-                'usuario_id' => $usuario?->id,
-                'nombre_usuario' => $nombreZoe,
-                'seudonimo' => $usuario?->seudonimo,
+            $response = Http::timeout(120)
+                ->post(config('services.n8n.zoe_webhook_url'), [
+                    'mensaje' => $request->mensaje,
+                    'usuario_id' => $usuario?->id,
+                    'nombre_usuario' => $nombreZoe,
+                    'seudonimo' => $usuario?->seudonimo,
+                ]);
+
+            Log::info('ZOE respuesta n8n', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'json' => $response->json(),
             ]);
 
-        Log::info('ZOE respuesta n8n', [
-            'status' => $response->status(),
-            'body' => $response->body(),
-            'json' => $response->json(),
-        ]);
+            if ($response->failed()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo obtener respuesta de ZOE.',
+                    'error' => $response->body(),
+                ], 502);
+            }
 
-        if ($response->failed()) {
+            $respuesta = $response->json('respuesta')
+                ?? $response->json('mensaje')
+                ?? $response->json('text');
+
+            $estadistica = $response->json('estadistica');
+
+            return response()->json([
+                'success' => true,
+                'respuesta' => $respuesta,
+                'estadistica' => $estadistica,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('Error al comunicarse con ZOE', [
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo obtener respuesta de ZOE.',
-                'error' => $response->body(),
-            ], 502);
+                'message' => 'Error al comunicarse con ZOE.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        $respuesta = $response->json('respuesta')
-            ?? $response->json('mensaje')
-            ?? $response->json('text');
-
-        $estadistica = $response->json('estadistica');
-
-        return response()->json([
-            'success' => true,
-            'respuesta' => $respuesta,
-            'estadistica' => $estadistica,
-        ]);
-
-    } catch (\Throwable $e) {
-        Log::error('Error al comunicarse con ZOE', [
-            'error' => $e->getMessage(),
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al comunicarse con ZOE.',
-            'error' => $e->getMessage(),
-        ], 500);
     }
-}
 
-     /**
+    /**
      * Genera un mensaje inteligente para la mascota ZOE
      * y lo distribuye mediante FCM.
      */
@@ -94,24 +93,21 @@ public function consultar(Request $request)
         ]);
 
         try {
+            $usuario = $request->user();
 
-           
-$usuario = $request->user();
+            $seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
+            $nombreReal = trim((string) ($usuario?->name ?? ''));
 
-$seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
-$nombreReal = trim((string) ($usuario?->name ?? ''));
+            $nombreZoe = $seudonimo !== ''
+                ? $seudonimo
+                : (explode(' ', $nombreReal)[0] ?: 'vecino');
 
-$nombreZoe = $seudonimo !== ''
-    ? $seudonimo
-    : (explode(' ', $nombreReal)[0] ?: 'vecino');
-
-$resultado = $zoeN8nService->mensajeMascota(
-    evento: $request->evento,
-    usuarioId: $usuario?->id ?? 0,
-    nombreUsuario: $nombreZoe,
-    contexto: $request->contexto ?? []
-);
-
+            $resultado = $zoeN8nService->mensajeMascota(
+                evento: $request->evento,
+                usuarioId: $usuario?->id ?? 0,
+                nombreUsuario: $nombreZoe,
+                contexto: $request->contexto ?? []
+            );
 
             if ($resultado === null) {
                 return response()->json([
@@ -137,7 +133,6 @@ $resultado = $zoeN8nService->mensajeMascota(
             ]);
 
         } catch (\Throwable $e) {
-
             Log::error(
                 'Error generando mensaje de ZOE MASCOTA',
                 [
@@ -152,7 +147,7 @@ $resultado = $zoeN8nService->mensajeMascota(
         }
     }
 
-public function historial(Request $request)
+    public function historial(Request $request)
     {
         try {
             $usuario = $request->user();
@@ -165,15 +160,15 @@ public function historial(Request $request)
             }
 
             // Agrupamos directamente por conversacion_id de la tabla zoe_mensajes
-            $conversaciones = \DB::table('zoe_mensajes')
-                ->select('conversacion_id', \DB::raw('MAX(created_at) as ultima_fecha'))
+            $conversaciones = DB::table('zoe_mensajes')
+                ->select('conversacion_id', DB::raw('MAX(created_at) as ultima_fecha'))
                 ->groupBy('conversacion_id')
                 ->orderBy('ultima_fecha', 'desc')
                 ->get()
                 ->map(function ($item) {
-                    
+
                     // 1. Buscamos el primer mensaje del usuario que NO sea un evento automático
-                    $primerMensaje = \DB::table('zoe_mensajes')
+                    $primerMensaje = DB::table('zoe_mensajes')
                         ->where('conversacion_id', $item->conversacion_id)
                         ->where('rol', 'user')
                         ->where('mensaje', 'NOT LIKE', 'evento_%')
@@ -182,7 +177,7 @@ public function historial(Request $request)
 
                     // 2. Si no hay mensaje de usuario, buscamos el primer mensaje del asistente
                     if (!$primerMensaje) {
-                        $primerMensaje = \DB::table('zoe_mensajes')
+                        $primerMensaje = DB::table('zoe_mensajes')
                             ->where('conversacion_id', $item->conversacion_id)
                             ->where('rol', 'assistant')
                             ->orderBy('created_at', 'asc')
@@ -190,7 +185,7 @@ public function historial(Request $request)
                     }
 
                     $fecha = \Carbon\Carbon::parse($item->ultima_fecha);
-                    
+
                     $grupo = 'ANTERIORES';
                     if ($fecha->isToday()) {
                         $grupo = 'HOY';
@@ -229,21 +224,50 @@ public function historial(Request $request)
             ], 500);
         }
     }
-    
+
     public function verConversacion(Request $request, $conversacionId)
     {
         try {
-            $mensajesDb = \DB::table('zoe_mensajes')
+            $usuarioId = $request->user()?->id;
+
+            // Obtenemos las calificaciones activas del usuario indexadas por el hash del mensaje
+            $feedbackUsuario = $usuarioId
+                ? DB::table('zoe_feedback')
+                    ->where('usuario_id', $usuarioId)
+                    ->whereIn('voto', ['positivo', 'negativo'])
+                    ->pluck('voto', 'mensaje_hash')
+                : collect();
+
+            $mensajesDb = DB::table('zoe_mensajes')
                 ->where('conversacion_id', $conversacionId)
                 ->orderBy('created_at', 'asc')
                 ->get();
 
-            $mensajesFormateados = $mensajesDb->map(function ($msg) {
+            $mensajesFormateados = $mensajesDb->map(function ($msg) use ($feedbackUsuario) {
                 $fecha = \Carbon\Carbon::parse($msg->created_at);
+                $esUsuario = $msg->rol === 'user';
+                $calificacion = null;
+
+                if (!$esUsuario) {
+                    // Limpiamos el texto exactamente igual que en la app Android para que coincida el hash
+                    $textoLimpio = preg_replace('/\[ASAMBLEA_ID:\d+\]/', '', str_replace('[REPORTE_DIRECTIVA] ', '', $msg->mensaje));
+                    $textoLimpio = trim(str_replace(['**', '__'], '', $textoLimpio));
+
+                    $hash = hash('sha256', $textoLimpio);
+                    $voto = $feedbackUsuario[$hash] ?? null;
+
+                    $calificacion = match ($voto) {
+                        'positivo' => true,
+                        'negativo' => false,
+                        default    => null,
+                    };
+                }
+
                 return [
-                    'texto' => $msg->mensaje,
-                    'esUsuario' => $msg->rol === 'user',
-                    'hora' => $fecha->format('h:i a')
+                    'texto'        => $msg->mensaje,
+                    'esUsuario'    => $esUsuario,
+                    'hora'         => $fecha->format('h:i a'),
+                    'calificacion' => $calificacion,
                 ];
             });
 
@@ -259,7 +283,8 @@ public function historial(Request $request)
             ], 500);
         }
     }
-public function enviarMensajeConArchivo(Request $request)
+
+    public function enviarMensajeConArchivo(Request $request)
     {
         $request->validate([
             'mensaje' => 'nullable|string',
@@ -270,12 +295,12 @@ public function enviarMensajeConArchivo(Request $request)
 
         if ($request->hasFile('archivo')) {
             $archivo = $request->file('archivo');
-            
+
             // Guardamos directamente en storage/app/public/chat_zoe
             $path = $archivo->store('chat_zoe', 'public');
-            
+
             // Ruta relativa para la BD (ej. storage/chat_zoe/xxx.jpg o chat_zoe/xxx.jpg)
-            $rutaRelativa = $path; 
+            $rutaRelativa = $path;
         }
 
         $incidencia = ZoeIncidencia::create([
@@ -293,5 +318,33 @@ public function enviarMensajeConArchivo(Request $request)
             'incidencia_id' => $incidencia->id,
             'archivo_url' => $rutaRelativa ? asset('storage/' . $rutaRelativa) : null
         ], 200);
+    }
+
+    public function calificarMensaje(Request $request)
+    {
+        $validated = $request->validate([
+            'mensaje_texto' => 'required|string',
+            'voto'          => 'required|in:positivo,negativo,ninguno',
+        ]);
+
+        $usuarioId = $request->user()->id;
+
+        DB::table('zoe_feedback')->updateOrInsert(
+            [
+                'usuario_id'   => $usuarioId,
+                'mensaje_hash' => hash('sha256', trim($validated['mensaje_texto'])),
+            ],
+            [
+                'mensaje_texto' => trim($validated['mensaje_texto']),
+                'voto'          => $validated['voto'],
+                'updated_at'    => now(),
+                'created_at'    => now(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Calificación registrada',
+        ]);
     }
 }

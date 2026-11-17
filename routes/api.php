@@ -147,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/zoe/asambleas/confirmar', [ZoeAsambleaController::class, 'confirmarAsistencia']);
     Route::get('/zoe/asambleas/estadisticas-activa', [ZoeAsambleaController::class, 'obtenerEstadisticasActiva']);
 
+    Route::post('/zoe/calificar', [ZoeController::class, 'calificarMensaje']);
     /*
     |--------------------------------------------------------------------------
     | INCIDENCIAS
@@ -170,6 +171,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/usuarios', [UsuarioController::class, 'index'])->middleware('permission:usuarios.index');
+    Route::post('/usuarios', [UsuarioController::class, 'store'])->middleware('permission:usuarios.create');
     Route::patch('/usuarios/{usuario}/estado', [UsuarioController::class, 'cambiarEstado'])->middleware('permission:usuarios.edit');
     Route::patch('/usuarios/{usuario}/rol', [UsuarioController::class, 'cambiarRol'])->middleware('permission:usuarios.edit');
     Route::delete('/usuarios/{usuario}', [UsuarioController::class, 'eliminar'])->middleware('permission:usuarios.destroy');
