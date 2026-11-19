@@ -131,11 +131,12 @@ class ChatController extends Controller
                 'required_without:archivo',
             ],
 
-            'archivo' => [
-                'nullable',
-                'file',
-                'max:51200',
-            ],
+           'archivo' => [
+    'nullable',
+    'file',
+    'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,mp3,wav,ogg,m4a,mp4,webm',
+    'max:51200',
+],
         ]);
 
         $usuario =

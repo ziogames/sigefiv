@@ -15,6 +15,7 @@ use App\Services\ZoeN8nService;
 use App\Services\ZoeModeracionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 use App\Models\ChatMessage;
 use App\Models\ChatMessageReaction;
@@ -41,8 +42,6 @@ class ChatApiController extends Controller
                 $chatService->agregarUsuario($usuario);
             }
 
-            // withTrashed() conserva mensajes borrados para "Este mensaje fue eliminado"
-            // where('bloqueado_moderacion', false) oculta las evidencias forenses a los vecinos
             $mensajes = $chat->mensajes()
                 ->withTrashed()
                 ->where('bloqueado_moderacion', false)
@@ -101,10 +100,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@index', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo cargar el Chat Vecinal.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -124,26 +124,27 @@ class ChatApiController extends Controller
         ZoeModeracionService $zoeService,
         ZoeN8nService $zoeN8nService
     ): JsonResponse {
-        try {
-            $request->validate([
-                'mensaje' => [
-                    'nullable',
-                    'string',
-                    'max:5000',
-                    'required_without:archivo',
-                ],
-                'archivo' => [
-                    'nullable',
-                    'file',
-                    'max:51200',
-                ],
-                'reply_to_id' => [
-                    'nullable',
-                    'integer',
-                    'exists:chat_messages,id',
-                ],
-            ]);
+        $request->validate([
+            'mensaje' => [
+                'nullable',
+                'string',
+                'max:5000',
+                'required_without:archivo',
+            ],
+            'archivo' => [
+                'nullable',
+                'file',
+                'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,mp3,wav,ogg,m4a,mp4,webm',
+                'max:51200',
+            ],
+            'reply_to_id' => [
+                'nullable',
+                'integer',
+                'exists:chat_messages,id',
+            ],
+        ]);
 
+        try {
             $usuario = $request->user();
             $chat = $chatService->obtenerChatVecinal();
 
@@ -162,7 +163,6 @@ class ChatApiController extends Controller
                 $resultadoModeracion = $zoeService->procesarMensaje($chat->id, $usuario, $texto);
 
                 if ($resultadoModeracion['bloquear_mensaje'] ?? false) {
-                    // Guarda la evidencia oculta en la base de datos
                     ChatMessage::create([
                         'conversation_id'      => $chat->id,
                         'user_id'              => $usuario->id,
@@ -256,7 +256,6 @@ class ChatApiController extends Controller
                     $textoFinal = '🤖 ' . trim($textoBase);
                     $esEstadisticaGrafica = false;
 
-                    // 1. Verificar si n8n devolvió estadísticas estructuradas (Canvas)
                     if (is_array($respuestaIa)) {
                         $extra = $respuestaIa['extra'] ?? null;
                         if (
@@ -277,8 +276,6 @@ class ChatApiController extends Controller
                         }
                     }
 
-                    // 2. Si no es estadística gráfica, verificar si es lista de emprendimientos
-                 // 2. Si no es estadística gráfica, verificar si es lista de emprendimientos
                     if (!$esEstadisticaGrafica && is_array($respuestaIa)) {
                         $extra = $respuestaIa['extra'] ?? null;
                         $listaEmprendimientos = null;
@@ -301,7 +298,6 @@ class ChatApiController extends Controller
                                     ?? ($emp['photos'][0]['url'] ?? null)
                                     ?? '';
 
-                                // Si la imagen es una ruta relativa local, convertirla a URL completa accesible por Android
                                 if (!empty($imagen) && !str_starts_with($imagen, 'http')) {
                                     $imagen = url('storage/' . ltrim($imagen, '/'));
                                 }
@@ -309,7 +305,6 @@ class ChatApiController extends Controller
                                 $zona = $emp['zona_atencion'] ?? $emp['attention_zone'] ?? '';
                                 $horario = $emp['horario'] ?? $emp['schedule'] ?? '';
 
-                                // 🎯 LA CLAVE: Agregar el punto • al inicio para que Android active ChatUIComponent.Emprendimiento
                                 $textoFinal .= "\n• {$nombre} | {$categoria} | {$descripcion} | {$contacto} | {$imagen} | {$zona} | {$horario}";
                             }
                         }
@@ -381,10 +376,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@store', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo enviar el mensaje.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -399,11 +395,11 @@ class ChatApiController extends Controller
         ChatService $chatService,
         ChatResponseService $chatResponseService
     ): JsonResponse {
-        try {
-            $request->validate([
-                'mensaje' => 'required|string|max:5000',
-            ]);
+        $request->validate([
+            'mensaje' => 'required|string|max:5000',
+        ]);
 
+        try {
             $usuario = $request->user();
             $chat = $chatService->obtenerChatVecinal();
 
@@ -438,10 +434,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@update', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo editar el mensaje.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -483,7 +480,7 @@ class ChatApiController extends Controller
 
             $mensaje->deleted_by = $usuario->id;
             $mensaje->save();
-            $mensaje->delete(); // Soft delete activa deleted_at
+            $mensaje->delete();
 
             return response()->json([
                 'success' => true,
@@ -493,10 +490,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@destroy', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo eliminar el mensaje.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -530,10 +528,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@presencia', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo actualizar la presencia.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -546,14 +545,14 @@ class ChatApiController extends Controller
         ChatService $chatService,
         ChatTypingService $chatTypingService
     ): JsonResponse {
-        try {
-            $request->validate([
-                'escribiendo' => [
-                    'required',
-                    'boolean',
-                ],
-            ]);
+        $request->validate([
+            'escribiendo' => [
+                'required',
+                'boolean',
+            ],
+        ]);
 
+        try {
             $usuario = $request->user();
             $chat = $chatService->obtenerChatVecinal();
 
@@ -572,10 +571,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@escribiendo', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo actualizar el estado de escritura.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -590,15 +590,15 @@ class ChatApiController extends Controller
         ChatPresenceService $chatPresenceService,
         ChatResponseService $chatResponseService
     ): JsonResponse {
-        try {
-            $request->validate([
-                'after_id' => [
-                    'nullable',
-                    'integer',
-                    'min:0',
-                ],
-            ]);
+        $request->validate([
+            'after_id' => [
+                'nullable',
+                'integer',
+                'min:0',
+            ],
+        ]);
 
+        try {
             $usuario = $request->user();
             $chatPresenceService->actualizarPresencia($usuario);
 
@@ -609,7 +609,6 @@ class ChatApiController extends Controller
                 $chatService->agregarUsuario($usuario);
             }
 
-            // withTrashed() para mensajes eliminados, sin exponer las evidencias de moderación
             $mensajes = $chat->mensajes()
                 ->withTrashed()
                 ->where('bloqueado_moderacion', false)
@@ -662,10 +661,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@nuevos', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudieron obtener los mensajes nuevos.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -677,15 +677,15 @@ class ChatApiController extends Controller
         Request $request,
         ChatService $chatService
     ): JsonResponse {
-        try {
-            $request->validate([
-                'mensaje_id' => [
-                    'required',
-                    'integer',
-                    'min:1',
-                ],
-            ]);
+        $request->validate([
+            'mensaje_id' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
+        ]);
 
+        try {
             $usuario = $request->user();
             $chat = $chatService->obtenerChatVecinal();
 
@@ -734,10 +734,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@marcarLeido', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo actualizar el estado de lectura.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -749,16 +750,16 @@ class ChatApiController extends Controller
         Request $request,
         ChatService $chatService
     ): JsonResponse {
-        try {
-            $request->validate([
-                'emoji' => [
-                    'required',
-                    'string',
-                    'max:50',
-                    'in:👍,❤️,😂,😮,😢,🙏',
-                ],
-            ]);
+        $request->validate([
+            'emoji' => [
+                'required',
+                'string',
+                'max:50',
+                'in:👍,❤️,😂,😮,😢,🙏',
+            ],
+        ]);
 
+        try {
             $usuario = $request->user();
             $chat = $chatService->obtenerChatVecinal();
 
@@ -833,10 +834,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@reaccion', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudo procesar la reacción.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -896,10 +898,11 @@ class ChatApiController extends Controller
             ]);
 
         } catch (Throwable $e) {
+            Log::error('Error en ChatApiController@reacciones', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudieron obtener las reacciones.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }

@@ -49,3 +49,8 @@ sigefiv_backup*
 
 __pycache__/
 *.py[cod]
+
+firebase_clean.json
+*firebase*.json
+debug_voz.wav
+**/archiv.txt

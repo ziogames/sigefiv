@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Log;
 use App\Services\ZoeN8nService;
 use App\Services\FcmService;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use App\Models\ZoeIncidencia;
 
 class ZoeController extends Controller
@@ -24,7 +23,6 @@ class ZoeController extends Controller
         try {
             $usuario = $request->user();
 
-            // Priorizar el seudónimo del vecino.
             $seudonimo = trim((string) ($usuario?->seudonimo ?? ''));
             $nombreReal = trim((string) ($usuario?->name ?? ''));
             $nombreZoe = $seudonimo !== ''
@@ -41,15 +39,13 @@ class ZoeController extends Controller
 
             Log::info('ZOE respuesta n8n', [
                 'status' => $response->status(),
-                'body' => $response->body(),
-                'json' => $response->json(),
+                'usuario_id' => $usuario?->id,
             ]);
 
             if ($response->failed()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudo obtener respuesta de ZOE.',
-                    'error' => $response->body(),
                 ], 502);
             }
 
@@ -73,15 +69,10 @@ class ZoeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al comunicarse con ZOE.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Genera un mensaje inteligente para la mascota ZOE
-     * y lo distribuye mediante FCM.
-     */
     public function mensajeMascota(
         Request $request,
         ZoeN8nService $zoeN8nService,
@@ -133,12 +124,9 @@ class ZoeController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            Log::error(
-                'Error generando mensaje de ZOE MASCOTA',
-                [
-                    'error' => $e->getMessage(),
-                ]
-            );
+            Log::error('Error generando mensaje de ZOE MASCOTA', [
+                'error' => $e->getMessage(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -159,25 +147,25 @@ class ZoeController extends Controller
                 ], 401);
             }
 
-            // Agrupamos directamente por conversacion_id de la tabla zoe_mensajes
             $conversaciones = DB::table('zoe_mensajes')
+                ->where('user_id', $usuario->id)
                 ->select('conversacion_id', DB::raw('MAX(created_at) as ultima_fecha'))
                 ->groupBy('conversacion_id')
                 ->orderBy('ultima_fecha', 'desc')
                 ->get()
-                ->map(function ($item) {
+                ->map(function ($item) use ($usuario) {
 
-                    // 1. Buscamos el primer mensaje del usuario que NO sea un evento automático
                     $primerMensaje = DB::table('zoe_mensajes')
+                        ->where('user_id', $usuario->id)
                         ->where('conversacion_id', $item->conversacion_id)
                         ->where('rol', 'user')
                         ->where('mensaje', 'NOT LIKE', 'evento_%')
                         ->orderBy('created_at', 'asc')
                         ->value('mensaje');
 
-                    // 2. Si no hay mensaje de usuario, buscamos el primer mensaje del asistente
                     if (!$primerMensaje) {
                         $primerMensaje = DB::table('zoe_mensajes')
+                            ->where('user_id', $usuario->id)
                             ->where('conversacion_id', $item->conversacion_id)
                             ->where('rol', 'assistant')
                             ->orderBy('created_at', 'asc')
@@ -193,7 +181,6 @@ class ZoeController extends Controller
                         $grupo = 'AYER';
                     }
 
-                    // 3. Título limpio para la tarjeta
                     $tituloLimpio = $primerMensaje;
                     if (!$tituloLimpio || str_starts_with($tituloLimpio, 'evento_')) {
                         $tituloLimpio = 'Conversación de ZOE';
@@ -220,7 +207,6 @@ class ZoeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el historial.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -230,18 +216,30 @@ class ZoeController extends Controller
         try {
             $usuarioId = $request->user()?->id;
 
-            // Obtenemos las calificaciones activas del usuario indexadas por el hash del mensaje
-            $feedbackUsuario = $usuarioId
-                ? DB::table('zoe_feedback')
-                    ->where('usuario_id', $usuarioId)
-                    ->whereIn('voto', ['positivo', 'negativo'])
-                    ->pluck('voto', 'mensaje_hash')
-                : collect();
+            if (!$usuarioId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado.',
+                ], 401);
+            }
 
             $mensajesDb = DB::table('zoe_mensajes')
                 ->where('conversacion_id', $conversacionId)
+                ->where('user_id', $usuarioId)
                 ->orderBy('created_at', 'asc')
                 ->get();
+
+            if ($mensajesDb->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Conversación no encontrada o sin acceso.',
+                ], 404);
+            }
+
+            $feedbackUsuario = DB::table('zoe_feedback')
+                ->where('usuario_id', $usuarioId)
+                ->whereIn('voto', ['positivo', 'negativo'])
+                ->pluck('voto', 'mensaje_hash');
 
             $mensajesFormateados = $mensajesDb->map(function ($msg) use ($feedbackUsuario) {
                 $fecha = \Carbon\Carbon::parse($msg->created_at);
@@ -249,7 +247,6 @@ class ZoeController extends Controller
                 $calificacion = null;
 
                 if (!$esUsuario) {
-                    // Limpiamos el texto exactamente igual que en la app Android para que coincida el hash
                     $textoLimpio = preg_replace('/\[ASAMBLEA_ID:\d+\]/', '', str_replace('[REPORTE_DIRECTIVA] ', '', $msg->mensaje));
                     $textoLimpio = trim(str_replace(['**', '__'], '', $textoLimpio));
 
@@ -277,6 +274,10 @@ class ZoeController extends Controller
             ]);
 
         } catch (\Throwable $e) {
+            Log::error('Error al cargar conversación de ZOE', [
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar la conversación.',
@@ -287,19 +288,15 @@ class ZoeController extends Controller
     public function enviarMensajeConArchivo(Request $request)
     {
         $request->validate([
-            'mensaje' => 'nullable|string',
-            'archivo' => 'nullable|file|max:15360',
+            'mensaje' => 'nullable|string|max:2000',
+            'archivo' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx,xls,xlsx|max:15360',
         ]);
 
         $rutaRelativa = null;
 
         if ($request->hasFile('archivo')) {
             $archivo = $request->file('archivo');
-
-            // Guardamos directamente en storage/app/public/chat_zoe
             $path = $archivo->store('chat_zoe', 'public');
-
-            // Ruta relativa para la BD (ej. storage/chat_zoe/xxx.jpg o chat_zoe/xxx.jpg)
             $rutaRelativa = $path;
         }
 
@@ -323,7 +320,7 @@ class ZoeController extends Controller
     public function calificarMensaje(Request $request)
     {
         $validated = $request->validate([
-            'mensaje_texto' => 'required|string',
+            'mensaje_texto' => 'required|string|max:5000',
             'voto'          => 'required|in:positivo,negativo,ninguno',
         ]);
 
