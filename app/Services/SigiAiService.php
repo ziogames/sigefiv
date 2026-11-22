@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Services\Sigi\SigiSecurityService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SigiAiService
 {
@@ -12,134 +13,55 @@ class SigiAiService
 
     private string $modelo;
 
+    private string $apiKey;
+
     private SigiMemoriaService $memoria;
 
     public function __construct(
         SigiMemoriaService $memoria
     ) {
-        $this->url =
-            rtrim(
-                env(
-                    'SIGI_AI_URL',
-                    'http://host.docker.internal:11434/api/chat'
-                ),
-                '/'
-            );
+        $this->url = rtrim(
+            (string) (config('services.groq.url') ?: env('SIGI_AI_URL', 'https://api.groq.com/openai/v1/chat/completions')),
+            '/'
+        );
 
-        $this->modelo =
-            env(
-                'SIGI_AI_MODEL',
-                'qwen2.5:3b'
-            );
+        $this->modelo = (string) (config('services.groq.model') ?: env('SIGI_AI_MODEL', 'openai/gpt-oss-20b'));
+
+        $this->apiKey = (string) (config('services.groq.api_key') ?: env('GROQ_API_KEY', ''));
 
         $this->memoria = $memoria;
     }
 
     /**
-     * Responde utilizando la memoria disponible de ZOE.
-     *
-     * El usuarioId es opcional para mantener compatibilidad
-     * con las llamadas existentes de clima, chistes y otras
-     * funciones internas.
+     * Responde utilizando la memoria disponible de ZOE mediante Groq.
      */
     public function responder(
         string $mensaje,
         string $instruccionesSistema = '',
         ?int $usuarioId = null
     ): ?string {
-
-        /*
-        |--------------------------------------------------------------------------
-        | SEGURIDAD ZOE
-        |--------------------------------------------------------------------------
-        |
-        | Las solicitudes sensibles se bloquean antes de llegar
-        | al modelo de inteligencia artificial.
-        |
-        */
-
-        if (
-            SigiSecurityService::esSolicitudSensible(
-                $mensaje
-            )
-        ) {
-
-            return
-                SigiSecurityService::respuestaSolicitudSensible();
+        if (SigiSecurityService::esSolicitudSensible($mensaje)) {
+            return SigiSecurityService::respuestaSolicitudSensible();
         }
 
+        if ($this->esConsultaAdministrativa($mensaje)) {
+            $usuario = $usuarioId ? User::find($usuarioId) : null;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Seguridad para información administrativa
-        |--------------------------------------------------------------------------
-        |
-        | La información de usuarios y roles solamente puede
-        | ser consultada por:
-        |
-        | - Administrador
-        | - Secretario
-        | - Tesorero
-        |
-        | Los usuarios Consulta no pueden acceder a esta
-        | información mediante ZOE.
-        |
-        */
-
-        if (
-            $this->esConsultaAdministrativa(
-                $mensaje
-            )
-        ) {
-
-            $usuario =
-                $usuarioId
-                    ? User::find($usuarioId)
-                    : null;
-
-
-            if (
-                !$usuario ||
-                !SigiSecurityService::puedeConsultarUsuarios(
-                    $usuario
-                )
-            ) {
-
-                return
-                    SigiSecurityService::respuestaSinPermisoUsuarios();
+            if (!$usuario || !SigiSecurityService::puedeConsultarUsuarios($usuario)) {
+                return SigiSecurityService::respuestaSinPermisoUsuarios();
             }
         }
 
+        if ($this->apiKey === '') {
+            Log::error('SigiAiService: GROQ_API_KEY no está configurada en .env / config/services.php');
+            return null;
+        }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Construir instrucciones principales
-        |--------------------------------------------------------------------------
-        */
+        $sistema = $this->instruccionesBase();
 
-        $sistema =
-            $this->instruccionesBase();
+        $contextoMemoria = $this->memoria->contexto($usuarioId);
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Recuperar memoria del usuario
-        |--------------------------------------------------------------------------
-        |
-        | Las memorias globales también estarán disponibles.
-        |
-        */
-
-        $contextoMemoria =
-            $this->memoria->contexto(
-                $usuarioId
-            );
-
-
-        if (
-            trim($contextoMemoria) !== ''
-        ) {
-
+        if (trim($contextoMemoria) !== '') {
             $sistema .= <<<PROMPT
 
 
@@ -181,24 +103,8 @@ FIN DE MEMORIA
 PROMPT;
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Agregar instrucciones específicas
-        |--------------------------------------------------------------------------
-        |
-        | Las instrucciones específicas pueden contener
-        | una fuente documental oficial proporcionada por
-        | SIGEFIV, por ejemplo un artículo de los estatutos.
-        |
-        */
-
-        if (
-            trim($instruccionesSistema) !== ''
-        ) {
-
+        if (trim($instruccionesSistema) !== '') {
             $sistema .=
-
                 "\n\n" .
                 "==============================\n" .
                 "INSTRUCCIONES ESPECÍFICAS DE LA CONSULTA\n" .
@@ -210,249 +116,121 @@ PROMPT;
                 "==============================";
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Enviar solicitud a Ollama
-        |--------------------------------------------------------------------------
-        */
-
         try {
-
-            $respuesta =
-                Http::timeout(120)
-                    ->acceptJson()
-                    ->post(
-                        $this->url,
+            $respuesta = Http::timeout(45)
+                ->withToken($this->apiKey)
+                ->acceptJson()
+                ->post($this->url, [
+                    'model' => $this->modelo,
+                    'temperature' => 0.1,
+                    'messages' => [
                         [
-                            'model' =>
-                                $this->modelo,
+                            'role' => 'system',
+                            'content' => $sistema,
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $mensaje,
+                        ],
+                    ],
+                ]);
 
-                            'stream' =>
-                                false,
-
-                            'messages' => [
-
-                                [
-                                    'role' =>
-                                        'system',
-
-                                    'content' =>
-                                        $sistema,
-                                ],
-
-                                [
-                                    'role' =>
-                                        'user',
-
-                                    'content' =>
-                                        $mensaje,
-                                ],
-                            ],
-                        ]
-                    );
-
-
-            if (
-                !$respuesta->successful()
-            ) {
+            if (!$respuesta->successful()) {
+                Log::warning('SigiAiService: respuesta HTTP no exitosa de Groq', [
+                    'status' => $respuesta->status(),
+                    'modelo' => $this->modelo,
+                    'body' => mb_substr($respuesta->body(), 0, 500, 'UTF-8'),
+                ]);
 
                 return null;
             }
 
+            $contenido = $respuesta->json('choices.0.message.content');
 
-            $contenido =
-                $respuesta->json(
-                    'message.content'
-                );
-
-
-            if (
-                !is_string($contenido) ||
-                trim($contenido) === ''
-            ) {
+            if (!is_string($contenido) || trim($contenido) === '') {
+                Log::warning('SigiAiService: contenido vacío devuelto por Groq', [
+                    'modelo' => $this->modelo,
+                ]);
 
                 return null;
             }
 
-
-            return trim(
-                $contenido
-            );
-
+            return trim($contenido);
         } catch (\Throwable $e) {
+            Log::error('SigiAiService: error de conexión con Groq', [
+                'modelo' => $this->modelo,
+                'error' => $e->getMessage(),
+            ]);
 
             return null;
         }
     }
 
-    /**
-     * Determinar si la pregunta intenta consultar
-     * información administrativa de usuarios o roles.
-     */
-    private function esConsultaAdministrativa(
-        string $mensaje
-    ): bool {
-
-        $texto =
-            mb_strtolower(
-                trim($mensaje),
-                'UTF-8'
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Consultas relacionadas con usuarios
-        |--------------------------------------------------------------------------
-        */
+    private function esConsultaAdministrativa(string $mensaje): bool
+    {
+        $texto = mb_strtolower(trim($mensaje), 'UTF-8');
 
         $patronesUsuarios = [
-
             'lista de usuarios',
-
             'listar usuarios',
-
             'lista usuarios',
-
             'listar los usuarios',
-
             'todos los usuarios',
-
             'todos mis usuarios',
-
             'usuarios del sistema',
-
             'usuarios registrados',
-
             'usuarios de sigefiv',
-
             'quienes son los usuarios',
-
             'quiénes son los usuarios',
-
             'que usuarios hay',
-
             'qué usuarios hay',
-
             'cuantos usuarios hay',
-
             'cuántos usuarios hay',
-
             'usuarios y sus roles',
-
             'usuarios con rol',
-
             'usuarios que tienen el rol',
-
         ];
 
-
-        foreach (
-            $patronesUsuarios as $patron
-        ) {
-
-            if (
-                str_contains(
-                    $texto,
-                    $patron
-                )
-            ) {
-
+        foreach ($patronesUsuarios as $patron) {
+            if (str_contains($texto, $patron)) {
                 return true;
             }
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Consultas relacionadas con roles
-        |--------------------------------------------------------------------------
-        */
 
         $patronesRoles = [
-
             'lista de roles',
-
             'listar roles',
-
             'todos los roles',
-
             'roles del sistema',
-
             'roles de los usuarios',
-
             'que roles existen',
-
             'qué roles existen',
-
             'cuantos roles existen',
-
             'cuántos roles existen',
-
             'quienes tienen el rol administrador',
-
             'quiénes tienen el rol administrador',
-
             'quienes son administradores',
-
             'quiénes son administradores',
-
             'usuarios administrador',
-
             'usuarios tesorero',
-
             'usuarios secretario',
-
         ];
 
-
-        foreach (
-            $patronesRoles as $patron
-        ) {
-
-            if (
-                str_contains(
-                    $texto,
-                    $patron
-                )
-            ) {
-
+        foreach ($patronesRoles as $patron) {
+            if (str_contains($texto, $patron)) {
                 return true;
             }
         }
-
 
         return false;
     }
 
     /**
-     * Comprueba si Ollama está disponible.
+     * Comprueba si Groq está disponible.
      */
     public function disponible(): bool
     {
-        try {
-
-            $url =
-                str_replace(
-                    '/api/chat',
-                    '/api/tags',
-                    $this->url
-                );
-
-
-            $respuesta =
-                Http::timeout(5)
-                    ->acceptJson()
-                    ->get($url);
-
-
-            return $respuesta->successful();
-
-        } catch (\Throwable $e) {
-
-            return false;
-        }
+        return $this->apiKey !== '';
     }
 
     /**

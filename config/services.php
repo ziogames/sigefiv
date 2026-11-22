@@ -161,8 +161,8 @@ return [
             'N8N_ZOE_CHAT_WEBHOOK_URL',
             'http://host.docker.internal:5678/webhook/zoe-chat-vecinal'
         ),
-         'webhook_sinonimos' => env('N8N_WEBHOOK_SINONIMOS_URL'),
-    'webhook_descripcion' => env('N8N_WEBHOOK_DESCRIPCION_URL'),
+        'webhook_sinonimos' => env('N8N_WEBHOOK_SINONIMOS_URL'),
+        'webhook_descripcion' => env('N8N_WEBHOOK_DESCRIPCION_URL'),
 
     ],
 
@@ -172,6 +172,18 @@ return [
 
     'zoe_ai' => [
         'key' => env('ZOE_AI_KEY'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Groq - ZOE / Estatutos
+    |--------------------------------------------------------------------------
+    */
+
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+        'url' => env('SIGI_AI_URL', 'https://api.groq.com/openai/v1/chat/completions'),
+        'model' => env('SIGI_AI_MODEL', 'openai/gpt-oss-20b'),
     ],
 
 ];
