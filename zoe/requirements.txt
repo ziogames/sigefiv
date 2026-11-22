@@ -1,8 +1,9 @@
 fastapi
 uvicorn[standard]
+pydantic
 numpy
 soundfile
 faster-whisper
 supertonic
 ollama
-onnxruntime-gpu
+onnxruntime

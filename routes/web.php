@@ -36,6 +36,72 @@ Route::get('/', function () {
 
 /*
 |--------------------------------------------------------------------------
+| PÁGINAS LEGALES PÚBLICAS (Requeridas por Meta / Google Play)
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/privacidad', function () {
+    return response('
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Política de Privacidad - SIGEFIV</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1e293b;">
+            <h1 style="color: #0f4c3a;">Política de Privacidad – SIGEFIV</h1>
+            <p><strong>SIGEFIV (Sistema de Gestión Financiera Vecinal - Grupo Residencial 21)</strong> recopila únicamente el nombre, correo electrónico y fotografía de perfil proporcionados mediante el inicio de sesión social (Google o Facebook) con el fin de identificar al vecino dentro de su comunidad.</p>
+            <p>Estos datos se utilizan exclusivamente para la gestión vecinal, control de aportes, registro de asistencia en asambleas y comunicación interna, y nunca se comparten, venden ni comercializan con terceros.</p>
+            <p><strong>Contacto:</strong> freddy8301@outlook.com</p>
+        </body>
+        </html>
+    ', 200)->header('Content-Type', 'text/html');
+})->name('legal.privacidad');
+
+Route::get('/condiciones', function () {
+    return response('
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Condiciones del Servicio - SIGEFIV</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1e293b;">
+            <h1 style="color: #0f4c3a;">Condiciones del Servicio – SIGEFIV</h1>
+            <p>El acceso a SIGEFIV está destinado exclusivamente a los residentes y miembros autorizados del Grupo Residencial 21.</p>
+            <p>El uso de la plataforma implica la aceptación de las normas internas de convivencia, respeto en el chat comunitario y transparencia financiera establecidas por la junta vecinal.</p>
+        </body>
+        </html>
+    ', 200)->header('Content-Type', 'text/html');
+})->name('legal.condiciones');
+
+Route::get('/eliminar-datos', function () {
+    return response('
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Eliminación de Datos de Usuario - SIGEFIV</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1e293b;">
+            <h1 style="color: #0f4c3a;">Instrucciones para la Eliminación de Datos de Usuario</h1>
+            <p>Si deseas eliminar tu cuenta y los datos asociados obtenidos mediante Facebook o Google en <strong>SIGEFIV</strong>, sigue estos pasos:</p>
+            <ol>
+                <li>Envía un correo electrónico a <strong>freddy8301@outlook.com</strong> con el asunto <em>"Eliminación de cuenta SIGEFIV"</em> indicando tu nombre completo y el correo registrado.</li>
+                <li>De forma adicional, puedes revocar el acceso de la aplicación desde tu cuenta de Facebook en <em>Configuración y privacidad &gt; Configuración &gt; Apps y sitios web</em>.</li>
+            </ol>
+            <p>Tu solicitud será procesada y confirmada en un plazo máximo de 48 horas.</p>
+        </body>
+        </html>
+    ', 200)->header('Content-Type', 'text/html');
+})->name('legal.eliminar_datos');
+
+
+/*
+|--------------------------------------------------------------------------
 | CITACIÓN PÚBLICA DE ASAMBLEA
 |--------------------------------------------------------------------------
 |
@@ -136,12 +202,12 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-  Route::get(
-    '/chat',
-    [ChatController::class, 'index']
-)
-    ->name('chat.index')
-    ->middleware('permission:chat.index');
+    Route::get(
+        '/chat',
+        [ChatController::class, 'index']
+    )
+        ->name('chat.index')
+        ->middleware('permission:chat.index');
 
 
     Route::post(
@@ -355,12 +421,12 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-  Route::post(
-    '/periodos/{periodo}/cerrar',
-    [PeriodoController::class, 'cerrar']
-)
-    ->name('periodos.cerrar')
-    ->middleware('permission:periodos.cerrar');
+    Route::post(
+        '/periodos/{periodo}/cerrar',
+        [PeriodoController::class, 'cerrar']
+    )
+        ->name('periodos.cerrar')
+        ->middleware('permission:periodos.cerrar');
 
 
     /*

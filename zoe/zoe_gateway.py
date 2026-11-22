@@ -279,6 +279,12 @@ class ZOEAIEngine:
         texto = RE_SEMICOLON.sub("; ", texto)
         texto = RE_SALUDO.sub(r"\1\2... ", texto)
         texto = RE_PREGUNTA.sub("... ¿", texto)
+        texto = re.sub(r"[-–—•*]+", " ", texto)
+        texto = re.sub(r"[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ¿?¡!.,;:()\x27\"\s]", " ", texto)
+        texto = re.sub(r"\.{2,}", ".", texto)
+        texto = re.sub(r"([:.]\s*)menos\b", r"\1", texto, flags=re.IGNORECASE)
+        texto = re.sub(r"\bmenos\s+(?=[A-ZÁÉÍÓÚÑ])", "", texto)
+        texto = re.sub(r"\bSIGIVF\b", "SIGEFIV", texto, flags=re.IGNORECASE)
         return RE_ESPACIOS.sub(" ", texto).strip()
 
     def _sintetizar_bytes_sync(self, texto: str) -> bytes:

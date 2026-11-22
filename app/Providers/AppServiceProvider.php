@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Pagination\Paginator;
 use App\Models\Configuracion;
 use App\Models\Movimiento;
@@ -25,10 +26,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         Paginator::useBootstrapFive();
 
         // 🔍 Registrar Observer para auditoría de ingresos y egresos
-       // Movimiento::observe(MovimientoObserver::class);
+        // Movimiento::observe(MovimientoObserver::class);
 
         View::composer('*', function ($view) {
 
